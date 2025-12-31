@@ -1,0 +1,22 @@
+---
+// src/layouts/Base.astro
+import '../styles/global.css';
+const { title } = Astro.props;
+---
+<!DOCTYPE html>
+<html lang="es" class="bg-[#0b0e11]">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width" />
+    <title>{title}</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/img/logo.png" />
+    <link rel="icon" type="image/png" sizes="16x16" href="/img/logo.png" />
+    <link rel="apple-touch-icon" href="/img/logo.png" />
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body class="text-white antialiased">
+    <slot />
+</body>
+</html>

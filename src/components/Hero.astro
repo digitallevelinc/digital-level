@@ -1,0 +1,70 @@
+---
+// src/components/Hero.astro
+---
+<section id="home" class="relative pt-24 pb-16 md:pt-32 md:pb-20 px-6 overflow-hidden bg-[#0b0e11] min-h-[90vh] lg:min-h-[80vh] flex items-center">
+    <div class="absolute top-0 right-0 w-full lg:w-1/2 h-full bg-[#F3BA2F]/5 blur-[120px] -z-10"></div>
+
+    <div class="max-w-7xl mx-auto w-full">
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12 items-center">
+            
+            <div class="relative order-1 lg:order-2 flex justify-center items-center">
+                <div class="absolute w-[70%] h-[70%] bg-[#F3BA2F]/10 rounded-full blur-3xl animate-pulse"></div>
+                
+                <img 
+                    src="/img/nav.png" 
+                    alt="Digital Level Vigilante Inteligente" 
+                    class="relative z-10 w-full max-w-[300px] md:max-w-[450px] lg:max-w-[550px] h-auto object-contain drop-shadow-[0_0_30px_rgba(243,186,47,0.2)] animate-float"
+                />
+            </div>
+
+            <div class="text-center lg:text-left order-2 lg:order-1 space-y-6 md:space-y-8">
+                <h1 class="text-4xl md:text-7xl lg:text-8xl font-black text-white leading-[1.1] lg:leading-[0.9] tracking-tighter uppercase">
+                    Tu Vigilante <br class="hidden md:block"> Inteligente <br> 
+                    <span class="text-[#F3BA2F]">en Binance</span>
+                </h1>
+                
+                <p class="text-lg md:text-2xl text-gray-400 max-w-xl mx-auto lg:mx-0 leading-relaxed">
+                    Ecosistema de Monitoreo P2P Profesional. La claridad que tu operación necesita, la seguridad que tu capital exige.
+                </p>
+
+                <div class="flex flex-col sm:flex-row justify-center lg:justify-start gap-4 pt-4">
+                    <a 
+                        href="http://216.238.120.182:3002/" 
+                        target="_blank"
+                        class="bg-[#F3BA2F] text-black px-8 py-4 rounded-xl font-extrabold text-lg hover:scale-105 transition-all shadow-[0_0_30px_rgba(243,186,47,0.3)] flex items-center justify-center gap-2"
+                    >
+                        <i class="fas fa-shield-halved text-xl"></i>
+                        BINANCE SENTINEL
+                    </a>
+
+                    <a 
+                        href="#features" 
+                        class="border border-gray-700 text-white px-8 py-4 rounded-xl font-bold text-lg hover:bg-white/5 transition-all text-center"
+                    >
+                        Ver Funciones
+                    </a>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</section>
+
+<style>
+    /* Animación de flotación suave */
+    @keyframes float {
+        0% { transform: translateY(0px) rotate(0deg); }
+        50% { transform: translateY(-15px) rotate(1deg); }
+        100% { transform: translateY(0px) rotate(0deg); }
+    }
+    .animate-float {
+        animation: float 5s ease-in-out infinite;
+    }
+
+    /* Ajustes específicos para mobile */
+    @media (max-width: 1023px) {
+        h1 {
+            word-spacing: 2px;
+        }
+    }
+</style>

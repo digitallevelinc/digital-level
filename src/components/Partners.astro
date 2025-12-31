@@ -1,0 +1,33 @@
+---
+// src/components/Partners.astro
+const partners = [
+  { name: "Mercantil", logo: "https://upload.wikimedia.org/wikipedia/commons/e/e0/Mercantil_Banco_logo.png" },
+  { name: "Banesco", logo: "https://upload.wikimedia.org/wikipedia/commons/thumb/e/e3/Logo_Banesco.svg/2560px-Logo_Banesco.svg.png" },
+  { name: "Binance P2P", logo: "https://upload.wikimedia.org/wikipedia/commons/thumb/e/e8/Binance_Logo.svg/1000px-Binance_Logo.svg.png" },
+  { name: "Telegram Bot", logo: "https://upload.wikimedia.org/wikipedia/commons/thumb/8/82/Telegram_logo.svg/2048px-Telegram_logo.svg.png" },
+  { name: "Google Sheets", logo: "https://upload.wikimedia.org/wikipedia/commons/thumb/3/30/Google_Sheets_logo_%282014-2020%29.svg/1498px-Google_Sheets_logo_%282014-2020%29.svg.png" }
+];
+---
+
+<section id="partners" class="py-16 bg-[#0b0e11] border-y border-gray-800/50">
+    <div class="max-w-7xl mx-auto px-6">
+        <p class="text-center text-gray-500 font-bold uppercase tracking-widest text-sm mb-10">
+            Sincronización directa con los métodos más usados
+        </p>
+        
+        <div class="flex flex-wrap justify-center items-center gap-12 md:gap-20 opacity-60">
+            {partners.map(partner => (
+                <img 
+                    src={partner.logo} 
+                    alt={partner.name} 
+                    title={partner.name}
+                    class="h-8 md:h-10 object-contain grayscale hover:grayscale-0 hover:scale-110 transition-all cursor-help"
+                />
+            ))}
+        </div>
+        
+        <p class="text-center text-gray-400 text-xs mt-10 italic">
+            *Digital Level actúa como un rastreador administrativo independiente (Tracker).
+        </p>
+    </div>
+</section>

@@ -1,0 +1,79 @@
+---
+// src/components/Features.astro
+const services = [
+  {
+    title: "Sincronización Total",
+    description: "Cero intervención manual. Registro automático de compras y ventas de USDT en tiempo real.",
+    icon: "fa-sync-alt",
+    waMsg: "Hola! Me interesa la Sincronización Total para mi registro de operaciones."
+  },
+  {
+    title: "Seguridad Blindada",
+    description: "Auditoría de integridad permanente y protección mediante firewalls y protocolos de acceso restringido.",
+    icon: "fa-shield-alt",
+    waMsg: "Hola! Solicito información sobre los protocolos de Seguridad y auditoría."
+  },
+  {
+    title: "Insights Reales",
+    description: "Gráficos de rendimiento y exportación profesional a Google Sheets para un control financiero total.",
+    icon: "fa-chart-pie",
+    waMsg: "Hola! Me gustaría ver cómo funcionan los Insights Reales y la exportación a Sheets."
+  },
+  {
+    title: "Vigilancia P2P",
+    description: "Monitoreo milimétrico de cada operación con notificaciones instantáneas vía Telegram o Discord.",
+    icon: "fa-eye",
+    waMsg: "Hola! Quiero configurar la Vigilancia P2P con alertas en tiempo real."
+  },
+  {
+    title: "Gestión de Operadores",
+    description: "Control absoluto sobre tu equipo de trabajo, eliminando la carga administrativa y protegiendo tu capital.",
+    icon: "fa-users-cog",
+    waMsg: "Hola! Tengo un equipo de operadores y quiero usar su sistema de Gestión."
+  },
+  {
+    title: "Transparencia Total",
+    description: "Sistema tipo 'Tracker' que organiza la información de tu Binance sin acceso a contraseñas ni 2FA.",
+    icon: "fa-search-dollar",
+    waMsg: "Hola! Me interesa el sistema Tracker para tener Transparencia Total en mis cuentas."
+  }
+];
+
+const waNumber = "584120000000"; // PON AQUÍ TU NÚMERO REAL
+---
+
+<section id="features" class="py-24 bg-[#0b0e11] relative">
+    <div class="max-w-7xl mx-auto px-6">
+        <div class="text-center mb-16">
+            <h2 class="text-4xl md:text-5xl font-black text-white mb-4 uppercase">
+                Nuestras <span class="text-[#F3BA2F]">Soluciones</span>
+            </h2>
+            <p class="text-gray-400 max-w-2xl mx-auto text-lg">
+                Diseñadas específicamente para eliminar la carga administrativa y profesionalizar tu arbitraje P2P.
+            </p>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {services.map(service => (
+                <div class="bg-[#1e2329] p-8 rounded-2xl border border-gray-800 hover:border-[#F3BA2F]/50 transition-all group flex flex-col h-full">
+                    <div class="w-14 h-14 bg-[#F3BA2F]/10 rounded-lg flex items-center justify-center mb-6 group-hover:bg-[#F3BA2F] transition-colors">
+                        <i class={`fas ${service.icon} text-2xl text-[#F3BA2F] group-hover:text-black`}></i>
+                    </div>
+                    <h3 class="text-xl font-bold text-white mb-3 uppercase tracking-tighter">{service.title}</h3>
+                    <p class="text-gray-400 leading-relaxed text-sm mb-8 flex-grow">
+                        {service.description}
+                    </p>
+                    
+                    <a 
+                        href={`https://wa.me/${waNumber}?text=${encodeURIComponent(service.waMsg)}`}
+                        target="_blank"
+                        class="w-full py-3 px-4 bg-transparent border border-[#F3BA2F] text-[#F3BA2F] rounded-xl font-bold text-sm hover:bg-[#F3BA2F] hover:text-black transition-all text-center flex items-center justify-center gap-2 group-hover:shadow-[0_0_15px_rgba(243,186,47,0.2)]"
+                    >
+                        CONSULTAR {service.title}
+                        <i class="fab fa-whatsapp"></i>
+                    </a>
+                </div>
+            ))}
+        </div>
+    </div>
+</section>

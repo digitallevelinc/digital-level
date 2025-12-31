@@ -1,0 +1,43 @@
+---
+// src/components/WhatsAppBot.astro
+const PHONE = "14482045"; // El número de tu referencia
+---
+
+<style>
+  @keyframes wiggle {
+    0%, 100% { transform: rotate(0deg); }
+    15% { transform: rotate(-8deg); }
+    30% { transform: rotate(8deg); }
+    45% { transform: rotate(-6deg); }
+    60% { transform: rotate(4deg); }
+    75% { transform: rotate(-2deg); }
+  }
+  .wiggle {
+    animation: wiggle 0.5s ease-in-out;
+  }
+</style>
+
+<a
+  id="chat-fab"
+  href={`https://wa.me/${PHONE}?text=Hola%20Digital%20Level,%20necesito%20información%20sobre%20el%20sistema.`}
+  target="_blank"
+  rel="noopener noreferrer"
+  aria-label="Chatea por WhatsApp"
+  class="fixed z-[99] right-6 bottom-6 flex items-center gap-2
+         bg-[#25D366] text-white px-5 py-3 rounded-full shadow-[0_0_20px_rgba(37,211,102,0.3)]
+         transition-transform hover:scale-110 active:scale-95 group"
+>
+  <i class="fab fa-whatsapp text-2xl group-hover:scale-110 transition-transform"></i>
+
+  <span class="font-bold tracking-wide">WhatsApp</span>
+</a>
+
+<script>
+  const el = document.getElementById("chat-fab");
+  if (el) {
+    setInterval(() => {
+      el.classList.add("wiggle");
+      setTimeout(() => el.classList.remove("wiggle"), 600);
+    }, 5000);
+  }
+</script>

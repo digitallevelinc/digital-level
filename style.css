@@ -1,0 +1,43 @@
+.live-status { padding: 80px 0; background: var(--dark); }
+.section-subtitle { text-align: center; color: var(--text-gray); margin-top: -40px; margin-bottom: 40px; }
+
+.table-container {
+    background: var(--card-bg);
+    padding: 20px;
+    border-radius: 15px;
+    border: 1px solid #2b3139;
+    overflow-x: auto;
+}
+
+table { width: 100%; border-collapse: collapse; text-align: left; }
+th { color: var(--primary); padding: 15px; border-bottom: 1px solid #2b3139; font-size: 0.9rem; }
+td { padding: 15px; border-bottom: 1px solid #2b3139; font-size: 0.85rem; }
+
+.amt { font-weight: bold; color: #fff; }
+.status-pill {
+    background: rgba(3, 166, 109, 0.2);
+    color: #03a66d;
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 0.75rem;
+    font-weight: bold;
+}
+
+/* Efecto de pulso para simular "Vivo" */
+.live-status h2::before {
+    content: '';
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    background: #03a66d;
+    border-radius: 50%;
+    margin-right: 10px;
+    box-shadow: 0 0 8px #03a66d;
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0% { opacity: 1; }
+    50% { opacity: 0.3; }
+    100% { opacity: 1; }
+}
