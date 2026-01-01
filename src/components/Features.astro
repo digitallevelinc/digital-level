@@ -2,67 +2,150 @@
 // src/components/Features.astro
 const services = [
   {
-    title: "Sincronización Total",
-    description: "Olvida la intervención manual. Logra un registro automático de tus compras y ventas de USDT/FIAT en tiempo real. Mantén el control absoluto de tu P2P y Arbitraje sin errores.",
-    icon: "fa-sync-alt",
-    waMsg: "Hola! Me interesa la Sincronización Total para mi registro de operaciones."
-  },
-  {
-    title: "Seguridad Blindada",
-    description: "Auditoría de integridad permanente y protección mediante firewalls y protocolos de acceso restringido.",
-    icon: "fa-shield-alt",
-    waMsg: "Hola! Solicito información sobre los protocolos de Seguridad y auditoría."
-  },
-  {
-    title: "Insights Reales",
-    description: "Gráficos de rendimiento y exportación profesional a Google Sheets para un control financiero total.",
-    icon: "fa-chart-pie",
-    waMsg: "Hola! Me gustaría ver cómo funcionan los Insights Reales y la exportación a Sheets."
-  },
-  {
+    id: "vigilancia",
     title: "Vigilancia P2P",
-    description: "Monitoreo milimétrico de cada operación con notificaciones instantáneas vía Telegram o Discord.",
+    description: "Monitoreo milimétrico del mercado. Recibe notificaciones instantáneas vía Telegram o Discord sobre cambios de precio y movimientos de la competencia.",
     icon: "fa-eye",
-    waMsg: "Hola! Quiero configurar la Vigilancia P2P con alertas en tiempo real."
+    waMsg: "Hola! Quiero configurar la Vigilancia P2P con alertas en tiempo real.",
+    hasPreview: true
   },
   {
+    id: "sincronizacion",
+    title: "Sincronizacion En Google Sheets",
+    description: "Olvida la intervención manual. Logra registros automáticos del P2P USDT/FIAT, Binance Pay, Transfers y mas en tiempo real. Mantén el control absoluto de tu arbitraje sin errores.",
+    icon: "fa-sync-alt",
+    waMsg: "Hola! Me interesa la Sincronización en Spreadsheets para mi registro de operaciones.",
+    hasPreview: true 
+  },
+  {
+    id: "seguridad",
+    title: "Seguridad Blindada",
+    description: "Protección de nivel bancario para tu capital. Protocolos de acceso restringido y auditorías de integridad permanentes al operador, permitiéndote delegar tu operativa sin exponerte nunca a fugas de capital, credenciales o llaves 2FA.",
+    icon: "fa-shield-alt",
+    waMsg: "Hola! Solicito información sobre los protocolos de Seguridad y auditoría.",
+    hasPreview: true
+  },
+  {
+    id: "insights",
+    title: "Insights Reales",
+    description: "Toma decisiones como comerciante p2p basadas en datos, no en suposiciones. Visualiza tu rentabilidad del P2P neta con gráficos profesionales para un control total de tu spread, ROI y Arbitraje en tiempo real.",
+    icon: "fa-chart-pie",
+    waMsg: "Hola! Me gustaría ver cómo funcionan los Insights Reales y la exportación a Sheets.",
+    hasPreview: true
+  },
+  {
+    id: "gestion",
     title: "Gestión de Operadores",
-    description: "Control absoluto sobre tu equipo de trabajo, eliminando la carga administrativa y protegiendo tu capital.",
+    description: "Escala tu negocio delegando con confianza. Control absoluto sobre tu equipo de trabajo, protegiendo tus credenciales y monitoreando cada movimiento.",
     icon: "fa-users-cog",
-    waMsg: "Hola! Tengo un equipo de operadores y quiero usar su sistema de Gestión."
+    waMsg: "Hola! Tengo un equipo de operadores y quiero usar su sistema de Gestión.",
+    hasPreview: true
   },
   {
+    id: "transparencia",
     title: "Transparencia Total",
-    description: "Sistema tipo 'Tracker' que organiza la información de tu Binance sin acceso a contraseñas ni 2FA.",
+    description: "Sistema 'Tracker' avanzado. Organiza y audita la información de tu cuenta de Binance sin comprometer contraseñas ni claves 2FA.",
     icon: "fa-search-dollar",
-    waMsg: "Hola! Me interesa el sistema Tracker para tener Transparencia Total en mis cuentas."
+    waMsg: "Hola! Me interesa el sistema Tracker para tener Transparencia Total en mis cuentas.",
+    hasPreview: true
   }
 ];
 
-const waNumber = "584120000000"; // PON AQUÍ TU NÚMERO REAL
+const waNumber = "584120000000"; 
 ---
 
-<section id="features" class="py-24 bg-[#0b0e11] relative">
+<section id="features" class="py-24 bg-[#0b0e11] relative" x-data="{ openPreview: null }">
     <div class="max-w-7xl mx-auto px-6">
         <div class="text-center mb-16">
             <h2 class="text-4xl md:text-5xl font-black text-white mb-4 uppercase">
                 Nuestras <span class="text-[#F3BA2F]">Soluciones</span>
             </h2>
             <p class="text-gray-400 max-w-2xl mx-auto text-lg">
-                Tu estrategia de arbitraje con soluciones para comerciar en  P2P. Automatiza tus operaciones para escalar ganancias en Binance y dominar con datos en tiempo real.
+                Optimizamos tu <strong>estrategia de arbitraje</strong> con soluciones integrales para el <strong>comerciante P2P</strong>. Automatiza tu operativa para escalar tus ganancias en Binance.
             </p>
         </div>
 
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {services.map(service => (
-                <div class="bg-[#1e2329] p-8 rounded-2xl border border-gray-800 hover:border-[#F3BA2F]/50 transition-all group flex flex-col h-full">
+                <div class="bg-[#1e2329] p-8 rounded-2xl border border-gray-800 hover:border-[#F3BA2F]/50 transition-all group flex flex-col h-full relative overflow-hidden">
                     <div class="w-14 h-14 bg-[#F3BA2F]/10 rounded-lg flex items-center justify-center mb-6 group-hover:bg-[#F3BA2F] transition-colors">
                         <i class={`fas ${service.icon} text-2xl text-[#F3BA2F] group-hover:text-black`}></i>
                     </div>
+                    
                     <h3 class="text-xl font-bold text-white mb-3 uppercase tracking-tighter">{service.title}</h3>
-                    <p class="text-gray-400 leading-relaxed text-sm mb-8 flex-grow">
+                    
+                    <p class="text-gray-400 leading-relaxed text-sm mb-6 flex-grow">
                         {service.description}
                     </p>
+
+                    {service.hasPreview && (
+                        <div class="mb-6">
+                            <button 
+                                @click={`openPreview === '${service.id}' ? openPreview = null : openPreview = '${service.id}'`}
+                                class="text-[#F3BA2F] text-xs font-bold uppercase tracking-widest flex items-center gap-2 hover:underline"
+                            >
+                                <span x-text={`openPreview === '${service.id}' ? 'Ocultar Detalle' : 'Ver Prueba Visual'`}></span>
+                                <i class="fas fa-chevron-down transition-transform" :class={`openPreview === '${service.id}' ? 'rotate-180' : ''`}></i>
+                            </button>
+
+                            <div 
+                                x-show={`openPreview === '${service.id}'`} 
+                                x-collapse
+                                class="mt-4 space-y-4 bg-black/30 p-4 rounded-xl border border-white/5"
+                            >
+                                {service.id === 'sincronizacion' && (
+                                    <div class="space-y-2">
+                                        <span class="text-[10px] text-[#F3BA2F] font-bold uppercase">Sincroniza en google sheets</span>
+                                        <img src="/img/sheets.png" alt="Bot P2P" class="rounded border border-gray-700 w-full" />
+                                    </div>
+                                )}
+
+                                {service.id === 'seguridad' && (
+                                    <div class="space-y-2">
+                                        <span class="text-[10px] text-[#F3BA2F] font-bold uppercase">Auditoría Operativa</span>
+                                        <img src="/img/auditoria.png" alt="Auditoria de Seguridad" class="rounded border border-gray-700 w-full" />
+                                    </div>
+                                )}
+
+                                {service.id === 'insights' && (
+                                    <div class="space-y-2">
+                                        <span class="text-[10px] text-[#F3BA2F] font-bold uppercase">Métricas de Rentabilidad</span>
+                                        <img src="/img/insights.png" alt="Gráficos de rendimiento" class="rounded border border-gray-700 w-full" />
+                                    </div>
+                                )}
+
+                                {service.id === 'vigilancia' && (
+                                    <div class="space-y-2">
+                                        <span class="text-[10px] text-[#F3BA2F] font-bold uppercase">Monitoreo P2P</span>
+                                        <video 
+                                            src="/img/monitoreo.mp4" 
+                                            autoplay 
+                                            loop 
+                                            muted 
+                                            playsinline 
+                                            class="rounded border border-gray-700 w-full shadow-lg"
+                                        >
+                                            Tu navegador no soporta videos.
+                                        </video>
+                                    </div>
+                                )}
+
+                                {service.id === 'gestion' && (
+                                    <div class="space-y-2">
+                                        <span class="text-[10px] text-[#F3BA2F] font-bold uppercase">Panel de Operadores</span>
+                                        <img src="/img/gestion.png" alt="Gestión de equipo" class="rounded border border-gray-700 w-full" />
+                                    </div>
+                                )}
+
+                                {service.id === 'transparencia' && (
+                                    <div class="space-y-2">
+                                        <span class="text-[10px] text-[#F3BA2F] font-bold uppercase">Tracker de Cuentas</span>
+                                        <img src="/img/transparencia.png" alt="Tracker P2P" class="rounded border border-gray-700 w-full" />
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    )}
                     
                     <a 
                         href={`https://wa.me/${waNumber}?text=${encodeURIComponent(service.waMsg)}`}
