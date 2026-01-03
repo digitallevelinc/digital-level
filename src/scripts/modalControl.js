@@ -58,8 +58,6 @@ export function initModalLogic() {
         if (!modal) return;
         modal.classList.replace('flex', 'hidden');
         document.body.style.overflow = 'auto';
-        // Recargar la página al cerrar para resetear el estado del modal si se desea
-        // window.location.reload(); 
     };
 
     // --- SETUP DE EVENTOS ---
@@ -75,7 +73,6 @@ export function initModalLogic() {
     }
 
     if (form) {
-        // Validación en tiempo real
         form.querySelectorAll('input').forEach(input => {
             input.oninput = (e) => {
                 const { name, value } = e.target;
@@ -93,12 +90,10 @@ export function initModalLogic() {
             };
         });
 
-        // SUBMIT
         form.onsubmit = (e) => {
             e.preventDefault();
             
             const formData = new FormData(form);
-            // Validamos manualmente cada campo para asegurar la UI
             const isFnOk = FormValidator.validateName(formData.get('firstname') || "").isValid;
             const isLnOk = FormValidator.validateName(formData.get('lastname') || "").isValid;
             const isEmOk = FormValidator.validateEmail(formData.get('email') || "");
@@ -112,26 +107,24 @@ export function initModalLogic() {
             if (isFnOk && isLnOk && isEmOk && isPhOk) {
                 const { submitBtn, header } = getElements();
                 
-                // 1. Loading state
                 submitBtn.disabled = true;
                 submitBtn.innerHTML = '<i class="fas fa-circle-notch animate-spin text-lg"></i>';
 
+                // Solo agregamos el campo 'phone' a lo que ya tenías
                 const orderData = {
                     name: `${formData.get('firstname')} ${formData.get('lastname')}`,
                     email: formData.get('email'),
+                    phone: formData.get('phone'), // <--- Agregado para WhatsApp
                     plan: formData.get('selected_plan') || "Pro",
                     orderId: 'DL-' + Math.random().toString(36).substr(2, 5).toUpperCase()
                 };
 
-                // 2. Transición
                 setTimeout(() => {
+                    // Ocultamos el header y reemplazamos el form con el recibo
                     if (header) header.classList.add('hidden');
-                    // Reemplazamos el contenido del form con el recibo
                     CheckoutUI.renderReceipt(form, orderData);
                 }, 1000);
 
-            } else {
-                console.error("Formulario incompleto o inválido");
             }
         };
     }
