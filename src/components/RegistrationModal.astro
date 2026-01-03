@@ -1,0 +1,99 @@
+---
+// src/components/RegistrationModal.astro
+const { selectedPlan = "Pro" } = Astro.props;
+---
+
+<div id="registration-modal" class="fixed inset-0 z-[200] hidden items-center justify-center p-0 md:p-4 overflow-y-auto bg-[#0b0e11]">
+    <div class="fixed inset-0 bg-[#0b0e11]/95" onclick="window.closeModal()"></div>
+
+    <div class="relative w-full max-w-2xl min-h-screen md:min-h-0 bg-[#1e2329]/60 backdrop-blur-2xl md:border md:border-gray-800 md:rounded-3xl shadow-2xl overflow-hidden flex flex-col my-auto animate-in fade-in zoom-in duration-300">
+        
+        <div class="p-6 border-b border-gray-800/50 flex justify-between items-center bg-[#1e2329]/40">
+            <div class="flex items-center gap-2">
+                <img src="/img/logo.png" class="h-7 w-auto" alt="Logo" />
+                <span class="text-white font-black tracking-tighter text-xl uppercase">DIGITAL<span class="text-[#F3BA2F]">LEVEL</span></span>
+            </div>
+            <button onclick="window.closeModal()" class="text-gray-500 hover:text-white transition-colors">
+                <i class="fas fa-times text-xl"></i>
+            </button>
+        </div>
+
+        <div class="p-8 md:p-10 flex-grow">
+            <header class="mb-8 text-center md:text-left">
+                <h2 class="text-2xl md:text-3xl font-black text-white uppercase tracking-tighter">
+                    Activa tu <span class="text-[#F3BA2F]">Sentinel Admin</span>
+                </h2>
+            </header>
+
+            <form class="space-y-6" id="registration-form" novalidate>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div class="space-y-1">
+                        <label class="text-[10px] font-bold text-gray-500 uppercase tracking-widest ml-1">Nombre</label>
+                        <input type="text" name="firstname" class="w-full bg-[#0b0e11]/80 border border-gray-700 rounded-xl px-4 py-3.5 text-sm text-white focus:outline-none transition-all" />
+                        <span id="err-firstname" class="text-[9px] text-red-500 font-bold uppercase hidden ml-1">Requerido</span>
+                    </div>
+                    <div class="space-y-1">
+                        <label class="text-[10px] font-bold text-gray-500 uppercase tracking-widest ml-1">Apellido</label>
+                        <input type="text" name="lastname" class="w-full bg-[#0b0e11]/80 border border-gray-700 rounded-xl px-4 py-3.5 text-sm text-white focus:outline-none transition-all" />
+                        <span id="err-lastname" class="text-[9px] text-red-500 font-bold uppercase hidden ml-1">Requerido</span>
+                    </div>
+                    <div class="space-y-1">
+                        <label class="text-[10px] font-bold text-gray-500 uppercase tracking-widest ml-1">WhatsApp (con código de país)</label>
+                        <input type="tel" name="phone" placeholder="+123456789" class="w-full bg-[#0b0e11]/80 border border-gray-700 rounded-xl px-4 py-3.5 text-sm text-white focus:outline-none transition-all" />
+                        <span id="err-phone" class="text-[9px] text-red-500 font-bold uppercase hidden ml-1">Número inválido</span>
+                    </div>
+                    <div class="space-y-1">
+                        <label class="text-[10px] font-bold text-gray-500 uppercase tracking-widest ml-1">Email</label>
+                        <input type="email" name="email" class="w-full bg-[#0b0e11]/80 border border-gray-700 rounded-xl px-4 py-3.5 text-sm text-white focus:outline-none transition-all" />
+                        <span id="err-email" class="text-[9px] text-red-500 font-bold uppercase hidden ml-1">Email inválido</span>
+                    </div>
+                </div>
+
+                <div class="space-y-3">
+                    <label class="text-[10px] font-bold text-gray-500 uppercase tracking-widest block ml-1">Confirmar Plan</label>
+                    <div class="grid grid-cols-3 gap-2">
+                        {['Básico', 'Pro', 'VIP'].map((plan) => (
+                            <button type="button" data-plan={plan} class="plan-btn py-3 rounded-xl font-black text-[10px] uppercase border transition-all bg-[#0b0e11]/50 border-gray-700 text-gray-500">
+                                {plan}
+                            </button>
+                        ))}
+                    </div>
+                    <input type="hidden" name="selected_plan" id="selected-plan-input" value={selectedPlan} />
+                </div>
+
+                <div class="space-y-3">
+                    <label class="text-[10px] font-bold text-gray-500 uppercase tracking-widest block ml-1">Método de Pago</label>
+                    <div class="grid grid-cols-3 gap-3">
+                        <div class="border-2 border-[#F3BA2F] bg-[#F3BA2F]/5 rounded-xl p-3 flex flex-col items-center gap-2">
+                            <i class="fas fa-qrcode text-[#F3BA2F]"></i>
+                            <span class="text-[9px] font-bold text-white uppercase">Binance Pay</span>
+                        </div>
+                        <div class="border border-gray-800 bg-gray-800/20 rounded-xl p-3 flex flex-col items-center gap-2 opacity-40 grayscale">
+                            <i class="fab fa-cc-visa text-gray-400"></i>
+                            <span class="text-[9px] font-bold text-gray-400 uppercase">Tarjeta</span>
+                        </div>
+                        <div class="border border-gray-800 bg-gray-800/20 rounded-xl p-3 flex flex-col items-center gap-2 opacity-40 grayscale">
+                            <i class="fab fa-paypal text-gray-400"></i>
+                            <span class="text-[9px] font-bold text-gray-400 uppercase">PayPal</span>
+                        </div>
+                    </div>
+                </div>
+
+                <button type="submit" id="submit-btn" class="w-full py-5 bg-[#F3BA2F] text-black font-black uppercase tracking-[0.2em] rounded-2xl hover:bg-[#ffc843] transition-all transform active:scale-95 shadow-xl shadow-[#F3BA2F]/20 text-xs">
+                    Generar Acceso y Pagar
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    import { initModalLogic } from '../scripts/modalControl.js';
+
+    function setup() {
+        initModalLogic();
+    }
+
+    document.addEventListener('DOMContentLoaded', setup);
+    document.addEventListener('astro:page-load', setup);
+</script>

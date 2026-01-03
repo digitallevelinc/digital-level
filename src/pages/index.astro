@@ -4,11 +4,12 @@ import Base from '../layouts/Base.astro';
 import Navbar from '../components/Navbar.astro';
 import Hero from '../components/Hero.astro';
 import Features from '../components/Features.astro';
-import Precios from '../components/Precios.astro'; // Nueva sección de Cursos/Operadores
+import Precios from '../components/Precios.astro'; 
 import Partners from '../components/Partners.astro'; 
 import About from '../components/About.astro';
 import Footer from '../components/Footer.astro';
 import WhatsAppBot from '../components/WhatsAppBot.astro';
+import RegistrationModal from '../components/RegistrationModal.astro'; // Importación del nuevo módulo
 ---
 
 <Base title="Digital Level | Arbitraje P2P Profesional">
@@ -22,10 +23,13 @@ import WhatsAppBot from '../components/WhatsAppBot.astro';
         <Precios />
 
         <Partners />
+        
         <About />
     </main>
 
     <Footer />
     
     <WhatsAppBot /> 
+
+    <RegistrationModal />
 </Base>
