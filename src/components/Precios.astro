@@ -1,0 +1,86 @@
+---
+// src/components/Training.astro
+const tracks = [
+  {
+    title: "Plan Starter",
+    price: "24.99",
+    tag: "Básico",
+    description: "Ideal para comerciantes P2P en solo",
+    features: ["Acceso al Tracker", "Alertas Telegram/Discord", "Balances Instantáneos","Actividad Pay/Red/Switch", "Soporte por Email","Auditoria Report"],
+    icon: "fa-seedling",
+    color: "from-blue-500/20 to-transparent"
+  },
+  {
+    title: "Business Pro",
+    price: "49.99",
+    tag: "Recomendado",
+    description: "Ideal para mesas de cambio que necesitan gestionar múltiples operadores y makers contratados.",
+    features: ["Todo lo del plan Básico", "Gestión de Operadores Takers/Makers", "Reportes de Rendimiento P2P", "Soporte Prioritario WhatsApp", "Múltiples Cuentas", "Sincronizacion con google sheets"],
+    icon: "fa-user-tie",
+    color: "from-[#F3BA2F]/20 to-transparent"
+  },
+  {
+    title: "Mesa VIP",
+    price: "99.99",
+    tag: "Elite",
+    description: "Acceso total a nuestra infraestructura de liquidez y fondo compartido para máxima rentabilidad.",
+    features: ["Todo lo del plan Pro", "Participación en Fondo", "Liquidez Inmediata P2P", "Asesoría Estratégica", "Acceso a API Privada","Política AML","Maestria de binance P2P" ],
+    icon: "fa-chart-line",
+    color: "from-green-500/20 to-transparent"
+  }
+];
+---
+
+<section id="precios" class="py-24 bg-[#0b0e11] relative overflow-hidden border-t border-gray-800/50">
+    <div class="max-w-7xl mx-auto px-6">
+        <div class="text-center mb-16">
+            <h2 class="text-4xl md:text-6xl font-black text-white mb-4 uppercase tracking-tighter">
+                Escala tus <span class="text-[#F3BA2F]">Ganancias</span>
+            </h2>
+            <p class="text-gray-400 max-w-2xl mx-auto text-lg">
+                Elige el nivel de potencia que tu operación P2P necesita hoy mismo.
+            </p>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+            {tracks.map(item => (
+                <div class={`relative bg-[#1e2329] border border-gray-800 p-8 rounded-3xl hover:border-[#F3BA2F]/50 transition-all group overflow-hidden flex flex-col`}>
+                    <div class={`absolute inset-0 bg-gradient-to-br ${item.color} opacity-0 group-hover:opacity-100 transition-opacity`}></div>
+                    
+                    <div class="relative z-10 flex-grow">
+                        <div class="flex justify-between items-start mb-6">
+                            <span class="text-[10px] font-bold tracking-[0.2em] text-[#F3BA2F] uppercase bg-[#F3BA2F]/10 px-3 py-1 rounded-full inline-block">
+                                {item.tag}
+                            </span>
+                            <div class="text-3xl text-white/20 group-hover:text-[#F3BA2F] group-hover:scale-110 transition-all duration-500">
+                                <i class={`fas ${item.icon}`}></i>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-4">
+                            <span class="text-4xl md:text-5xl font-black text-white tracking-tighter">${item.price}</span>
+                            <span class="text-gray-500 text-sm font-bold uppercase tracking-widest ml-1">/operador al mes</span>
+                        </div>
+                        
+                        <h3 class="text-xl font-bold text-white mb-4 uppercase tracking-tight">{item.title}</h3>
+                        <p class="text-gray-400 text-sm leading-relaxed mb-6 italic min-h-[60px]">
+                            "{item.description}"
+                        </p>
+                        
+                        <ul class="space-y-3 mb-8">
+                            {item.features.map(feat => (
+                                <li class="text-gray-300 text-xs flex items-center gap-2">
+                                    <i class="fas fa-check-circle text-[#F3BA2F]"></i> {feat}
+                                </li>
+                            ))}
+                        </ul>
+                    </div>
+
+                    <a href="#registro" class="relative z-10 w-full py-4 bg-white/5 border border-white/10 text-white rounded-xl font-bold text-center group-hover:bg-[#F3BA2F] group-hover:text-black transition-all uppercase text-xs tracking-widest shadow-xl">
+                        Comenzar Ahora
+                    </a>
+                </div>
+            ))}
+        </div>
+    </div>
+</section>
