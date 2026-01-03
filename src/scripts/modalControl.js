@@ -74,16 +74,20 @@ export function initModalLogic() {
         form?.querySelectorAll('input').forEach(input => {
             input.oninput = (e) => {
                 const { name, value } = e.target;
+                
                 if (name === 'phone') {
                     const res = FormValidator.formatAndValidatePhone(value);
-                    e.target.value = res.displayValue;
+                    // Actualizamos el valor visual con el formato +XX (XXX) XXX-XXXX
+                    e.target.value = res.displayValue; 
                     setFieldStatus('phone', res.isValid);
-                } else if (name === 'email') {
-                    setFieldStatus('email', FormValidator.validateEmail(value));
-                } else if (name === 'firstname' || name === 'lastname') {
+                } 
+                else if (name === 'firstname' || name === 'lastname') {
                     const res = FormValidator.validateName(value);
-                    e.target.value = res.cleanValue;
+                    e.target.value = res.cleanValue; // Bloquea números/símbolos
                     setFieldStatus(name, res.isValid);
+                }
+                else if (name === 'email') {
+                    setFieldStatus('email', FormValidator.validateEmail(value));
                 }
             };
         });

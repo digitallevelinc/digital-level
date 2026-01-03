@@ -29,22 +29,29 @@ const { selectedPlan = "Pro" } = Astro.props;
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div class="space-y-1">
                         <label class="text-[10px] font-bold text-gray-500 uppercase tracking-widest ml-1">Nombre</label>
-                        <input type="text" name="firstname" class="w-full bg-[#0b0e11]/80 border border-gray-700 rounded-xl px-4 py-3.5 text-sm text-white focus:outline-none transition-all" />
-                        <span id="err-firstname" class="text-[9px] text-red-500 font-bold uppercase hidden ml-1">Requerido</span>
+                        <input type="text" name="firstname" placeholder="Ej: Juan" 
+                            class="w-full bg-[#0b0e11]/80 border border-gray-700 rounded-xl px-4 py-3.5 text-sm text-white focus:outline-none focus:border-[#F3BA2F] transition-all outline-none" />
+                        <span id="err-firstname" class="text-[9px] text-red-500 font-bold uppercase hidden ml-1">Mínimo 3 letras</span>
                     </div>
+                    
                     <div class="space-y-1">
                         <label class="text-[10px] font-bold text-gray-500 uppercase tracking-widest ml-1">Apellido</label>
-                        <input type="text" name="lastname" class="w-full bg-[#0b0e11]/80 border border-gray-700 rounded-xl px-4 py-3.5 text-sm text-white focus:outline-none transition-all" />
-                        <span id="err-lastname" class="text-[9px] text-red-500 font-bold uppercase hidden ml-1">Requerido</span>
+                        <input type="text" name="lastname" placeholder="Ej: Pérez" 
+                            class="w-full bg-[#0b0e11]/80 border border-gray-700 rounded-xl px-4 py-3.5 text-sm text-white focus:outline-none focus:border-[#F3BA2F] transition-all outline-none" />
+                        <span id="err-lastname" class="text-[9px] text-red-500 font-bold uppercase hidden ml-1">Mínimo 3 letras</span>
                     </div>
+
                     <div class="space-y-1">
-                        <label class="text-[10px] font-bold text-gray-500 uppercase tracking-widest ml-1">WhatsApp (con código de país)</label>
-                        <input type="tel" name="phone" placeholder="+123456789" class="w-full bg-[#0b0e11]/80 border border-gray-700 rounded-xl px-4 py-3.5 text-sm text-white focus:outline-none transition-all" />
-                        <span id="err-phone" class="text-[9px] text-red-500 font-bold uppercase hidden ml-1">Número inválido</span>
+                        <label class="text-[10px] font-bold text-gray-500 uppercase tracking-widest ml-1">WhatsApp</label>
+                        <input type="tel" name="phone" placeholder="+58 (412) 000-0000" 
+                            class="w-full bg-[#0b0e11]/80 border border-gray-700 rounded-xl px-4 py-3.5 text-sm text-white focus:outline-none focus:border-[#F3BA2F] transition-all outline-none" />
+                        <span id="err-phone" class="text-[9px] text-red-500 font-bold uppercase hidden ml-1">Número incompleto</span>
                     </div>
+
                     <div class="space-y-1">
                         <label class="text-[10px] font-bold text-gray-500 uppercase tracking-widest ml-1">Email</label>
-                        <input type="email" name="email" class="w-full bg-[#0b0e11]/80 border border-gray-700 rounded-xl px-4 py-3.5 text-sm text-white focus:outline-none transition-all" />
+                        <input type="email" name="email" placeholder="usuario@gmail.com"
+                            class="w-full bg-[#0b0e11]/80 border border-gray-700 rounded-xl px-4 py-3.5 text-sm text-white focus:outline-none focus:border-[#F3BA2F] transition-all outline-none" />
                         <span id="err-email" class="text-[9px] text-red-500 font-bold uppercase hidden ml-1">Email inválido</span>
                     </div>
                 </div>
@@ -53,7 +60,7 @@ const { selectedPlan = "Pro" } = Astro.props;
                     <label class="text-[10px] font-bold text-gray-500 uppercase tracking-widest block ml-1">Confirmar Plan</label>
                     <div class="grid grid-cols-3 gap-2">
                         {['Básico', 'Pro', 'VIP'].map((plan) => (
-                            <button type="button" data-plan={plan} class="plan-btn py-3 rounded-xl font-black text-[10px] uppercase border transition-all bg-[#0b0e11]/50 border-gray-700 text-gray-500">
+                            <button type="button" data-plan={plan} class="plan-btn py-3 rounded-xl font-black text-[10px] uppercase border transition-all bg-[#0b0e11]/50 border-gray-700 text-gray-500 hover:border-gray-400">
                                 {plan}
                             </button>
                         ))}
@@ -94,6 +101,7 @@ const { selectedPlan = "Pro" } = Astro.props;
         initModalLogic();
     }
 
+    // Doble listener para asegurar que cargue en cualquier circunstancia en Astro
     document.addEventListener('DOMContentLoaded', setup);
     document.addEventListener('astro:page-load', setup);
 </script>
