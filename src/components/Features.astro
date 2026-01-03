@@ -2,11 +2,11 @@
 // src/components/Features.astro
 const services = [
   {
-    id: "vigilancia",
-    title: "Vigilancia P2P",
-    description: "Monitoreo milimétrico del mercado. Recibe notificaciones instantáneas vía Telegram o Discord sobre cambios de precio y movimientos de la competencia.",
+    id: "ganancias",
+    title: "Ganancias en vivo",
+    description: "Tu radar de Arbitraje P2P en vivo. Accede al flujo directo de lo que hacen tus Makers en Binance. Recibe alertas instantáneas en Telegram/Discord cada vez que tu equipo ejecute una operación o cambie precios. Control total de tus ganancias en tiempo real",
     icon: "fa-eye",
-    waMsg: "Hola! Quiero configurar la Vigilancia P2P con alertas en tiempo real.",
+    waMsg: "Hola! Quiero configurar las ganancias en vivo",
     hasPreview: true
   },
   {
@@ -42,13 +42,13 @@ const services = [
     hasPreview: true
   },
   {
-    id: "transparencia",
-    title: "Transparencia Total",
-    description: "Sistema 'Tracker' avanzado. Organiza y audita la información de tu cuenta de Binance sin comprometer contraseñas ni claves 2FA.",
-    icon: "fa-search-dollar",
-    waMsg: "Hola! Me interesa el sistema Tracker para tener Transparencia Total en mis cuentas.",
+    id: "curso-p2p",
+    title: "Maestría en Binance P2P",
+    description: "Domina el P2P de pies a cabeza. Aprende a gestionar tus propios Makers, maximizar spreads de arbitraje y operar con seguridad total sin arriesgar tu capital.",
+    icon: "fa-graduation-cap", // Cambié el icono a uno de graduación/educación
+    waMsg: "¡Hola! Me interesa el curso de Binance P2P para profesionalizar mi operativa.",
     hasPreview: true
-  }
+}
 ];
 
 const waNumber = "584120000000"; 
@@ -103,7 +103,7 @@ const waNumber = "584120000000";
                                 {service.id === 'seguridad' && (
                                     <div class="space-y-2">
                                         <span class="text-[10px] text-[#F3BA2F] font-bold uppercase">Auditoría Operativa</span>
-                                        <img src="/img/auditoria.png" alt="Auditoria de Seguridad" class="rounded border border-gray-700 w-full" />
+                                        <img src="/img/audit.png" alt="Auditoria de Seguridad" class="rounded border border-gray-700 w-full" />
                                     </div>
                                 )}
 
@@ -114,7 +114,7 @@ const waNumber = "584120000000";
                                     </div>
                                 )}
 
-                                {service.id === 'vigilancia' && (
+                                {service.id === 'ganancias' && (
                                     <div class="space-y-2">
                                         <span class="text-[10px] text-[#F3BA2F] font-bold uppercase">Monitoreo P2P</span>
                                         <video 
@@ -137,10 +137,10 @@ const waNumber = "584120000000";
                                     </div>
                                 )}
 
-                                {service.id === 'transparencia' && (
+                                {service.id === 'curso-p2p' && (
                                     <div class="space-y-2">
-                                        <span class="text-[10px] text-[#F3BA2F] font-bold uppercase">Tracker de Cuentas</span>
-                                        <img src="/img/transparencia.png" alt="Tracker P2P" class="rounded border border-gray-700 w-full" />
+                                        <span class="text-[10px] text-[#F3BA2F] font-bold uppercase">Curso P2P</span>
+                                        <img src="/img/curso.png" alt="Tracker P2P" class="rounded border border-gray-700 w-full" />
                                     </div>
                                 )}
                             </div>
