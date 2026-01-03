@@ -29,7 +29,6 @@ export function initModalLogic() {
         }
     };
 
-    // --- FUNCIONES GLOBALES ---
     window.updateActivePlan = (planName) => {
         const { planBtns, planInput } = getElements();
         if (!planName || !planBtns) return;
@@ -60,7 +59,6 @@ export function initModalLogic() {
         document.body.style.overflow = 'auto';
     };
 
-    // --- SETUP DE EVENTOS ---
     const { form, planBtns } = getElements();
 
     if (planBtns) {
@@ -110,21 +108,28 @@ export function initModalLogic() {
                 submitBtn.disabled = true;
                 submitBtn.innerHTML = '<i class="fas fa-circle-notch animate-spin text-lg"></i>';
 
-                // Solo agregamos el campo 'phone' a lo que ya tenías
+                const prices = { 'Básico': '24.99', 'Pro': '49.99', 'VIP': '99.99' };
+                const planKey = formData.get('selected_plan') || "Pro";
+
                 const orderData = {
                     name: `${formData.get('firstname')} ${formData.get('lastname')}`,
                     email: formData.get('email'),
-                    phone: formData.get('phone'), // <--- Agregado para WhatsApp
-                    plan: formData.get('selected_plan') || "Pro",
+                    phone: formData.get('phone'),
+                    plan: planKey,
+                    amount: prices[planKey],
                     orderId: 'DL-' + Math.random().toString(36).substr(2, 5).toUpperCase()
                 };
 
+                // --- ENVÍO DE EMAIL (Paso crucial) ---
+                // Sustituye "TU_TEMPLATE_ID" por el de EmailJS
+                emailjs.send("service_ylhupwp", "template_xnu6xi4", orderData)
+                    .then(() => console.log("Email enviado con éxito"))
+                    .catch((err) => console.error("Fallo al enviar email", err));
+
                 setTimeout(() => {
-                    // Ocultamos el header y reemplazamos el form con el recibo
                     if (header) header.classList.add('hidden');
                     CheckoutUI.renderReceipt(form, orderData);
                 }, 1000);
-
             }
         };
     }
