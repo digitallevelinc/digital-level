@@ -9,7 +9,7 @@ export const CheckoutUI = {
         
         // --- TUS DATOS ---
         const MI_BINANCE_ID = "173109190"; 
-        const MI_WHATSAPP = "14482043723"; // Sin el "+" para la URL
+        const MI_WHATSAPP = "1448204"; // Sin el "+" para la URL
         // -----------------
 
         // Construcción del mensaje profesional para WhatsApp
