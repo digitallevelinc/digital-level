@@ -1,5 +1,6 @@
 // src/scripts/modalControl.js
 import { FormValidator } from './validator.js';
+import { CheckoutUI } from './checkout.js';
 
 export function initModalLogic() {
     const getElements = () => ({
@@ -7,7 +8,8 @@ export function initModalLogic() {
         form: document.getElementById('registration-form'),
         planBtns: document.querySelectorAll('.plan-btn'),
         planInput: document.getElementById('selected-plan-input'),
-        submitBtn: document.getElementById('submit-btn')
+        submitBtn: document.getElementById('submit-btn'),
+        header: document.querySelector('#registration-modal header')
     });
 
     const setFieldStatus = (name, isValid) => {
@@ -30,7 +32,7 @@ export function initModalLogic() {
     // --- FUNCIONES GLOBALES ---
     window.updateActivePlan = (planName) => {
         const { planBtns, planInput } = getElements();
-        if (!planName) return;
+        if (!planName || !planBtns) return;
 
         planBtns.forEach(btn => {
             const isMatch = btn.getAttribute('data-plan') === planName;
@@ -56,74 +58,81 @@ export function initModalLogic() {
         if (!modal) return;
         modal.classList.replace('flex', 'hidden');
         document.body.style.overflow = 'auto';
+        // Recargar la página al cerrar para resetear el estado del modal si se desea
+        // window.location.reload(); 
     };
 
-    // --- BINDEO DE EVENTOS ---
-    const setupEventListeners = () => {
-        const { form, planBtns } = getElements();
+    // --- SETUP DE EVENTOS ---
+    const { form, planBtns } = getElements();
 
-        // Clic en botones de planes
+    if (planBtns) {
         planBtns.forEach(btn => {
             btn.onclick = (e) => {
                 e.preventDefault();
                 window.updateActivePlan(btn.getAttribute('data-plan'));
             };
         });
+    }
 
+    if (form) {
         // Validación en tiempo real
-        form?.querySelectorAll('input').forEach(input => {
+        form.querySelectorAll('input').forEach(input => {
             input.oninput = (e) => {
                 const { name, value } = e.target;
-                
                 if (name === 'phone') {
                     const res = FormValidator.formatAndValidatePhone(value);
-                    // Actualizamos el valor visual con el formato +XX (XXX) XXX-XXXX
                     e.target.value = res.displayValue; 
                     setFieldStatus('phone', res.isValid);
-                } 
-                else if (name === 'firstname' || name === 'lastname') {
+                } else if (name === 'firstname' || name === 'lastname') {
                     const res = FormValidator.validateName(value);
-                    e.target.value = res.cleanValue; // Bloquea números/símbolos
+                    e.target.value = res.cleanValue;
                     setFieldStatus(name, res.isValid);
-                }
-                else if (name === 'email') {
+                } else if (name === 'email') {
                     setFieldStatus('email', FormValidator.validateEmail(value));
                 }
             };
         });
 
-        // Form Submit
-        if (form) {
-            form.onsubmit = (e) => {
-                e.preventDefault();
-                const data = new FormData(form);
-                const isValid = FormValidator.isFormValid(data);
+        // SUBMIT
+        form.onsubmit = (e) => {
+            e.preventDefault();
+            
+            const formData = new FormData(form);
+            // Validamos manualmente cada campo para asegurar la UI
+            const isFnOk = FormValidator.validateName(formData.get('firstname') || "").isValid;
+            const isLnOk = FormValidator.validateName(formData.get('lastname') || "").isValid;
+            const isEmOk = FormValidator.validateEmail(formData.get('email') || "");
+            const isPhOk = FormValidator.formatAndValidatePhone(formData.get('phone') || "").isValid;
 
-                // Validar visualmente todos los campos antes de enviar
-                ['firstname', 'lastname', 'email', 'phone'].forEach(field => {
-                    const val = data.get(field) || "";
-                    let ok = (field === 'phone') ? FormValidator.formatAndValidatePhone(val).isValid :
-                             (field === 'email') ? FormValidator.validateEmail(val) :
-                             FormValidator.validateName(val).isValid;
-                    setFieldStatus(field, ok);
-                });
+            setFieldStatus('firstname', isFnOk);
+            setFieldStatus('lastname', isLnOk);
+            setFieldStatus('email', isEmOk);
+            setFieldStatus('phone', isPhOk);
 
-                if (isValid) {
-                    const { submitBtn } = getElements();
-                    submitBtn.innerHTML = '<i class="fas fa-circle-notch animate-spin"></i> PROCESANDO...';
-                    submitBtn.disabled = true;
-                    
-                    setTimeout(() => {
-                        alert(`¡Registro Exitoso para el plan ${data.get('selected_plan')}!`);
-                        window.closeModal();
-                        submitBtn.innerHTML = 'Finalizar Registro';
-                        submitBtn.disabled = false;
-                        form.reset();
-                    }, 2000);
-                }
-            };
-        }
-    };
+            if (isFnOk && isLnOk && isEmOk && isPhOk) {
+                const { submitBtn, header } = getElements();
+                
+                // 1. Loading state
+                submitBtn.disabled = true;
+                submitBtn.innerHTML = '<i class="fas fa-circle-notch animate-spin text-lg"></i>';
 
-    setupEventListeners();
+                const orderData = {
+                    name: `${formData.get('firstname')} ${formData.get('lastname')}`,
+                    email: formData.get('email'),
+                    plan: formData.get('selected_plan') || "Pro",
+                    orderId: 'DL-' + Math.random().toString(36).substr(2, 5).toUpperCase()
+                };
+
+                // 2. Transición
+                setTimeout(() => {
+                    if (header) header.classList.add('hidden');
+                    // Reemplazamos el contenido del form con el recibo
+                    CheckoutUI.renderReceipt(form, orderData);
+                }, 1000);
+
+            } else {
+                console.error("Formulario incompleto o inválido");
+            }
+        };
+    }
 }
