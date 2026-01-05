@@ -1,0 +1,27 @@
+---
+interface Props {
+  title: string;
+  value: string;
+  type?: 'default' | 'warning' | 'success';
+  icon?: string;
+  subValue?: string;
+}
+const { title, value, type = 'default', icon, subValue } = Astro.props;
+
+const styles = {
+  default: 'border-gray-800 text-white',
+  warning: 'border-orange-500/30 bg-[#1c1917] text-orange-400',
+  success: 'border-green-500/30 bg-[#14532d]/10 text-green-400'
+};
+---
+
+<div class={`p-4 rounded-xl border ${styles[type]} bg-[#161a1e] flex flex-col justify-between h-full hover:border-gray-600 transition-all`}>
+  <div class="flex justify-between items-start mb-4">
+    <span class="text-[10px] font-black uppercase tracking-widest text-gray-400">{title}</span>
+    {icon && <i class={`${icon} text-gray-500 text-xs`}></i>}
+  </div>
+  <div>
+    <div class="text-xl font-mono font-bold tracking-tight text-white">{value}</div>
+    {subValue && <div class="text-[9px] text-gray-500 mt-1 uppercase font-bold tracking-tighter">{subValue}</div>}
+  </div>
+</div>
