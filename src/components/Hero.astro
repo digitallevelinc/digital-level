@@ -2,11 +2,13 @@
 // src/components/Hero.astro
 ---
 <section id="home" class="relative pt-24 pb-16 md:pt-32 md:pb-20 px-6 overflow-hidden bg-[#0b0e11] min-h-[90vh] lg:min-h-[80vh] flex items-center">
-    <div class="absolute top-0 right-0 w-full lg:w-1/2 h-full bg-[#F3BA2F]/5 blur-[120px] -z-10"></div>
+    {/* Resplandor de fondo optimizado */}
+    <div class="absolute top-0 right-0 w-full lg:w-1/2 h-full bg-[#F3BA2F]/5 blur-[120px] -z-10 pointer-events-none"></div>
 
     <div class="max-w-7xl mx-auto w-full">
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12 items-center">
             
+            {/* Imagen con efectos visuales */}
             <div class="relative order-1 lg:order-2 flex justify-center items-center">
                 <div class="absolute w-[70%] h-[70%] bg-[#F3BA2F]/10 rounded-full blur-3xl animate-pulse"></div>
                 
@@ -14,25 +16,28 @@
                     src="/img/nav.png" 
                     alt="Digital Level Vigilante Inteligente" 
                     class="relative z-10 w-full max-w-[300px] md:max-w-[450px] lg:max-w-[550px] h-auto object-contain drop-shadow-[0_0_30px_rgba(243,186,47,0.2)] animate-float"
+                    loading="eager"
                 />
             </div>
 
+            {/* Contenido de Texto */}
             <div class="text-center lg:text-left order-2 lg:order-1 space-y-6 md:space-y-8">
                 <h1 class="text-4xl md:text-7xl lg:text-8xl font-black text-white leading-[1.1] lg:leading-[0.9] tracking-tighter uppercase">
-                    <br class="hidden md:block">P2P & Arbitraje <br> 
-                    <span class="text-[#F3BA2F]">en Binance</span>
+                    Ecosistema <br class="hidden md:block">
+                    <span class="text-[#F3BA2F]">P2P Profesional</span>
                 </h1>
 
                 <p class="text-lg md:text-2xl text-gray-400 max-w-xl mx-auto lg:mx-0 leading-relaxed">
-                        Monitoreo y Arbitraje en tiempo real para comerciantes P2P de Binance. Detecta oportunidades, optimiza tu spread y opera con la claridad que solo Digital Level te da. 
+                    Toma el control total de tu operativa en Binance. Monitoreo en tiempo real, sincronización automática y seguridad blindada para comerciantes y mesas de dinero.
                 </p>
 
                 <div class="flex flex-col sm:flex-row justify-center lg:justify-start gap-4 pt-4">
+                    {/* Botón Principal */}
                     <button 
-                        onclick="openModal('Pro')" 
-                        class="bg-[#F3BA2F] text-black px-8 py-4 rounded-xl font-extrabold text-lg hover:scale-105 transition-all shadow-[0_0_30px_rgba(243,186,47,0.3)] flex items-center justify-center gap-2"
+                        id="hero-cta-btn"
+                        class="bg-[#F3BA2F] text-black px-8 py-4 rounded-xl font-extrabold text-lg hover:scale-105 transition-all shadow-[0_0_30px_rgba(243,186,47,0.3)] flex items-center justify-center gap-2 group"
                     >
-                        <i class="fas fa-shield-halved text-xl"></i>
+                        <i class="fas fa-shield-halved text-xl group-hover:rotate-12 transition-transform"></i>
                         BINANCE SENTINEL
                     </button>
 
@@ -43,14 +48,35 @@
                         Ver Funciones
                     </a>
                 </div>
+
+                
             </div>
 
         </div>
     </div>
 </section>
 
+<script>
+    // Usamos un event listener en lugar de onclick directo para evitar errores de carga
+    function attachHeroEvent() {
+        const btn = document.getElementById('hero-cta-btn');
+        if (btn) {
+            btn.addEventListener('click', () => {
+                if (window.openModal) {
+                    window.openModal('Pro');
+                } else {
+                    console.error("Scripts aún no cargados...");
+                }
+            });
+        }
+    }
+
+    // Ejecutar en carga inicial y cambios de página de Astro
+    attachHeroEvent();
+    document.addEventListener('astro:page-load', attachHeroEvent);
+</script>
+
 <style>
-    /* Animación de flotación suave */
     @keyframes float {
         0% { transform: translateY(0px) rotate(0deg); }
         50% { transform: translateY(-15px) rotate(1deg); }
@@ -60,10 +86,7 @@
         animation: float 5s ease-in-out infinite;
     }
 
-    /* Ajustes específicos para mobile */
     @media (max-width: 1023px) {
-        h1 {
-            word-spacing: 2px;
-        }
+        h1 { word-spacing: 2px; }
     }
 </style>

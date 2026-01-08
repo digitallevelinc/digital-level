@@ -8,7 +8,7 @@
     "dist"
   ],
   "compilerOptions": {
-    "jsx": "preserve",
-    "jsxImportSource": "astro"
+    "jsx": "react-jsx",
+    "jsxImportSource": "react"
   }
 }

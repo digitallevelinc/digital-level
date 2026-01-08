@@ -1,7 +1,8 @@
 ---
 import Layout from '../layouts/Base.astro';
-import Navbar from '../components/Navbar';
+import Navbar from '../components/Navbar.tsx';
 import Footer from '../components/Footer.astro';
+import WhatsAppBot from '../components/WhatsAppBot.astro'; // <--- VERIFICA ESTO
 ---
 
 <Layout title="Calculadora P2P Pro | Digital Level">
@@ -99,7 +100,7 @@ import Footer from '../components/Footer.astro';
             </div>
         </div>
     </main>
-    <Footer />
+    <WhatsAppBot />
 </Layout>
 
 <style>

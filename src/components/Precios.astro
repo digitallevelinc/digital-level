@@ -4,7 +4,7 @@ const tracks = [
   {
     title: "Plan Básico",
     price: "24.99",
-    tag: "Básico", // Este tag es el que recibirá el modal
+    tag: "Básico",
     description: "Control automatizado de tus operaciones personales. Olvida los registros manuales.",
     features: [
       "Acceso al Tracker (API)", 
@@ -21,7 +21,7 @@ const tracks = [
   {
     title: "Business Pro",
     price: "49.99",
-    tag: "Pro", // Simplificado para que coincida con el modal
+    tag: "Pro",
     description: "La solución definitiva para dueños de mesas P2P que escalan con equipos de trabajo.",
     features: [
       "Todo lo del plan Básico", 
@@ -38,7 +38,7 @@ const tracks = [
   {
     title: "Mesa VIP",
     price: "99.99",
-    tag: "VIP", // Simplificado para que coincida con el modal
+    tag: "VIP",
     description: "Infraestructura institucional, participación en fondo y liquidez garantizada.",
     features: [
       "Todo lo del plan Pro", 
@@ -56,68 +56,106 @@ const tracks = [
 ];
 ---
 
-<section id="precios" class="py-24 bg-[#0b0e11] relative overflow-hidden border-t border-gray-800/50">
-    <div class="max-w-7xl mx-auto px-6">
+<section id="precios" class="py-24 bg-[#0b0e11] relative overflow-hidden border-t border-gray-800/30 scroll-mt-20">
+    <div class="absolute top-0 left-1/2 -translate-x-1/2 w-full h-px bg-gradient-to-r from-transparent via-[#F3BA2F]/50 to-transparent"></div>
+
+    <div class="max-w-7xl mx-auto px-6 relative z-10">
         <div class="text-center mb-16">
             <h2 class="text-4xl md:text-6xl font-black text-white mb-4 uppercase tracking-tighter">
-                Escala tus <span class="text-[#F3BA2F]">Ganancias</span>
+                Escala tus <span class="text-[#F3BA2F] italic">Ganancias</span>
             </h2>
-            <p class="text-gray-400 max-w-2xl mx-auto text-lg">
-                Elige el nivel de potencia que tu operación P2P necesita hoy mismo.
+            <p class="text-gray-400 max-w-2xl mx-auto text-lg leading-relaxed">
+                Elige el nivel de potencia que tu operación P2P necesita hoy mismo. <br class="hidden md:block"/> Sin contratos, cancela cuando quieras.
             </p>
         </div>
 
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 lg:gap-8" id="pricing-container">
             {tracks.map(item => (
-                <div class={`relative bg-[#1e2329] border ${item.popular ? 'border-[#F3BA2F]' : 'border-gray-800'} p-8 rounded-3xl hover:border-[#F3BA2F]/50 transition-all group overflow-hidden flex flex-col shadow-2xl`}>
+                <div class={`relative flex flex-col h-full bg-[#1e2329]/40 backdrop-blur-sm border ${item.popular ? 'border-[#F3BA2F]' : 'border-gray-800/80'} p-8 rounded-[2.5rem] hover:border-[#F3BA2F]/40 transition-all duration-500 group overflow-hidden shadow-2xl`}>
                     
                     {item.popular && (
-                        <div class="absolute top-0 right-0 bg-[#F3BA2F] text-black text-[10px] font-black px-4 py-1 rounded-bl-xl uppercase tracking-widest z-20">
-                            Recomendado
+                        <div class="absolute top-0 right-0 bg-[#F3BA2F] text-black text-[10px] font-black px-5 py-1.5 rounded-bl-2xl uppercase tracking-[0.2em] z-20 shadow-lg">
+                            Más Popular
                         </div>
                     )}
 
-                    <div class={`absolute inset-0 bg-gradient-to-br ${item.color} opacity-10 group-hover:opacity-20 transition-opacity`}></div>
+                    <div class={`absolute inset-0 bg-gradient-to-br ${item.color} opacity-5 group-hover:opacity-15 transition-opacity duration-500`}></div>
                     
-                    <div class="relative z-10 flex-grow">
-                        <div class="flex justify-between items-start mb-6">
-                            <span class="text-[10px] font-bold tracking-[0.2em] text-[#F3BA2F] uppercase bg-[#F3BA2F]/10 px-3 py-1 rounded-full inline-block">
-                                {item.tag}
-                            </span>
-                            <div class="text-3xl text-white/20 group-hover:text-[#F3BA2F] group-hover:scale-110 transition-all duration-500">
+                    <div class="relative z-10 flex flex-col h-full">
+                        <div class="flex justify-between items-start mb-8">
+                            <div class={`p-3 rounded-2xl bg-gray-800/50 border border-gray-700/50 text-2xl ${item.popular ? 'text-[#F3BA2F]' : 'text-white/40'} group-hover:scale-110 group-hover:rotate-3 transition-all duration-500`}>
                                 <i class={`fas ${item.icon}`}></i>
                             </div>
-                        </div>
-                        
-                        <div class="mb-4">
-                            <span class="text-4xl md:text-5xl font-black text-white tracking-tighter">${item.price}</span>
-                            <span class="text-gray-500 text-[10px] font-bold uppercase tracking-widest ml-1 opacity-70">
-                                /mes
+                            <span class="text-[10px] font-black tracking-[0.25em] text-[#F3BA2F] uppercase bg-[#F3BA2F]/5 border border-[#F3BA2F]/20 px-4 py-1.5 rounded-full">
+                                {item.tag}
                             </span>
                         </div>
                         
-                        <h3 class="text-xl font-bold text-white mb-4 uppercase tracking-tight">{item.title}</h3>
-                        <p class="text-gray-400 text-sm leading-relaxed mb-6 italic min-h-[60px]">
+                        <div class="mb-2">
+                            <span class="text-5xl font-black text-white tracking-tighter transition-all group-hover:text-[#F3BA2F]">${item.price}</span>
+                            <span class="text-gray-500 text-xs font-bold uppercase tracking-widest ml-1">/mes</span>
+                        </div>
+                        
+                        <h3 class="text-xl font-bold text-white mb-4 uppercase tracking-tight group-hover:translate-x-1 transition-transform">{item.title}</h3>
+                        
+                        <p class="text-gray-400 text-sm leading-relaxed mb-8 italic min-h-[60px] border-l-2 border-[#F3BA2F]/20 pl-4">
                             "{item.description}"
                         </p>
                         
-                        <ul class="space-y-3 mb-8">
-                            {item.features.map(feat => (
-                                <li class="text-gray-300 text-xs flex items-center gap-2">
-                                    <i class="fas fa-check-circle text-[#F3BA2F]"></i> {feat}
-                                </li>
-                            ))}
-                        </ul>
-                    </div>
+                        <div class="flex-grow">
+                            <ul class="space-y-4 mb-10">
+                                {item.features.map(feat => (
+                                    <li class="text-gray-300 text-[13px] flex items-start gap-3 group/item">
+                                        <i class="fas fa-check-circle text-[#F3BA2F] mt-0.5 text-sm transition-transform group-hover/item:scale-125"></i> 
+                                        <span class="group-hover/item:text-white transition-colors">{feat}</span>
+                                    </li>
+                                ))}
+                            </ul>
+                        </div>
 
-                    <button 
-                        onclick={`window.openModal('${item.tag}')`}
-                        class="relative z-10 w-full py-4 bg-white/5 border border-white/10 text-white rounded-xl font-bold text-center group-hover:bg-[#F3BA2F] group-hover:text-black transition-all uppercase text-xs tracking-widest shadow-xl active:scale-95"
-                    >
-                        Comenzar Ahora
-                    </button>
+                        {/* Botón con data-attribute para el script */}
+                        <button 
+                            data-plan={item.tag}
+                            class="pricing-cta-btn relative z-10 w-full py-5 rounded-2xl font-black transition-all uppercase text-[11px] tracking-[0.2em] shadow-xl active:scale-95 bg-white/5 border border-white/10 text-white hover:bg-[#F3BA2F] hover:text-black hover:border-[#F3BA2F] data-[popular=true]:bg-[#F3BA2F] data-[popular=true]:text-black data-[popular=true]:hover:bg-[#ffdb4d]"
+                            data-popular={item.popular.toString()}
+                        >
+                            Comenzar Ahora
+                        </button>
+                    </div>
                 </div>
             ))}
         </div>
+
+        <div class="mt-16 text-center">
+            <p class="text-gray-500 text-xs font-medium uppercase tracking-[0.3em] flex items-center justify-center gap-3">
+                <span class="w-8 h-px bg-gray-800"></span>
+                Pagos seguros vía Binance Pay
+                <span class="w-8 h-px bg-gray-800"></span>
+            </p>
+        </div>
     </div>
 </section>
+
+<script>
+    function setupPricing() {
+        const container = document.getElementById('pricing-container');
+        if (!container) return;
+
+        container.addEventListener('click', (e) => {
+            // Buscamos si el clic fue en un botón de plan o dentro de él
+            const btn = (e.target as HTMLElement).closest('.pricing-cta-btn');
+            if (btn) {
+                const plan = btn.getAttribute('data-plan');
+                if (window.openModal) {
+                    window.openModal(plan);
+                } else {
+                    console.error("Lógica de modal no detectada.");
+                }
+            }
+        });
+    }
+
+    // Ejecutar en carga y navegación de Astro
+    setupPricing();
+    document.addEventListener('astro:page-load', setupPricing);
+</script>

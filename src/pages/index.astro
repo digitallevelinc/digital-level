@@ -1,46 +1,38 @@
 ---
+// src/pages/index.astro
 import Base from '../layouts/Base.astro';
-// 1. Corregimos el nombre del import para que coincida con el archivo físico
-// 2. Agregamos la extensión .tsx para que Astro lo reconozca sin errores
+
+// IMPORTANTE: Agregamos .tsx para que React no reciba un objeto de Astro
 import Navbar from '../components/Navbar.tsx'; 
+
 import Hero from '../components/Hero.astro';
 import Features from '../components/Features.astro';
 import Precios from '../components/Precios.astro'; 
 import Sincronizacion from '../components/Sincronizacion.astro'; 
 import Guias from '../components/Guias.astro';
 import About from '../components/About.astro';
-import Footer from '../components/Footer.astro';
 import WhatsAppBot from '../components/WhatsAppBot.astro';
 import RegistrationModal from '../components/RegistrationModal.astro';
+
+// Importamos el Social Proof dinámico
+import SocialProofMini from '../components/SocialProofMini.tsx';
 ---
 
 <Base title="Digital Level | Arbitraje P2P Profesional">
-    {/* 3. Usamos el componente Navbar con la directiva client:load para que los menús funcionen */}
+    {/* Asegúrate de que Navbar sea el componente React con la directiva client */}
     <Navbar client:load />        
     
     <main>
-        {/* Sección de Bienvenida */}
-        <Hero />                
-        
-        {/* Beneficios Principales */}
+        <Hero />                   
         <Features />
-
-        {/* Planes y Tarifas (ID: precios) */}
         <Precios /> 
-
-        {/* Ecosistema y Partners (ID: ecosistema) */}
-        <Sincronizacion />                
-        
-        {/* Documentación y Tutoriales (ID: guias) */}
-        <Guias />                
-        
-        {/* Información de la Empresa (ID: nosotros) */}
+        <Sincronizacion />                     
+        <Guias />                      
         <About />
     </main>
-
-    <Footer />        
     
-    {/* Componentes Flotantes y Modales */}
+    {/* Componentes Flotantes y Lógica */}
     <WhatsAppBot />     
     <RegistrationModal />
+    <SocialProofMini client:idle />
 </Base>
