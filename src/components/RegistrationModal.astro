@@ -95,13 +95,17 @@ const { selectedPlan = "Pro" } = Astro.props;
 </div>
 
 <script>
+    // Asegúrate de que la ruta sea EXACTAMENTE donde están tus archivos
+    // Si están en src/pages/scripts/ usa: import { initModalLogic } from '../pages/scripts/modalControl.js';
     import { initModalLogic } from '../scripts/modalControl.js';
 
     function setup() {
         initModalLogic();
+        console.log("Modal Logic Initialized");
     }
 
-    // Doble listener para asegurar que cargue en cualquier circunstancia en Astro
-    document.addEventListener('DOMContentLoaded', setup);
+    // Astro usa 'astro:page-load' para las transiciones entre páginas
     document.addEventListener('astro:page-load', setup);
+    // Para la carga inicial
+    setup(); 
 </script>

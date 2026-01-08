@@ -12,23 +12,8 @@ export function initModalLogic() {
         header: document.querySelector('#registration-modal header')
     });
 
-    const setFieldStatus = (name, isValid) => {
-        const { form } = getElements();
-        const input = form?.querySelector(`[name="${name}"]`);
-        const errorSpan = document.getElementById(`err-${name}`);
-        if (!input) return;
-
-        if (isValid) {
-            input.classList.remove('border-red-500', 'border-gray-700');
-            input.classList.add('border-[#F3BA2F]');
-            errorSpan?.classList.add('hidden');
-        } else {
-            input.classList.remove('border-[#F3BA2F]', 'border-gray-700');
-            input.classList.add('border-red-500');
-            errorSpan?.classList.remove('hidden');
-        }
-    };
-
+    // --- FUNCIONES GLOBALES (Expuestas a Window) ---
+    
     window.updateActivePlan = (planName) => {
         const { planBtns, planInput } = getElements();
         if (!planName || !planBtns) return;
@@ -36,9 +21,11 @@ export function initModalLogic() {
         planBtns.forEach(btn => {
             const isMatch = btn.getAttribute('data-plan') === planName;
             if (isMatch) {
+                // Estilo Activo (Amarillo Binance)
                 btn.className = "plan-btn py-3 rounded-xl font-black text-[10px] uppercase border transition-all bg-[#F3BA2F] text-black border-[#F3BA2F]";
                 if (planInput) planInput.value = planName;
             } else {
+                // Estilo Inactivo
                 btn.className = "plan-btn py-3 rounded-xl font-black text-[10px] uppercase border transition-all bg-[#0b0e11]/50 border-gray-700 text-gray-500 hover:border-gray-500";
             }
         });
@@ -46,21 +33,46 @@ export function initModalLogic() {
 
     window.openModal = (requestedPlan) => {
         const { modal } = getElements();
-        if (!modal) return;
-        modal.classList.replace('hidden', 'flex');
-        document.body.style.overflow = 'hidden';
+        if (!modal) {
+            console.error("Error: No se encontró el modal con ID 'registration-modal'");
+            return;
+        }
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+        document.body.style.overflow = 'hidden'; // Bloquear scroll
         window.updateActivePlan(requestedPlan || "Pro");
     };
 
     window.closeModal = () => {
         const { modal } = getElements();
         if (!modal) return;
-        modal.classList.replace('flex', 'hidden');
-        document.body.style.overflow = 'auto';
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
+        document.body.style.overflow = 'auto'; // Liberar scroll
     };
+
+    // --- LÓGICA INTERNA DEL FORMULARIO ---
 
     const { form, planBtns } = getElements();
 
+    const setFieldStatus = (name, isValid) => {
+        const { form } = getElements();
+        const input = form?.querySelector(`[name="${name}"]`);
+        const errorSpan = document.getElementById(`err-${name}`);
+        if (!input) return;
+
+        if (isValid) {
+            input.classList.remove('border-red-500');
+            input.classList.add('border-[#F3BA2F]');
+            errorSpan?.classList.add('hidden');
+        } else {
+            input.classList.remove('border-[#F3BA2F]');
+            input.classList.add('border-red-500');
+            errorSpan?.classList.remove('hidden');
+        }
+    };
+
+    // Listeners para botones de plan dentro del modal
     if (planBtns) {
         planBtns.forEach(btn => {
             btn.onclick = (e) => {
@@ -71,6 +83,7 @@ export function initModalLogic() {
     }
 
     if (form) {
+        // Validaciones en tiempo real (Inputs)
         form.querySelectorAll('input').forEach(input => {
             input.oninput = (e) => {
                 const { name, value } = e.target;
@@ -88,7 +101,8 @@ export function initModalLogic() {
             };
         });
 
-        form.onsubmit = (e) => {
+        // Manejo del Envío
+        form.onsubmit = async (e) => {
             e.preventDefault();
             
             const formData = new FormData(form);
@@ -105,6 +119,7 @@ export function initModalLogic() {
             if (isFnOk && isLnOk && isEmOk && isPhOk) {
                 const { submitBtn, header } = getElements();
                 
+                // Botón cargando
                 submitBtn.disabled = true;
                 submitBtn.innerHTML = '<i class="fas fa-circle-notch animate-spin text-lg"></i>';
 
@@ -120,16 +135,17 @@ export function initModalLogic() {
                     orderId: 'DL-' + Math.random().toString(36).substr(2, 5).toUpperCase()
                 };
 
-                // --- ENVÍO DE EMAIL (Paso crucial) ---
-                // Sustituye "TU_TEMPLATE_ID" por el de EmailJS
-                emailjs.send("service_ylhupwp", "template_xnu6xi4", orderData)
-                    .then(() => console.log("Email enviado con éxito"))
-                    .catch((err) => console.error("Fallo al enviar email", err));
-
-                setTimeout(() => {
+                try {
+                    // Envío a EmailJS
+                    await emailjs.send("service_ylhupwp", "template_xnu6xi4", orderData);
+                    console.log("Email enviado con éxito");
+                } catch (err) {
+                    console.error("Error al enviar email:", err);
+                } finally {
+                    // Mostrar recibo de CheckoutUI pase lo que pase con el email
                     if (header) header.classList.add('hidden');
                     CheckoutUI.renderReceipt(form, orderData);
-                }, 1000);
+                }
             }
         };
     }
