@@ -1,27 +1,47 @@
 ---
 import Base from '../layouts/Base.astro';
-// Importamos el Navbar de React que ya unificamos
 import Navbar from '../components/Navbar.tsx';
 import Footer from '../components/Footer.astro';
 
-// Lógica de procesamiento del formulario
+let errorMessage = "";
+const PRODUCTION_API_URL = "http://144.91.110.204:3003/api/auth/login";
+
+// Lógica de procesamiento del formulario en el servidor
 if (Astro.request.method === "POST") {
   try {
     const data = await Astro.request.formData();
-    const user = data.get("user");
-    const pass = data.get("password");
+    const alias = data.get("user");
+    const pin = data.get("password");
 
-    // Validación temporal
-    if (user === "admin" && pass === "digital2026") {
-      Astro.cookies.set("session_token", "secure_digital_level_token", { 
+    // Petición directa al backend de Binance Sentinel en producción
+    const response = await fetch(PRODUCTION_API_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ alias, pin })
+    });
+
+    const result = await response.json();
+
+    if (response.ok && result.success) {
+      // Guardamos el Token JWT real para autorizar las peticiones del Dashboard
+      Astro.cookies.set("session_token", result.token, { 
         path: "/", 
         httpOnly: true, 
-        maxAge: 60 * 60 * 24 
+        maxAge: 60 * 60 * 24, // 24 horas
+        sameSite: 'lax'
       });
+      
+      // Guardamos el Alias para personalizar la bienvenida
+      Astro.cookies.set("operator_alias", result.operator.alias, { path: "/" });
+
       return Astro.redirect("/dashboard");
+    } else {
+      // El backend devuelve errores específicos (PIN corto, Usuario no existe, etc)
+      errorMessage = result.error || "Credenciales inválidas";
     }
   } catch (error) {
-    console.error("Error en login:", error);
+    console.error("Error de conexión en producción:", error);
+    errorMessage = "Error de conexión: El motor Sentinel no responde.";
   }
 }
 ---
@@ -46,6 +66,12 @@ if (Astro.request.method === "POST") {
         </div>
 
         <form method="POST" class="space-y-5">
+          {errorMessage && (
+            <div class="bg-red-500/10 border border-red-500/20 text-red-500 text-[10px] font-bold uppercase p-3 rounded-xl text-center tracking-widest animate-pulse">
+              {errorMessage}
+            </div>
+          )}
+          
           <div>
             <label class="block text-[10px] font-black uppercase tracking-[0.2em] text-[#F3BA2F] mb-2 ml-1">Usuario Operador</label>
             <input 
@@ -57,11 +83,12 @@ if (Astro.request.method === "POST") {
             />
           </div>
           <div>
-            <label class="block text-[10px] font-black uppercase tracking-[0.2em] text-[#F3BA2F] mb-2 ml-1">Contraseña Privada</label>
+            <label class="block text-[10px] font-black uppercase tracking-[0.2em] text-[#F3BA2F] mb-2 ml-1">PIN de Seguridad (4-6 dígitos)</label>
             <input 
               type="password" 
               name="password" 
               required 
+              inputmode="numeric"
               placeholder="••••••••"
               class="w-full bg-[#0b0e11] border border-gray-800 rounded-2xl p-4 text-white focus:border-[#F3BA2F] focus:ring-1 focus:ring-[#F3BA2F] transition-all outline-none"
             />
@@ -78,7 +105,7 @@ if (Astro.request.method === "POST") {
         </form>
 
         <p class="text-center mt-8 text-[10px] text-gray-500 uppercase font-bold tracking-widest">
-            Protocolo de Seguridad <span class="text-white">AES-256</span>
+            Protocolo de Seguridad <span class="text-white">AES-256 (Sentinel Node)</span>
         </p>
       </div>
     </div>
