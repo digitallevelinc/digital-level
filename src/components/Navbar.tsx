@@ -6,7 +6,13 @@ import {
 } from 'react-icons/fa'
 
 const services = [
-  { name: 'Calculadora P2P', href: '/calculadora', icon: FaCalculator, description: 'Calcula tus arbitrajes en tiempo real.', badge: 'FREE' },
+  { 
+    name: 'Calculadora P2P', 
+    href: '/calculadora', // <--- Asegúrate que esté así
+    icon: FaCalculator, 
+    description: 'Calcula tus arbitrajes en tiempo real.', 
+    badge: 'FREE' 
+  },
   { name: 'Sincronización P2P', href: '#ecosistema', icon: FaSyncAlt, description: 'Conexión directa con Binance, TG y Discord.' },
   { name: 'Guías Oficiales Binance', href: '#guias', icon: FaBtc, description: 'Lo que todo comerciante debe tener.' },
 ]
