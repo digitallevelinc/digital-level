@@ -2,8 +2,6 @@
 import Base from '../layouts/Base.astro';
 import Navbar from '../components/Navbar.tsx';
 import Footer from '../components/Footer.astro';
-
-// Ya no necesitamos la lógica de POST aquí arriba porque la hará el navegador (Client-side)
 ---
 
 <Base title="Acceso Operadores | Digital Level">
@@ -82,7 +80,6 @@ import Footer from '../components/Footer.astro';
   loginForm?.addEventListener('submit', async (e) => {
     e.preventDefault();
     
-    // Bloqueamos el botón para evitar doble clic
     submitBtn.disabled = true;
     submitBtn.innerText = "VERIFICANDO...";
     
@@ -93,21 +90,20 @@ import Footer from '../components/Footer.astro';
     const pin = formData.get('password');
 
     try {
-      // LLAMADA DIRECTA AL MOTOR SENTINEL
+      // LLAMADA AL PUERTO 3003 (Portal de Operadores)
       const response = await fetch("http://144.91.110.204:3003/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ alias, pin })
+        body: JSON.stringify({ alias, pin }) // El motor espera 'alias' y 'pin'
       });
 
       const result = await response.json();
 
       if (response.ok && result.success) {
-        // Guardamos los datos en localStorage para que el Dashboard los use
+        // Almacenamos el token para autorizar las siguientes vistas
         localStorage.setItem('session_token', result.token);
         localStorage.setItem('operator_alias', result.operator.alias);
         
-        // Redirección por JavaScript
         window.location.href = "/dashboard";
       } else {
         if (errorContainer) {
@@ -119,7 +115,7 @@ import Footer from '../components/Footer.astro';
       }
     } catch (error) {
       if (errorContainer) {
-        errorContainer.innerText = "Error de conexión: El motor Sentinel no responde.";
+        errorContainer.innerText = "Error: El motor Sentinel no responde en el puerto 3003.";
         errorContainer.classList.remove('hidden');
       }
       submitBtn.disabled = false;
