@@ -3,12 +3,12 @@ import DashboardLayout from '../../layouts/DashboardLayout.astro';
 import StatCard from '../../components/dashboard/StatCard.astro';
 
 const banks = [
-  { name: 'Mercantil', id: 'bank-mercantil', color: 'border-l-blue-600' },
-  { name: 'Banesco', id: 'bank-banesco', color: 'border-l-green-600' },
-  { name: 'BNC', id: 'bank-bnc', color: 'border-l-orange-500' },
-  { name: 'Provincial', id: 'bank-provincial', color: 'border-l-blue-900' },
-  { name: 'Pago Movil', id: 'bank-pagomovil', color: 'border-l-yellow-500' },
-  { name: 'Bancamiga', id: 'bank-bancamiga', color: 'border-l-green-800' }
+  { name: 'Mercantil', color: 'border-l-blue-600' },
+  { name: 'Banesco', color: 'border-l-green-600' },
+  { name: 'BNC', color: 'border-l-orange-500' },
+  { name: 'Provincial', color: 'border-l-blue-900' },
+  { name: 'Pago Movil', color: 'border-l-yellow-500' },
+  { name: 'Bancamiga', color: 'border-l-green-800' }
 ];
 ---
 
@@ -18,7 +18,7 @@ const banks = [
       <h1 class="text-white font-black text-xl uppercase tracking-tighter">
         Bienvenido, <span id="operator-alias" class="text-[#F3BA2F]">Cargando...</span>
       </h1>
-      <p id="last-update" class="text-[9px] text-gray-500 uppercase font-bold tracking-widest mt-1">Sincronizando con Sentinel...</p>
+      <p id="last-update" class="text-[9px] text-gray-500 uppercase font-bold tracking-widest mt-1 italic">Sincronizando con Sentinel...</p>
     </div>
     <button id="logout-btn" class="bg-red-500/10 hover:bg-red-500/20 text-red-500 text-[10px] font-black py-2 px-4 rounded-xl border border-red-500/20 transition-all uppercase tracking-widest">
       Cerrar Sesión
@@ -30,18 +30,83 @@ const banks = [
       <span class="w-1 h-3 bg-[#F3BA2F]"></span> 1. MÉTRICAS DE RENDIMIENTO CRÍTICO
     </h2>
     <div class="grid grid-cols-1 md:grid-cols-5 gap-3">
-      <div id="card-balance"><StatCard title="Balance Real Total" value="..." subValue="Cargando..." icon="fas fa-vault" /></div>
-      <div id="card-breakeven"><StatCard title="Tasa Mínima Compra" value="..." type="warning" subValue="Break-even" icon="fas fa-shield-halved" /></div>
-      <div id="card-margin"><StatCard title="Margen Global %" value="..." subValue="Beneficio neto" icon="fas fa-chart-line" /></div>
-      <div id="card-profit"><StatCard title="Profit Total" value="..." subValue="Ganancia acumulada" icon="fas fa-coins" /></div>
-      <div id="card-cycle"><StatCard title="Ganancia por Ciclo" value="..." type="success" subValue="Rendimiento actual" icon="fas fa-sync" /></div>
+      <div id="kpi-balance"><StatCard title="Balance Real Total" value="$15,240.50" subValue="Suma total carteras" icon="fas fa-vault" /></div>
+      <div id="kpi-breakeven"><StatCard title="Tasa Mínima Compra" value="613.04 VES" type="warning" subValue="Break-even" icon="fas fa-shield-halved" /></div>
+      <div id="kpi-margin"><StatCard title="Margen Global %" value="1.25%" subValue="Beneficio neto" icon="fas fa-chart-line" /></div>
+      <div id="kpi-profit"><StatCard title="Profit Total" value="$2,450.00" subValue="Ganancia acumulada" icon="fas fa-coins" /></div>
+      <div id="kpi-cycle"><StatCard title="Ganancia por Ciclo" value="$45.20" type="success" subValue="Rendimiento actual" icon="fas fa-sync" /></div>
     </div>
   </section>
 
-  </DashboardLayout>
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+    <section>
+      <h2 class="text-gray-500 text-[10px] font-black uppercase tracking-[0.2em] mb-4 italic">2. CONTROL DE OPERACIONES Y VOLUMEN</h2>
+      <div class="grid grid-cols-2 gap-3">
+        <div id="ops-count"><StatCard title="Cantidad de Operaciones" value="154" subValue="Total ejecutadas" /></div>
+        <div id="ops-rates"><StatCard title="Tasas Globales PP" value="612.50 / 618.20" subValue="Compra / Venta" /></div>
+        <div id="ops-buys"><StatCard title="Compras Totales" value="78 Órdenes" subValue="$7,500.00 Acumulado" /></div>
+        <div id="ops-sells"><StatCard title="Ventas Totales" value="76 Órdenes" subValue="$7,745.00 Acumulado" /></div>
+        <div id="ops-fees"><StatCard title="Comisiones Totales" value="$12.40" subValue="Costos operativos" /></div>
+      </div>
+    </section>
+
+    <section>
+      <h2 class="text-gray-500 text-[10px] font-black uppercase tracking-[0.2em] mb-4 italic">4. PROYECCIONES E INSIGHTS</h2>
+      <div class="grid grid-cols-2 gap-3">
+        <div id="proj-daily"><StatCard title="Ganancia Diaria" value="+$124.39" type="success" subValue="Últimas 24h" /></div>
+        <div id="proj-vol"><StatCard title="Volumen Proyectado" value="$3,500.00" subValue="Meta estimada" /></div>
+        <StatCard title="Comisión Operador" value="60% (Cesar)" subValue="Pago configurado" />
+        <div class="bg-[#161a1e] border border-gray-800 rounded-xl p-3 flex flex-col justify-center">
+          <label class="text-[9px] font-bold text-gray-500 uppercase mb-2">Filtro Proyección Temporal</label>
+          <select class="bg-black text-white text-xs border border-gray-700 p-2 rounded outline-none">
+            <option>1 Día</option><option>1 Semana</option><option>15 Días</option><option>1 Mes</option>
+          </select>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <section class="mb-8">
+    <h2 class="text-gray-500 text-[10px] font-black uppercase tracking-[0.2em] mb-4 italic">3. LOGÍSTICA DE CARTERAS (BALANCES INTERNOS)</h2>
+    <div class="grid grid-cols-2 md:grid-cols-5 gap-3">
+      <div id="wallet-p2p"><StatCard title="Balance P2P" value="$5,400" /></div>
+      <div id="wallet-switch"><StatCard title="Balance Switch" value="$2,100" /></div>
+      <div id="wallet-red"><StatCard title="Balance Red" value="$1,250" /></div>
+      <div id="wallet-pay"><StatCard title="Balance Pay" value="$450" /></div>
+      <div id="wallet-fiat"><StatCard title="Balance Fiat" value="85,000 VES" /></div>
+    </div>
+  </section>
+
+  <section class="pb-20">
+    <h2 class="text-gray-500 text-[10px] font-black uppercase tracking-[0.2em] mb-4 italic">5. PANEL DE BANCOS (CONTROL DE VOLUMEN)</h2>
+    <div class="bg-[#161a1e] border border-gray-800 rounded-xl overflow-hidden">
+      <div class="overflow-x-auto">
+        <table class="w-full text-left text-[9px] border-collapse">
+          <thead class="bg-black/40 text-gray-500 uppercase font-black border-b border-gray-800">
+            <tr>
+              <th class="px-3 py-4 text-white italic">Bancos Operando</th>
+              <th class="px-3 py-4 text-center">Balance FIAT</th>
+              <th class="px-3 py-4 text-center">Tasa Compra PP</th>
+              <th class="px-3 py-4 text-center">Tasa Venta PP</th>
+              <th class="px-3 py-4 text-center">Margen %</th>
+              <th class="px-3 py-4 text-center text-[#F3BA2F]">Profit USDT ≈</th>
+            </tr>
+          </thead>
+          <tbody id="bank-table-body" class="divide-y divide-gray-800/50">
+            {banks.map(b => (
+              <tr class={`hover:bg-white/[0.02] border-l-4 ${b.color}`}>
+                <td class="px-3 py-4 font-bold text-white">{b.name}</td>
+                <td colspan="5" class="px-3 py-4 text-center text-gray-600 animate-pulse italic italic">Esperando datos de Sentinel...</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+</DashboardLayout>
 
 <script>
-  // CONFIGURACIÓN DE CONEXIÓN
   const API_BASE = "http://144.91.110.204:3003";
   const token = localStorage.getItem('session_token');
   const alias = localStorage.getItem('operator_alias');
@@ -51,7 +116,7 @@ const banks = [
   const fVES = (v) => `${Number(v || 0).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} VES`;
 
   async function updateDashboard() {
-    if (!token) { window.location.href = "/login"; return; }
+    if (!token) return;
 
     try {
       const [kpiRes, statsRes] = await Promise.all([
@@ -59,41 +124,72 @@ const banks = [
         fetch(`${API_BASE}/api/stats`, { headers: { 'Authorization': `Bearer ${token}` } })
       ]);
 
-      if (!kpiRes.ok) throw new Error("Sesión expirada");
-      
       const kpis = await kpiRes.json();
       const stats = await statsRes.json();
 
-      // 1. Actualizar Textos Básicos
+      // 1. Cabecera
       document.getElementById('operator-alias').textContent = alias || kpis.operatorAlias;
       document.getElementById('last-update').textContent = `ACTUALIZADO: ${new Date().toLocaleTimeString()} (SENTINEL LIVE)`;
 
-      // 2. Inyectar datos en las StatCards (Buscamos el h3 o div de valor dentro del contenedor)
-      const updateCard = (id, val) => {
-        const el = document.querySelector(`#${id} h3`) || document.querySelector(`#${id} [class*='text-white']`);
-        if (el) el.textContent = val;
+      // 2. Función de inyección segura (no rompe el card)
+      const inject = (id, value, isProfit = false) => {
+        const el = document.querySelector(`#${id} h3`) || document.querySelector(`#${id} .text-white`) || document.querySelector(`#${id} span`);
+        if (el && value !== undefined) {
+          el.textContent = value;
+          if (isProfit) {
+            const num = parseFloat(String(value).replace(/[^0-9.-]+/g,""));
+            el.style.color = num >= 0 ? "#10b981" : "#ef4444";
+          }
+        }
       };
 
-      // Datos Críticos
-      updateCard('card-balance', fUSDT(stats.currentBalance || kpis.critical.balanceTotal));
-      updateCard('card-breakeven', fVES(kpis.critical.breakEvenRate));
-      updateCard('card-margin', `${kpis.critical.globalMarginPercent.toFixed(2)}%`);
-      updateCard('card-profit', fUSDT(kpis.critical.profitTotalUSDT));
-      updateCard('card-cycle', fUSDT(kpis.critical.currentCycleProfit || 0));
+      // SECCIÓN 1: CRÍTICOS
+      inject('kpi-balance', fUSDT(stats.currentBalance || kpis.critical.balanceTotal));
+      inject('kpi-breakeven', fVES(kpis.critical.breakEvenRate));
+      inject('kpi-margin', `${kpis.critical.globalMarginPercent.toFixed(2)}%`);
+      inject('kpi-profit', fUSDT(kpis.critical.profitTotalUSDT), true);
+      inject('kpi-cycle', fUSDT(kpis.critical.currentCycleProfit), true);
+
+      // SECCIÓN 2: OPERACIONES
+      inject('ops-count', kpis.operations.totalOperations);
+      inject('ops-rates', `${fVES(kpis.operations.weightedAvgBuyRate)} / ${fVES(kpis.operations.weightedAvgSellRate)}`);
+      inject('ops-buys', `${kpis.operations.buys.count} Órdenes`);
+      inject('ops-sells', `${kpis.operations.sells.count} Órdenes`);
+      inject('ops-fees', fUSDT(kpis.operations.totalFeesPaid));
+
+      // SECCIÓN 3: CARTERAS
+      inject('wallet-p2p', fUSDT(kpis.wallets.balanceP2P));
+      inject('wallet-switch', fUSDT(kpis.wallets.balanceSwitch));
+      inject('wallet-red', fUSDT(kpis.wallets.balanceRed));
+      inject('wallet-pay', fUSDT(kpis.wallets.balancePay));
+      inject('wallet-fiat', fVES(kpis.wallets.balanceFiat));
+
+      // SECCIÓN 5: TABLA DE BANCOS
+      const tableBody = document.getElementById('bank-table-body');
+      if (tableBody && kpis.bankInsights) {
+        tableBody.innerHTML = kpis.bankInsights.map(b => `
+          <tr class="hover:bg-white/[0.02] border-l-4 border-l-gray-700">
+            <td class="px-3 py-4 font-bold text-white">${b.bank}</td>
+            <td class="px-3 py-4 text-center font-mono">${fVES(b.fiatBalance)}</td>
+            <td class="px-3 py-4 text-center font-mono">${fVES(b.avgBuyRate)}</td>
+            <td class="px-3 py-4 text-center font-mono">${fVES(b.avgSellRate)}</td>
+            <td class="px-3 py-4 text-center font-mono">${b.margin.toFixed(2)}%</td>
+            <td class="px-3 py-4 text-center font-bold" style="color: ${b.profit >= 0 ? '#10b981' : '#ef4444'}">${fUSDT(b.profit)}</td>
+          </tr>
+        `).join('');
+      }
 
     } catch (err) {
-      console.error("Error sync:", err);
-      // Opcional: Redirigir a login si el token falla
+      console.error("Error sincronizando Dashboard:", err);
     }
   }
 
-  // LOGOUT
+  // Logout
   document.getElementById('logout-btn')?.addEventListener('click', () => {
     localStorage.clear();
     window.location.href = "/login";
   });
 
-  // Inicializar y refrescar cada 30 segundos
   updateDashboard();
   setInterval(updateDashboard, 30000);
 </script>
