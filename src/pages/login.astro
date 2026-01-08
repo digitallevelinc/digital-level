@@ -3,47 +3,7 @@ import Base from '../layouts/Base.astro';
 import Navbar from '../components/Navbar.tsx';
 import Footer from '../components/Footer.astro';
 
-let errorMessage = "";
-const PRODUCTION_API_URL = "http://144.91.110.204:3003/api/auth/login";
-
-// Lógica de procesamiento del formulario en el servidor
-if (Astro.request.method === "POST") {
-  try {
-    const data = await Astro.request.formData();
-    const alias = data.get("user");
-    const pin = data.get("password");
-
-    // Petición directa al backend de Binance Sentinel en producción
-    const response = await fetch(PRODUCTION_API_URL, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ alias, pin })
-    });
-
-    const result = await response.json();
-
-    if (response.ok && result.success) {
-      // Guardamos el Token JWT real para autorizar las peticiones del Dashboard
-      Astro.cookies.set("session_token", result.token, { 
-        path: "/", 
-        httpOnly: true, 
-        maxAge: 60 * 60 * 24, // 24 horas
-        sameSite: 'lax'
-      });
-      
-      // Guardamos el Alias para personalizar la bienvenida
-      Astro.cookies.set("operator_alias", result.operator.alias, { path: "/" });
-
-      return Astro.redirect("/dashboard");
-    } else {
-      // El backend devuelve errores específicos (PIN corto, Usuario no existe, etc)
-      errorMessage = result.error || "Credenciales inválidas";
-    }
-  } catch (error) {
-    console.error("Error de conexión en producción:", error);
-    errorMessage = "Error de conexión: El motor Sentinel no responde.";
-  }
-}
+// Ya no necesitamos la lógica de POST aquí arriba porque la hará el navegador (Client-side)
 ---
 
 <Base title="Acceso Operadores | Digital Level">
@@ -65,28 +25,27 @@ if (Astro.request.method === "POST") {
           <p class="text-gray-400 text-sm mt-2 font-medium uppercase tracking-widest">Digital Level Systems</p>
         </div>
 
-        <form method="POST" class="space-y-5">
-          {errorMessage && (
-            <div class="bg-red-500/10 border border-red-500/20 text-red-500 text-[10px] font-bold uppercase p-3 rounded-xl text-center tracking-widest animate-pulse">
-              {errorMessage}
-            </div>
-          )}
+        <form id="loginForm" class="space-y-5">
+          <div id="error-container" class="hidden bg-red-500/10 border border-red-500/20 text-red-500 text-[10px] font-bold uppercase p-3 rounded-xl text-center tracking-widest mb-4">
+          </div>
           
           <div>
             <label class="block text-[10px] font-black uppercase tracking-[0.2em] text-[#F3BA2F] mb-2 ml-1">Usuario Operador</label>
             <input 
               type="text" 
               name="user" 
+              id="user"
               required 
               placeholder="Ej: admin"
               class="w-full bg-[#0b0e11] border border-gray-700 rounded-2xl p-4 text-white focus:border-[#F3BA2F] focus:ring-1 focus:ring-[#F3BA2F] transition-all outline-none placeholder:text-gray-600"
             />
           </div>
           <div>
-            <label class="block text-[10px] font-black uppercase tracking-[0.2em] text-[#F3BA2F] mb-2 ml-1">PIN de Seguridad (4-6 dígitos)</label>
+            <label class="block text-[10px] font-black uppercase tracking-[0.2em] text-[#F3BA2F] mb-2 ml-1">PIN de Seguridad</label>
             <input 
               type="password" 
               name="password" 
+              id="password"
               required 
               inputmode="numeric"
               placeholder="••••••••"
@@ -97,6 +56,7 @@ if (Astro.request.method === "POST") {
           <div class="pt-2">
             <button 
               type="submit" 
+              id="submitBtn"
               class="w-full bg-[#F3BA2F] hover:bg-[#ffdb4d] text-black font-black py-4 rounded-2xl transition-all transform hover:scale-[1.02] shadow-[0_10px_20px_rgba(243,186,47,0.15)] active:scale-95 uppercase text-sm tracking-widest"
             >
               Acceder al Sistema
@@ -113,3 +73,57 @@ if (Astro.request.method === "POST") {
 
   <Footer />
 </Base>
+
+<script>
+  const loginForm = document.getElementById('loginForm') as HTMLFormElement;
+  const errorContainer = document.getElementById('error-container');
+  const submitBtn = document.getElementById('submitBtn') as HTMLButtonElement;
+
+  loginForm?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    
+    // Bloqueamos el botón para evitar doble clic
+    submitBtn.disabled = true;
+    submitBtn.innerText = "VERIFICANDO...";
+    
+    if (errorContainer) errorContainer.classList.add('hidden');
+
+    const formData = new FormData(loginForm);
+    const alias = formData.get('user');
+    const pin = formData.get('password');
+
+    try {
+      // LLAMADA DIRECTA AL MOTOR SENTINEL
+      const response = await fetch("http://144.91.110.204:3003/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ alias, pin })
+      });
+
+      const result = await response.json();
+
+      if (response.ok && result.success) {
+        // Guardamos los datos en localStorage para que el Dashboard los use
+        localStorage.setItem('session_token', result.token);
+        localStorage.setItem('operator_alias', result.operator.alias);
+        
+        // Redirección por JavaScript
+        window.location.href = "/dashboard";
+      } else {
+        if (errorContainer) {
+          errorContainer.innerText = result.error || "Credenciales inválidas";
+          errorContainer.classList.remove('hidden');
+        }
+        submitBtn.disabled = false;
+        submitBtn.innerText = "ACCEDER AL SISTEMA";
+      }
+    } catch (error) {
+      if (errorContainer) {
+        errorContainer.innerText = "Error de conexión: El motor Sentinel no responde.";
+        errorContainer.classList.remove('hidden');
+      }
+      submitBtn.disabled = false;
+      submitBtn.innerText = "ACCEDER AL SISTEMA";
+    }
+  });
+</script>
