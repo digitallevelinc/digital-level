@@ -1,0 +1,216 @@
+---
+import Layout from '../layouts/Base.astro';
+import Navbar from '../components/Navbar';
+import Footer from '../components/Footer.astro';
+---
+
+<Layout title="Calculadora P2P Pro | Digital Level">
+    <Navbar client:load />
+    
+    <main class="pt-32 pb-20 bg-[#0b0e11] min-h-screen font-sans text-white">
+        <div class="max-w-6xl mx-auto px-4">
+            <div class="text-center mb-10">
+                <h1 class="text-4xl md:text-5xl font-black mb-3 tracking-tighter italic">
+                    CALCULADORA <span class="text-[#F3BA2F]">P2P TRADING</span>
+                </h1>
+                <p class="text-gray-400">Ajustado con tasas Maker 0.16% y Taker $0.06</p>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+                <div class="lg:col-span-5 space-y-6">
+                    <div class="bg-[#15191d] p-8 rounded-[2rem] border border-gray-800 shadow-2xl">
+                        <h3 class="font-bold mb-6 flex items-center gap-2 text-lg uppercase tracking-wider">
+                            <span class="w-1.5 h-6 bg-[#F3BA2F] rounded-full"></span> Configuración
+                        </h3>
+
+                        <div class="space-y-5">
+                            <div>
+                                <label class="block text-gray-500 text-xs font-bold uppercase mb-2 ml-1">Capital Inicial (USD)</label>
+                                <input type="number" id="capital" value="5000" class="w-full bg-[#0b0e11] border border-gray-700 rounded-xl p-4 text-white font-bold focus:border-[#F3BA2F] outline-none transition-all text-xl" />
+                            </div>
+
+                            <div>
+                                <label class="block text-gray-500 text-xs font-bold uppercase mb-2 ml-1">Nivel de Cuenta (Maker %)</label>
+                                <select id="nivelCuenta" class="w-full bg-[#0b0e11] border border-gray-700 rounded-xl p-4 text-white font-bold focus:border-[#F3BA2F] outline-none cursor-pointer">
+                                    <option value="0.0020">No Verificado (0.20%)</option>
+                                    <option value="0.0016" selected>Bronce (0.16%)</option>
+                                    <option value="0.0014">Plata (0.14%)</option>
+                                    <option value="0.0010">Oro (0.10%)</option>
+                                </select>
+                            </div>
+
+                            <div class="p-4 bg-[#0b0e11] rounded-2xl border border-gray-800">
+                                <label class="block text-gray-400 text-[10px] font-bold uppercase mb-3 text-center">Tasa de Compra (USDT/VES)</label>
+                                <div class="flex gap-2 mb-4">
+                                    <button class="btn-fee active" data-type="compra" data-mode="maker">Maker (%)</button>
+                                    <button class="btn-fee" data-type="compra" data-mode="taker">Taker ($0.06)</button>
+                                </div>
+                                <input type="number" id="precioCompra" value="610" step="0.01" class="w-full bg-transparent text-3xl font-black text-center outline-none text-white" placeholder="0.00" />
+                            </div>
+
+                            <div class="p-4 bg-[#0b0e11] rounded-2xl border border-gray-800">
+                                <label class="block text-gray-400 text-[10px] font-bold uppercase mb-3 text-center">Tasa de Venta (USDT/VES)</label>
+                                <div class="flex gap-2 mb-4">
+                                    <button class="btn-fee active" data-type="venta" data-mode="maker">Maker (%)</button>
+                                    <button class="btn-fee" data-type="venta" data-mode="taker">Taker ($0.06)</button>
+                                </div>
+                                <input type="number" id="precioVenta" value="615" step="0.01" class="w-full bg-transparent text-3xl font-black text-center text-[#F3BA2F] outline-none" placeholder="0.00" />
+                            </div>
+
+                            <div>
+                                <label class="block text-gray-500 text-xs font-bold uppercase mb-2 ml-1">Ciclos Diarios</label>
+                                <input type="number" id="ciclosDiarios" value="5" class="w-full bg-[#0b0e11] border border-gray-700 rounded-xl p-4 text-white font-bold focus:border-[#F3BA2F] outline-none" />
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="lg:col-span-7 space-y-6">
+                    <div class="bg-gradient-to-br from-[#1c2127] to-[#15191d] p-10 rounded-[2.5rem] border border-gray-800 shadow-2xl">
+                        <div class="flex justify-between items-center mb-4">
+                            <p class="text-gray-400 font-bold uppercase tracking-widest text-sm">Ganancia por Ciclo</p>
+                            <div id="roiBadge" class="bg-green-500/10 text-green-400 border border-green-500/20 px-4 py-1 rounded-full text-sm font-black">ROI: 0.00%</div>
+                        </div>
+                        <h2 id="gananciaCiclo" class="text-6xl md:text-7xl font-black text-green-400 leading-none mb-6">$0.00</h2>
+                        
+                        <div class="grid grid-cols-2 gap-8 pt-8 border-t border-white/5">
+                            <div>
+                                <p class="text-gray-500 text-xs uppercase font-bold mb-1">Ganancia Diaria</p>
+                                <p id="gananciaDiaria" class="text-3xl font-black text-[#F3BA2F]">$0.00</p>
+                            </div>
+                            <div>
+                                <p class="text-gray-500 text-xs uppercase font-bold mb-1">Proyección Mensual</p>
+                                <p id="proyeccionMensual" class="text-3xl font-black text-white">$0.00</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div class="bg-[#15191d] p-8 rounded-3xl border border-gray-800">
+                            <p class="text-gray-500 text-xs font-bold uppercase mb-2 text-center">Volumen Proyectado (30d)</p>
+                            <p id="volumenMensual" class="text-3xl font-black text-center text-[#F3BA2F] leading-none">$0.00</p>
+                        </div>
+                        <div class="bg-[#15191d] p-8 rounded-3xl border border-gray-800">
+                            <p class="text-gray-500 text-xs font-bold uppercase mb-2 text-center">Break Even (Precio)</p>
+                            <p id="breakeven" class="text-3xl font-black text-center text-white leading-none">0.00</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+    <Footer />
+</Layout>
+
+<style>
+    .btn-fee {
+        @apply flex-1 py-2 rounded-lg border border-gray-700 text-[10px] font-black transition-all text-gray-500 uppercase;
+    }
+    .btn-fee.active {
+        @apply border-[#F3BA2F] text-black bg-[#F3BA2F];
+    }
+    input::-webkit-outer-spin-button, input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+</style>
+
+<script>
+    let config = { compra: 'maker', venta: 'maker' };
+
+    function calcular() {
+    // 1. Captura de datos
+    const capitalInicial = parseFloat(document.getElementById('capital').value) || 0;
+    const pCompra = parseFloat(document.getElementById('precioCompra').value) || 0;
+    const pVenta = parseFloat(document.getElementById('precioVenta').value) || 0;
+    const ciclos = parseFloat(document.getElementById('ciclosDiarios').value) || 0;
+    const feeMakerPct = parseFloat(document.getElementById('nivelCuenta').value); // Ej: 0.0016
+    const feeTakerFija = 0.06; // Comisión fija en USDT
+
+    if (pCompra <= 0 || pVenta <= 0 || capitalInicial <= 0) return;
+
+    // --- FASE 1: COMPRA (Fiat -> USDT) ---
+    let usdtComprados = capitalInicial / pCompra;
+    let comisionCompraUSDT = 0;
+
+    if (config.compra === 'maker') {
+        // La comisión Maker se descuenta de los USDT recibidos
+        comisionCompraUSDT = usdtComprados * feeMakerPct;
+    } else {
+        // La comisión Taker es fija (0.06 USDT)
+        comisionCompraUSDT = feeTakerFija;
+    }
+    const usdtNetos = usdtComprados - comisionCompraUSDT;
+
+    // --- FASE 2: VENTA (USDT -> Fiat) ---
+    let brutoVentaFiat = usdtNetos * pVenta;
+    let comisionVentaFiat = 0;
+
+    if (config.venta === 'maker') {
+        // En la venta Maker, Binance descuenta el % del capital Fiat resultante
+        comisionVentaFiat = brutoVentaFiat * feeMakerPct;
+    } else {
+        // En la venta Taker, se asume que el usuario gasta 0.06 USDT antes de vender
+        // o se descuenta el equivalente en Fiat del capital final
+        comisionVentaFiat = feeTakerFija * pVenta;
+    }
+    const capitalFinalCiclo = brutoVentaFiat - comisionVentaFiat;
+
+    // --- RESULTADOS ---
+    const gananciaPorCiclo = capitalFinalCiclo - capitalInicial;
+    const roiCiclo = (gananciaPorCiclo / capitalInicial) * 100;
+    
+    // Ganancia Diaria (Interés Simple: capital inicial se mantiene igual en cada ciclo)
+    const gananciaDiaria = gananciaPorCiclo * ciclos;
+    const gananciaMensual = gananciaDiaria * 30;
+
+    // Tasa Mínima de Venta (Break Even)
+    // Para no perder, CapitalFinal debe ser = CapitalInicial
+    // PVenta = PCompra / ((1 - FeeCompra) * (1 - FeeVenta))
+    const feeC = config.compra === 'maker' ? feeMakerPct : (feeTakerFija / usdtComprados);
+    const feeV = config.venta === 'maker' ? feeMakerPct : (feeTakerFija / usdtNetos);
+    const breakEven = pCompra / ((1 - feeC) * (1 - feeV));
+
+    // --- ACTUALIZACIÓN DE UI ---
+    actualizarPantalla({
+        gananciaPorCiclo,
+        roiCiclo,
+        gananciaDiaria,
+        gananciaMensual,
+        breakEven,
+        capitalInicial,
+        ciclos
+    });
+}
+
+function actualizarPantalla(res) {
+    document.getElementById('gananciaCiclo').innerText = `$${res.gananciaPorCiclo.toFixed(2)}`;
+    document.getElementById('roiBadge').innerText = `ROI: ${res.roiCiclo.toFixed(2)}%`;
+    document.getElementById('gananciaDiaria').innerText = `$${res.gananciaDiaria.toFixed(2)}`;
+    document.getElementById('proyeccionMensual').innerText = `$${res.gananciaMensual.toLocaleString('en-US', {minimumFractionDigits: 2})}`;
+    document.getElementById('breakeven').innerText = res.breakEven.toFixed(2);
+    
+    const vol = res.capitalInicial * res.ciclos * 2 * 30;
+    document.getElementById('volumenMensual').innerText = `$${(vol/1000).toFixed(0)}k`;
+
+    // Estética de color
+    const gEl = document.getElementById('gananciaCiclo');
+    gEl.style.color = res.gananciaPorCiclo >= 0 ? '#4ade80' : '#f87171';
+}
+
+    // Listeners para botones
+    document.querySelectorAll('.btn-fee').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            const type = e.target.dataset.type;
+            const mode = e.target.dataset.mode;
+            document.querySelectorAll(`[data-type="${type}"]`).forEach(b => b.classList.remove('active'));
+            e.target.classList.add('active');
+            config[type] = mode;
+            calcular();
+        });
+    });
+
+    // Listeners para inputs
+    ['capital', 'precioCompra', 'precioVenta', 'ciclosDiarios', 'nivelCuenta'].forEach(id => {
+        document.getElementById(id).addEventListener('input', calcular);
+    });
+
+    calcular();
+</script>
