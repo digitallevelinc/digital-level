@@ -1,0 +1,65 @@
+---
+// src/components/Sincronizacion.astro
+const partners = [
+  { 
+    name: "Binance P2P", 
+    logoWhite: "https://cdn.simpleicons.org/binance/white",
+    logoColor: "https://cdn.simpleicons.org/binance/F3BA2F",
+    url: "https://p2p.binance.com/"
+  },
+  { 
+    name: "Binance API", 
+    logoWhite: "https://cdn.simpleicons.org/binance/white",
+    logoColor: "https://cdn.simpleicons.org/binance/F3BA2F", 
+    url: "https://www.binance.com/es/binance-api"
+  },
+  { 
+    name: "Telegram Bot", 
+    logoWhite: "https://cdn.simpleicons.org/telegram/white",
+    logoColor: "https://cdn.simpleicons.org/telegram/26A5E4",
+    url: "https://telegram.org/"
+  },
+  { 
+    name: "Discord", 
+    logoWhite: "https://cdn.simpleicons.org/discord/white",
+    logoColor: "https://cdn.simpleicons.org/discord/5865F2",
+    url: "https://discord.com/"
+  },
+  { 
+    name: "Google Sheets", 
+    logoWhite: "https://cdn.simpleicons.org/googlesheets/white",
+    logoColor: "https://cdn.simpleicons.org/googlesheets/34A853",
+    url: "https://www.google.com/sheets/about/"
+  }
+];
+---
+
+<section id="ecosistema" class="py-16 bg-[#0b0e11] border-t border-gray-800/50 scroll-mt-24">
+    <div class="max-w-7xl mx-auto px-6">
+        <p class="text-center text-gray-500 font-bold uppercase tracking-widest text-[10px] mb-12">
+            Sincronización directa con el ecosistema P2P
+        </p>
+        
+        <div class="flex flex-wrap justify-center items-start gap-8 md:gap-16">
+            {partners.map(partner => (
+                <a href={partner.url} target="_blank" rel="noopener noreferrer" class="group flex flex-col items-center gap-4 w-24 md:w-32">
+                    <div class="h-10 w-full relative flex items-center justify-center">
+                        <img 
+                            src={partner.logoWhite} 
+                            alt={partner.name} 
+                            class="h-8 md:h-10 w-auto object-contain absolute transition-all duration-300 group-hover:opacity-0 group-hover:scale-110"
+                        />
+                        <img 
+                            src={partner.logoColor} 
+                            alt={partner.name} 
+                            class="h-8 md:h-10 w-auto object-contain absolute opacity-0 transition-all duration-300 group-hover:opacity-100 group-hover:scale-110"
+                        />
+                    </div>
+                    <span class="text-[10px] md:text-xs font-medium text-gray-500 group-hover:text-white transition-colors duration-300 uppercase tracking-tighter text-center mt-2">
+                        {partner.name}
+                    </span>
+                </a>
+            ))}
+        </div>
+    </div>
+</section>

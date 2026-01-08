@@ -1,0 +1,148 @@
+---
+import Layout from '../layouts/Layouts.astro';
+import Navbar from '../components/Navbar.astro';
+import Footer from '../components/Footer.astro';
+---
+
+<Layout title="Calculadora de Arbitraje P2P | Digital Level">
+    <Navbar />
+    
+    <main class="pt-32 pb-20 bg-[#0b0e11] min-h-screen">
+        <div class="max-w-6xl mx-auto px-4">
+            <div class="text-center mb-10">
+                <h1 class="text-4xl md:text-5xl font-black text-white mb-4 italic">
+                    CALCULADORA <span class="text-[#F3BA2F]">P2P</span>
+                </h1>
+                <p class="text-gray-400 max-w-2xl mx-auto">
+                    Optimiza tus operaciones de arbitraje. Calcula spreads, comisiones y beneficios netos en segundos.
+                </p>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+                <div class="lg:col-span-5 bg-[#15191d] p-8 rounded-2xl border border-gray-800 shadow-2xl">
+                    <h3 class="text-[#F3BA2F] font-bold mb-6 flex items-center gap-2">
+                        <i class="fas fa-sliders"></i> CONFIGURACIÓN
+                    </h3>
+                    
+                    <div class="space-y-6">
+                        <div>
+                            <label class="block text-gray-400 text-sm mb-2">Capital Inicial (USDT)</label>
+                            <input type="number" id="capital" value="1000" class="w-full bg-[#0b0e11] border border-gray-700 rounded-lg p-3 text-white focus:border-[#F3BA2F] outline-none transition-all" />
+                        </div>
+
+                        <div class="p-4 bg-[#0b0e11]/50 rounded-xl border border-gray-800">
+                            <label class="block text-green-400 text-xs font-bold uppercase mb-2">Precio de Compra (Anuncio)</label>
+                            <input type="number" id="precioCompra" placeholder="Ej: 36.50" class="w-full bg-transparent text-2xl font-bold text-white outline-none" />
+                            <div class="flex gap-2 mt-3">
+                                <button class="btn-fee active" data-type="compra" data-fee="0.001">Maker (0.1%)</button>
+                                <button class="btn-fee" data-type="compra" data-fee="0">Taker (0%)</button>
+                            </div>
+                        </div>
+
+                        <div class="p-4 bg-[#0b0e11]/50 rounded-xl border border-gray-800">
+                            <label class="block text-[#F3BA2F] text-xs font-bold uppercase mb-2">Precio de Venta (Anuncio)</label>
+                            <input type="number" id="precioVenta" placeholder="Ej: 37.20" class="w-full bg-transparent text-2xl font-bold text-white outline-none" />
+                            <div class="flex gap-2 mt-3">
+                                <button class="btn-fee active" data-type="venta" data-fee="0.001">Maker (0.1%)</button>
+                                <button class="btn-fee" data-type="venta" data-fee="0">Taker (0%)</button>
+                            </div>
+                        </div>
+
+                        <button id="btnCalcular" class="w-full bg-[#F3BA2F] text-black font-black py-4 rounded-xl hover:scale-[1.02] transition-transform uppercase tracking-wider shadow-[0_0_20px_rgba(243,186,47,0.2)]">
+                            Calcular Beneficio
+                        </button>
+                    </div>
+                </div>
+
+                <div class="lg:col-span-7 space-y-6">
+                    <div class="bg-gradient-to-br from-[#15191d] to-[#0b0e11] p-8 rounded-2xl border border-gray-800 relative overflow-hidden">
+                        <div class="relative z-10">
+                            <p class="text-gray-400 font-medium">Ganancia Neta por Ciclo</p>
+                            <h2 id="gananciaNeta" class="text-6xl font-black text-white my-2">$0.00</h2>
+                            <div id="badgeROI" class="inline-block bg-green-500/20 text-green-400 px-3 py-1 rounded-full text-sm font-bold">
+                                ROI: 0.00%
+                            </div>
+                        </div>
+                        <i class="fas fa-chart-line absolute right-[-20px] bottom-[-20px] text-9xl text-white/5"></i>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div class="bg-[#15191d] p-6 rounded-xl border border-gray-800">
+                            <p class="text-gray-500 text-sm">Capital Final</p>
+                            <p id="capitalFinal" class="text-2xl font-bold text-white leading-none mt-1">$0.00</p>
+                        </div>
+                        <div class="bg-[#15191d] p-6 rounded-xl border border-gray-800">
+                            <p class="text-gray-500 text-sm">Breakeven (Mín. Venta)</p>
+                            <p id="breakeven" class="text-2xl font-bold text-[#F3BA2F] leading-none mt-1">0.00</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <Footer />
+</Layout>
+
+<style>
+    .btn-fee {
+        @apply flex-1 py-2 rounded-md border border-gray-700 text-xs font-bold transition-all text-gray-500 uppercase;
+    }
+    .btn-fee.active {
+        @apply border-[#F3BA2F] text-[#F3BA2F] bg-[#F3BA2F]/10;
+    }
+</style>
+
+<script>
+    // Lógica de la calculadora
+    const inputs = ['capital', 'precioCompra', 'precioVenta'];
+    let fees = { compra: 0.001, venta: 0.001 };
+
+    // Manejo de botones de comisión
+    document.querySelectorAll('.btn-fee').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            const type = e.target.dataset.type;
+            const fee = parseFloat(e.target.dataset.fee);
+            
+            // Toggle visual
+            document.querySelectorAll(`[data-type="${type}"]`).forEach(b => b.classList.remove('active'));
+            e.target.classList.add('active');
+            
+            fees[type] = fee;
+            calcular();
+        });
+    });
+
+    function calcular() {
+        const capital = parseFloat(document.getElementById('capital').value);
+        const pCompra = parseFloat(document.getElementById('precioCompra').value);
+        const pVenta = parseFloat(document.getElementById('precioVenta').value);
+
+        if (!pCompra || !pVenta) return;
+
+        // 1. Compra de USDT (restando comisión)
+        const usdtComprados = (capital / pCompra) * (1 - fees.compra);
+        
+        // 2. Venta de USDT (restando comisión)
+        const capitalFinal = (usdtComprados * pVenta) * (1 - fees.venta);
+        
+        const ganancia = capitalFinal - capital;
+        const roi = (ganancia / capital) * 100;
+
+        // Breakeven
+        const breakEvenPrice = pCompra / ((1 - fees.compra) * (1 - fees.venta));
+
+        // Actualizar UI
+        document.getElementById('gananciaNeta').innerText = `$${ganancia.toFixed(2)}`;
+        document.getElementById('capitalFinal').innerText = `$${capitalFinal.toFixed(2)}`;
+        document.getElementById('badgeROI').innerText = `ROI: ${roi.toFixed(2)}%`;
+        document.getElementById('breakeven').innerText = breakEvenPrice.toFixed(2);
+        
+        // Color según ganancia
+        const displayGanancia = document.getElementById('gananciaNeta');
+        displayGanancia.className = ganancia >= 0 ? 'text-6xl font-black text-green-400 my-2' : 'text-6xl font-black text-red-400 my-2';
+    }
+
+    document.getElementById('btnCalcular').addEventListener('click', calcular);
+    inputs.forEach(id => document.getElementById(id).addEventListener('input', calcular));
+</script>

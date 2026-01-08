@@ -1,0 +1,56 @@
+---
+// src/components/Guias.astro
+const guides = [
+  { 
+    title: "Guía para Principiantes", 
+    url: "https://www.binance.com/es-LA/blog/p2p/421499824684903297",
+    tag: "Fundamentos"
+  },
+  { 
+    title: "Seguridad y Prevención de Estafas", 
+    url: "https://www.binance.com/es-LA/blog/p2p/7428324997079645557",
+    tag: "Esencial"
+  },
+  { 
+    title: "Privacidad y Seguridad de Datos", 
+    url: "https://www.binance.com/es-LA/blog/all/421499824684901751",
+    tag: "Protección"
+  },
+  { 
+    title: "Ética y Transparencia del Comerciante", 
+    url: "https://www.binance.com/es-LA/blog/p2p/6195626434843145983",
+    tag: "Reputación"
+  }
+];
+---
+
+<section id="guias" class="py-20 bg-[#0b0e11] border-b border-gray-800/50 scroll-mt-24">
+    <div class="max-w-4xl mx-auto px-6">
+        <h4 class="text-center text-white text-lg font-semibold mb-8 flex items-center justify-center gap-2">
+            <span class="text-yellow-500 text-xl">📚</span> Guías oficiales de Binance P2P que todo comerciante debe tener
+        </h4>
+        
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {guides.map(guide => (
+                <a 
+                    href={guide.url} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    class="bg-[#1e2329]/50 border border-gray-700 p-4 rounded-xl flex items-center justify-between hover:border-yellow-500/50 transition-colors group"
+                >
+                    <div>
+                        <span class="text-[10px] uppercase font-bold text-yellow-500 tracking-wider mb-1 block">{guide.tag}</span>
+                        <p class="text-gray-200 text-sm font-medium group-hover:text-white transition-colors">{guide.title}</p>
+                    </div>
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-gray-500 group-hover:text-yellow-500 transition-all" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                    </svg>
+                </a>
+            ))}
+        </div>
+        
+        <p class="text-center text-gray-400 text-[10px] mt-16 italic opacity-50">
+            *Digital Level actúa como un rastreador administrativo independiente (Tracker) y no tiene relación legal directa con las entidades o plataformas mencionadas.
+        </p>
+    </div>
+</section>

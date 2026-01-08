@@ -1,5 +1,8 @@
 ---
 import Base from '../layouts/Base.astro';
+// Importamos el Navbar de React que ya unificamos
+import Navbar from '../components/Navbar.tsx';
+import Footer from '../components/Footer.astro';
 
 // Lógica de procesamiento del formulario
 if (Astro.request.method === "POST") {
@@ -8,9 +11,8 @@ if (Astro.request.method === "POST") {
     const user = data.get("user");
     const pass = data.get("password");
 
-    // Validación temporal (luego el dev de Brasil conectará su DB)
+    // Validación temporal
     if (user === "admin" && pass === "digital2026") {
-      // Establecemos una cookie de sesión por 24 horas
       Astro.cookies.set("session_token", "secure_digital_level_token", { 
         path: "/", 
         httpOnly: true, 
@@ -24,41 +26,63 @@ if (Astro.request.method === "POST") {
 }
 ---
 
-<Base title="Acceso Operadores">
-  <div class="flex items-center justify-center min-h-[70vh] px-6">
-    <div class="w-full max-w-md bg-[#161a1e] border border-gray-800 p-8 rounded-2xl shadow-2xl">
-      <div class="text-center mb-8">
-        <img src="/img/logo.png" alt="Logo" class="w-12 h-12 mx-auto mb-4" />
-        <h2 class="text-2xl font-bold text-white">Panel de Operadores</h2>
-        <p class="text-gray-400 text-sm mt-2">Ingresa tus credenciales para continuar</p>
-      </div>
+<Base title="Acceso Operadores | Digital Level">
+  <Navbar client:load />
 
-      <form method="POST" class="space-y-6">
-        <div>
-          <label class="block text-xs font-bold uppercase text-[#F3BA2F] mb-2">Usuario</label>
-          <input 
-            type="text" 
-            name="user" 
-            required 
-            class="w-full bg-[#0b0e11] border border-gray-700 rounded-xl p-3 text-white focus:border-[#F3BA2F] transition-colors outline-none"
-          />
+  <main class="relative pt-32 pb-20 bg-[#0b0e11] overflow-hidden">
+    <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-[#F3BA2F]/5 rounded-full blur-[120px] pointer-events-none"></div>
+
+    <div class="flex items-center justify-center min-h-[60vh] px-6 relative z-10">
+      <div class="w-full max-w-md bg-[#161a1e]/80 backdrop-blur-xl border border-gray-800 p-8 rounded-3xl shadow-[0_20px_50px_rgba(0,0,0,0.5)]">
+        
+        <div class="text-center mb-8">
+          <div class="inline-flex p-3 rounded-2xl bg-[#F3BA2F]/10 mb-4 border border-[#F3BA2F]/20">
+            <img src="/img/logo.png" alt="Digital Level Logo" class="w-12 h-12 object-contain" />
+          </div>
+          <h2 class="text-3xl font-black text-white tracking-tighter uppercase">
+            PANEL <span class="text-[#F3BA2F]">OPERADOR</span>
+          </h2>
+          <p class="text-gray-400 text-sm mt-2 font-medium uppercase tracking-widest">Digital Level Systems</p>
         </div>
-        <div>
-          <label class="block text-xs font-bold uppercase text-[#F3BA2F] mb-2">Contraseña</label>
-          <input 
-            type="password" 
-            name="password" 
-            required 
-            class="w-full bg-[#0b0e11] border border-gray-700 rounded-xl p-3 text-white focus:border-[#F3BA2F] transition-colors outline-none"
-          />
-        </div>
-        <button 
-          type="submit" 
-          class="w-full bg-[#F3BA2F] hover:bg-[#d9a528] text-black font-bold py-3 rounded-xl transition-all transform hover:scale-[1.02]"
-        >
-          Iniciar Sesión
-        </button>
-      </form>
+
+        <form method="POST" class="space-y-5">
+          <div>
+            <label class="block text-[10px] font-black uppercase tracking-[0.2em] text-[#F3BA2F] mb-2 ml-1">Usuario Operador</label>
+            <input 
+              type="text" 
+              name="user" 
+              required 
+              placeholder="Ej: admin"
+              class="w-full bg-[#0b0e11] border border-gray-700 rounded-2xl p-4 text-white focus:border-[#F3BA2F] focus:ring-1 focus:ring-[#F3BA2F] transition-all outline-none placeholder:text-gray-600"
+            />
+          </div>
+          <div>
+            <label class="block text-[10px] font-black uppercase tracking-[0.2em] text-[#F3BA2F] mb-2 ml-1">Contraseña Privada</label>
+            <input 
+              type="password" 
+              name="password" 
+              required 
+              placeholder="••••••••"
+              class="w-full bg-[#0b0e11] border border-gray-800 rounded-2xl p-4 text-white focus:border-[#F3BA2F] focus:ring-1 focus:ring-[#F3BA2F] transition-all outline-none"
+            />
+          </div>
+
+          <div class="pt-2">
+            <button 
+              type="submit" 
+              class="w-full bg-[#F3BA2F] hover:bg-[#ffdb4d] text-black font-black py-4 rounded-2xl transition-all transform hover:scale-[1.02] shadow-[0_10px_20px_rgba(243,186,47,0.15)] active:scale-95 uppercase text-sm tracking-widest"
+            >
+              Acceder al Sistema
+            </button>
+          </div>
+        </form>
+
+        <p class="text-center mt-8 text-[10px] text-gray-500 uppercase font-bold tracking-widest">
+            Protocolo de Seguridad <span class="text-white">AES-256</span>
+        </p>
+      </div>
     </div>
-  </div>
+  </main>
+
+  <Footer />
 </Base>

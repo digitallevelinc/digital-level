@@ -1,35 +1,46 @@
 ---
-// src/pages/index.astro
 import Base from '../layouts/Base.astro';
-import Navbar from '../components/Navbar.astro';
+// 1. Corregimos el nombre del import para que coincida con el archivo físico
+// 2. Agregamos la extensión .tsx para que Astro lo reconozca sin errores
+import Navbar from '../components/Navbar.tsx'; 
 import Hero from '../components/Hero.astro';
 import Features from '../components/Features.astro';
 import Precios from '../components/Precios.astro'; 
-import Partners from '../components/Partners.astro'; 
+import Sincronizacion from '../components/Sincronizacion.astro'; 
+import Guias from '../components/Guias.astro';
 import About from '../components/About.astro';
 import Footer from '../components/Footer.astro';
 import WhatsAppBot from '../components/WhatsAppBot.astro';
-import RegistrationModal from '../components/RegistrationModal.astro'; // Importación del nuevo módulo
+import RegistrationModal from '../components/RegistrationModal.astro';
 ---
 
 <Base title="Digital Level | Arbitraje P2P Profesional">
-    <Navbar />
+    {/* 3. Usamos el componente Navbar con la directiva client:load para que los menús funcionen */}
+    <Navbar client:load />        
     
     <main>
-        <Hero />
-
+        {/* Sección de Bienvenida */}
+        <Hero />                
+        
+        {/* Beneficios Principales */}
         <Features />
 
-        <Precios />
+        {/* Planes y Tarifas (ID: precios) */}
+        <Precios /> 
 
-        <Partners />
+        {/* Ecosistema y Partners (ID: ecosistema) */}
+        <Sincronizacion />                
         
+        {/* Documentación y Tutoriales (ID: guias) */}
+        <Guias />                
+        
+        {/* Información de la Empresa (ID: nosotros) */}
         <About />
     </main>
 
-    <Footer />
+    <Footer />        
     
-    <WhatsAppBot /> 
-
+    {/* Componentes Flotantes y Modales */}
+    <WhatsAppBot />     
     <RegistrationModal />
 </Base>
