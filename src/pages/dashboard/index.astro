@@ -67,15 +67,35 @@ const banks = [
   </div>
 
   <section class="mb-8">
-    <h2 class="text-gray-500 text-[10px] font-black uppercase tracking-[0.2em] mb-4 italic">3. LOGÍSTICA DE CARTERAS (BALANCES INTERNOS)</h2>
-    <div class="grid grid-cols-2 md:grid-cols-5 gap-3">
-      <div id="wallet-p2p"><StatCard title="Balance P2P" value="$5,400" /></div>
-      <div id="wallet-switch"><StatCard title="Balance Switch" value="$2,100" /></div>
-      <div id="wallet-red"><StatCard title="Balance Red" value="$1,250" /></div>
-      <div id="wallet-pay"><StatCard title="Balance Pay" value="$450" /></div>
-      <div id="wallet-fiat"><StatCard title="Balance Fiat" value="85,000 VES" /></div>
-    </div>
-  </section>
+  <h2 class="text-gray-500 text-[10px] font-black uppercase tracking-[0.2em] mb-4 italic">3. LOGÍSTICA DE CARTERAS (BALANCES INTERNOS)</h2>
+  <div class="grid grid-cols-2 md:grid-cols-5 gap-3">
+    <div id="wallet-p2p"><StatCard title="Balance P2P" value="$5,400" /></div>
+    <div id="wallet-switch"><StatCard title="Balance Switch" value="$2,100" /></div>
+    
+    <div id="wallet-red" class="relative group" style="position: relative;">
+  <StatCard 
+    title="Balance RED" 
+    value="N/A" 
+    subValue="0 Ops | IN: N/A | OUT: N/A" 
+    icon="fas fa-network-wired" 
+  />
+  
+    <a id="link-red-sheet" 
+      href="#" 
+      target="_blank" 
+      class="absolute top-4 right-4 z-50 hover:text-[#F3BA2F] transition-all"
+      style="display: block !important; width: 16px; height: 16px; color: #6b7280;" 
+      title="Ir a Google Sheets">
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />
+      </svg>
+    </a>
+  </div>
+
+    <div id="wallet-pay"><StatCard title="Balance Pay" value="$450" /></div>
+    <div id="wallet-fiat"><StatCard title="Balance Fiat" value="85,000 VES" /></div>
+  </div>
+</section>
 
   <section class="pb-20">
     <h2 class="text-gray-500 text-[10px] font-black uppercase tracking-[0.2em] mb-4 italic">5. PANEL DE BANCOS (CONTROL DE VOLUMEN)</h2>
@@ -111,7 +131,6 @@ const banks = [
   const token = localStorage.getItem('session_token');
   const alias = localStorage.getItem('operator_alias');
 
-  // FORMATEADORES
   const fUSDT = (v) => `$${Number(v || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   const fVES = (v) => `${Number(v || 0).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} VES`;
 
@@ -124,16 +143,23 @@ const banks = [
         fetch(`${API_BASE}/api/stats`, { headers: { 'Authorization': `Bearer ${token}` } })
       ]);
 
+      if (!kpiRes.ok || !statsRes.ok) throw new Error("Error en respuesta de servidor");
+
       const kpis = await kpiRes.json();
       const stats = await statsRes.json();
 
       // 1. Cabecera
-      document.getElementById('operator-alias').textContent = alias || kpis.operatorAlias;
-      document.getElementById('last-update').textContent = `ACTUALIZADO: ${new Date().toLocaleTimeString()} (SENTINEL LIVE)`;
+      const aliasEl = document.getElementById('operator-alias');
+      if (aliasEl) aliasEl.textContent = alias || kpis.operatorAlias;
+      
+      const updateEl = document.getElementById('last-update');
+      if (updateEl) updateEl.textContent = `ACTUALIZADO: ${new Date().toLocaleTimeString()} (SENTINEL LIVE)`;
 
-      // 2. Función de inyección segura (no rompe el card)
+      // 2. Función de inyección segura
       const inject = (id, value, isProfit = false) => {
-        const el = document.querySelector(`#${id} h3`) || document.querySelector(`#${id} .text-white`) || document.querySelector(`#${id} span`);
+        const container = document.getElementById(id);
+        if (!container) return;
+        const el = container.querySelector('h3') || container.querySelector('.text-white') || container.querySelector('span');
         if (el && value !== undefined) {
           el.textContent = value;
           if (isProfit) {
@@ -143,26 +169,65 @@ const banks = [
         }
       };
 
-      // SECCIÓN 1: CRÍTICOS
+      // SECCIÓN 1 & 2 (Sin cambios para mantener estabilidad)
       inject('kpi-balance', fUSDT(stats.currentBalance || kpis.critical.balanceTotal));
       inject('kpi-breakeven', fVES(kpis.critical.breakEvenRate));
       inject('kpi-margin', `${kpis.critical.globalMarginPercent.toFixed(2)}%`);
       inject('kpi-profit', fUSDT(kpis.critical.profitTotalUSDT), true);
       inject('kpi-cycle', fUSDT(kpis.critical.currentCycleProfit), true);
-
-      // SECCIÓN 2: OPERACIONES
       inject('ops-count', kpis.operations.totalOperations);
       inject('ops-rates', `${fVES(kpis.operations.weightedAvgBuyRate)} / ${fVES(kpis.operations.weightedAvgSellRate)}`);
       inject('ops-buys', `${kpis.operations.buys.count} Órdenes`);
       inject('ops-sells', `${kpis.operations.sells.count} Órdenes`);
       inject('ops-fees', fUSDT(kpis.operations.totalFeesPaid));
 
-      // SECCIÓN 3: CARTERAS
+      // SECCIÓN 3: LOGÍSTICA DE CARTERAS
       inject('wallet-p2p', fUSDT(kpis.wallets.balanceP2P));
       inject('wallet-switch', fUSDT(kpis.wallets.balanceSwitch));
-      inject('wallet-red', fUSDT(kpis.wallets.balanceRed));
       inject('wallet-pay', fUSDT(kpis.wallets.balancePay));
       inject('wallet-fiat', fVES(kpis.wallets.balanceFiat));
+
+      // --- [MÓDULO RED: PREPARADO PARA BACKEND] ---
+      const redContainer = document.getElementById('wallet-red');
+      if (redContainer) {
+        // Buscamos los datos en kpis.wallets.red (Asegúrate que el backend envíe este objeto)
+        const redData = kpis.wallets?.red; 
+        
+        // A. Balance Neto: Si no hay datos, mostramos N/A
+        const valEl = redContainer.querySelector('h3') || redContainer.querySelector('.text-white');
+        if (valEl) {
+          if (redData) {
+            const net = (redData.totalIncome || 0) - (redData.totalExpense || 0);
+            valEl.textContent = fUSDT(net);
+          } else {
+            valEl.textContent = "N/A";
+          }
+        }
+
+        // B. Totales e IN/OUT
+        const subEl = redContainer.querySelector('p') || redContainer.querySelector('.text-gray-500');
+        if (subEl) {
+          if (redData) {
+            const total = (redData.countIn || 0) + (redData.countOut || 0);
+            subEl.innerHTML = `<b style="color:white">${total} Ops</b> | <span style="color:#10b981">IN: ${redData.countIn || 0}</span> | <span style="color:#ef4444">OUT: ${redData.countOut || 0}</span>`;
+          } else {
+            subEl.innerHTML = `0 Ops | <span style="color:gray">IN: N/A | OUT: N/A</span>`;
+          }
+        }
+        
+        // C. Enlace Dinámico a Google Sheets
+        const sheetLink = document.getElementById('link-red-sheet');
+        if (sheetLink) {
+          if (kpis.config?.googleSheetId) {
+            sheetLink.href = `https://docs.google.com/spreadsheets/d/${kpis.config.googleSheetId}`;
+            sheetLink.style.color = "#F3BA2F";
+            sheetLink.style.opacity = "1";
+          } else {
+            sheetLink.style.opacity = "0.3";
+            sheetLink.href = "#";
+          }
+        }
+      }
 
       // SECCIÓN 5: TABLA DE BANCOS
       const tableBody = document.getElementById('bank-table-body');
@@ -180,11 +245,10 @@ const banks = [
       }
 
     } catch (err) {
-      console.error("Error sincronizando Dashboard:", err);
+      console.error("Error en sincronización:", err);
     }
   }
 
-  // Logout
   document.getElementById('logout-btn')?.addEventListener('click', () => {
     localStorage.clear();
     window.location.href = "/login";
