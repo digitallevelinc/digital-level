@@ -5,42 +5,39 @@ import React, { useEffect, useState } from 'react';
 const getPreviousMonth = () => {
     const meses = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
     const now = new Date();
-    // Obtenemos el mes pasado
     const lastMonthIndex = (now.getMonth() - 1 + 12) % 12;
     return meses[lastMonthIndex];
 };
 
-// Genera un número aleatorio entre 40 y 70
 const getSubscriptionsCount = () => Math.floor(Math.random() * (70 - 40 + 1)) + 40;
 
 const SocialProofMini: React.FC = () => {
     const [current, setCurrent] = useState(0);
     const [isVisible, setIsVisible] = useState(false);
-    const ROTATION_TIME = 6000; // 6 segundos entre cada mensaje
+    const ROTATION_TIME = 7000; // Actualizado a 7 segundos
 
-
-const mockRecent = [
-    { name: "Andrés M.", plan: "Business Pro", time: "1h ago" },
-    { name: "Mariana G.", plan: "Plan Básico", time: "2h ago" },
-    { name: "Roberto V.", plan: "Mesa VIP", time: "3h ago" },
-    { name: "Elena R.", plan: "Business Pro", time: "4h ago" },
-    { name: "Carlos T.", plan: "Plan Básico", time: "5h ago" },
-    { name: "Yusneidy P.", plan: "Mesa VIP", time: "6h ago" },
-    { name: "Javier L.", plan: "Business Pro", time: "7h ago" },
-    { name: "Sofía M.", plan: "Mesa VIP", time: "8h ago" },
-    { name: "Ricardo S.", plan: "Business Pro", time: "9h ago" },
-    { name: "Beatriz D.", plan: "Plan Básico", time: "10h ago" },
-    { name: "Fernando K.", plan: "Mesa VIP", time: "12h ago" },
-    { name: "Lucía P.", plan: "Business Pro", time: "14h ago" },
-    { name: "Diego H.", plan: "Plan Básico", time: "15h ago" },
-    { name: "Patricia G.", plan: "Mesa VIP", time: "17h ago" },
-    { name: "Gabriel C.", plan: "Business Pro", time: "18h ago" },
-    { name: "Mónica F.", plan: "Plan Básico", time: "20h ago" },
-    { name: "Raúl Z.", plan: "Mesa VIP", time: "21h ago" },
-    { name: "Silvia J.", plan: "Business Pro", time: "22h ago" },
-    { name: "Hugo B.", plan: "Plan Básico", time: "23h ago" },
-    { name: "Carmen L.", plan: "Mesa VIP", time: "23h ago" }
-];
+    const mockRecent = [
+        { name: "Andrés M.", plan: "Business Pro", time: "1h ago" },
+        { name: "Mariana G.", plan: "Plan Básico", time: "2h ago" },
+        { name: "Roberto V.", plan: "Mesa VIP", time: "3h ago" },
+        { name: "Elena R.", plan: "Business Pro", time: "4h ago" },
+        { name: "Carlos T.", plan: "Plan Básico", time: "5h ago" },
+        { name: "Yusneidy P.", plan: "Mesa VIP", time: "6h ago" },
+        { name: "Javier L.", plan: "Business Pro", time: "7h ago" },
+        { name: "Sofía M.", plan: "Mesa VIP", time: "8h ago" },
+        { name: "Ricardo S.", plan: "Business Pro", time: "9h ago" },
+        { name: "Beatriz D.", plan: "Plan Básico", time: "10h ago" },
+        { name: "Fernando K.", plan: "Mesa VIP", time: "12h ago" },
+        { name: "Lucía P.", plan: "Business Pro", time: "14h ago" },
+        { name: "Diego H.", plan: "Plan Básico", time: "15h ago" },
+        { name: "Patricia G.", plan: "Mesa VIP", time: "17h ago" },
+        { name: "Gabriel C.", plan: "Business Pro", time: "18h ago" },
+        { name: "Mónica F.", plan: "Plan Básico", time: "20h ago" },
+        { name: "Raúl Z.", plan: "Mesa VIP", time: "21h ago" },
+        { name: "Silvia J.", plan: "Business Pro", time: "22h ago" },
+        { name: "Hugo B.", plan: "Plan Básico", time: "23h ago" },
+        { name: "Carmen L.", plan: "Mesa VIP", time: "23h ago" }
+    ];
 
     const slides = [
         ...mockRecent.map(r => ({
@@ -67,7 +64,6 @@ const mockRecent = [
     ];
 
     useEffect(() => {
-        // Tiempo de espera inicial para aparecer (4 segundos)
         const showTimer = setTimeout(() => setIsVisible(true), 4000);
         
         const interval = setInterval(() => {
@@ -100,23 +96,6 @@ const mockRecent = [
                     </svg>
                 </button>
             </div>
-            
-            <div className="w-full bg-gray-800 h-[2px] mt-3 rounded-full overflow-hidden">
-                <div 
-                    className="bg-[#F3BA2F] h-full" 
-                    key={current}
-                    style={{ 
-                        animation: `progress ${ROTATION_TIME}ms linear forwards`
-                    }} 
-                ></div>
-            </div>
-
-            <style>{`
-                @keyframes progress {
-                    0% { width: 0%; }
-                    100% { width: 100%; }
-                }
-            `}</style>
         </div>
     );
 };
