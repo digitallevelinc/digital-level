@@ -80,6 +80,42 @@ export const inject = (id, value, isProfit = false) => {
 };
 
 /**
+ * Procesa la lógica de la sección PAY (Giros Internos)
+ */
+const updatePaySection = (kpis) => {
+    const container = document.getElementById('wallet-pay');
+    if (!container) return;
+
+    // Leemos de kpis.wallets.pay (donde inyectaremos el nuevo módulo) 
+    // o de kpis.wallets como fallback de seguridad
+    const data = kpis.wallets?.pay || kpis.wallets;
+    const mainValue = document.getElementById('pay-balance-total');
+    const labels = container.querySelectorAll('span.font-mono');
+    const sheetLink = document.getElementById('link-pay-detail');
+
+    if (data && (data.balancePay !== undefined)) {
+        if (mainValue) mainValue.textContent = fUSDT(data.balancePay);
+        
+        // Mapeo de labels para el componente PAY
+        if (labels.length >= 4) {
+            labels[0].textContent = data.payReceivedCount ?? "0";
+            labels[1].textContent = fUSDT(data.payReceivedVol ?? 0);
+            labels[2].textContent = data.paySentCount ?? "0";
+            labels[3].textContent = fUSDT(data.paySentVol ?? 0);
+        }
+    } else {
+        if (mainValue) mainValue.textContent = "N/A";
+        labels.forEach(label => { label.textContent = "N/A"; });
+    }
+
+    if (sheetLink && kpis.config?.googleSheetId) {
+        sheetLink.setAttribute('href', `https://docs.google.com/spreadsheets/d/${kpis.config.googleSheetId}/edit#gid=0`);
+        sheetLink.style.opacity = "1";
+        sheetLink.style.color = "#F3BA2F";
+    }
+};
+
+/**
  * Procesa la lógica de la sección SWITCH (Spot / Fondos)
  */
 const updateSwitchSection = (kpis) => {
@@ -105,7 +141,6 @@ const updateSwitchSection = (kpis) => {
         labels.forEach(label => { label.textContent = "N/A"; });
     }
 
-    // Link dinámico al GID de Trade (1474172895) según tu captura
     if (sheetLink && kpis.config?.googleSheetId) {
         sheetLink.setAttribute('href', `https://docs.google.com/spreadsheets/d/${kpis.config.googleSheetId}/edit#gid=1474172895`);
         sheetLink.style.opacity = "1";
@@ -198,6 +233,7 @@ export async function updateDashboard(API_BASE, token, alias, range = {}) {
         // Actualización de Secciones Modulares
         updateRedSection(kpis);
         updateSwitchSection(kpis);
+        updatePaySection(kpis);
 
         const tableBody = document.getElementById('bank-table-body');
         if (tableBody && kpis.bankInsights) {
@@ -221,6 +257,7 @@ export async function updateDashboard(API_BASE, token, alias, range = {}) {
         }
         updateRedSection({});
         updateSwitchSection({});
+        updatePaySection({});
     }
 }
 
@@ -248,7 +285,9 @@ export function initDashboard() {
     updateDashboard(API_BASE, token, alias);
 
     const interval = setInterval(() => {
-        refreshDashboard();
+        // Nota: Asegúrate de tener definida refreshDashboard() en tu scope global 
+        // o usa updateDashboard directamente aquí si es lo que hacías antes.
+        updateDashboard(API_BASE, token, alias);
     }, 30000);
 
     document.addEventListener('astro:before-preparation', () => clearInterval(interval));
