@@ -30,11 +30,11 @@ const banks = [
       <span class="w-1 h-3 bg-[#F3BA2F]"></span> 1. MÉTRICAS DE RENDIMIENTO CRÍTICO
     </h2>
     <div class="grid grid-cols-1 md:grid-cols-5 gap-3">
-      <div id="kpi-balance"><StatCard title="Balance Real Total" value="$15,240.50" subValue="Suma total carteras" icon="fas fa-vault" /></div>
-      <div id="kpi-breakeven"><StatCard title="Tasa Mínima Compra" value="613.04 VES" type="warning" subValue="Break-even" icon="fas fa-shield-halved" /></div>
-      <div id="kpi-margin"><StatCard title="Margen Global %" value="1.25%" subValue="Beneficio neto" icon="fas fa-chart-line" /></div>
-      <div id="kpi-profit"><StatCard title="Profit Total" value="$2,450.00" subValue="Ganancia acumulada" icon="fas fa-coins" /></div>
-      <div id="kpi-cycle"><StatCard title="Ganancia por Ciclo" value="$45.20" type="success" subValue="Rendimiento actual" icon="fas fa-sync" /></div>
+      <div id="kpi-balance"><StatCard title="Balance Real Total" value="---" subValue="Suma total carteras" icon="fas fa-vault" /></div>
+      <div id="kpi-breakeven"><StatCard title="Tasa Mínima Compra" value="---" type="warning" subValue="Break-even" icon="fas fa-shield-halved" /></div>
+      <div id="kpi-margin"><StatCard title="Margen Global %" value="---" subValue="Beneficio neto" icon="fas fa-chart-line" /></div>
+      <div id="kpi-profit"><StatCard title="Profit Total" value="---" subValue="Ganancia acumulada" icon="fas fa-coins" /></div>
+      <div id="kpi-cycle"><StatCard title="Ganancia por Ciclo" value="---" type="success" subValue="Rendimiento actual" icon="fas fa-sync" /></div>
     </div>
   </section>
 
@@ -42,20 +42,20 @@ const banks = [
     <section>
       <h2 class="text-gray-500 text-[10px] font-black uppercase tracking-[0.2em] mb-4 italic">2. CONTROL DE OPERACIONES Y VOLUMEN</h2>
       <div class="grid grid-cols-2 gap-3">
-        <div id="ops-count"><StatCard title="Cantidad de Operaciones" value="154" subValue="Total ejecutadas" /></div>
-        <div id="ops-rates"><StatCard title="Tasas Globales PP" value="612.50 / 618.20" subValue="Compra / Venta" /></div>
-        <div id="ops-buys"><StatCard title="Compras Totales" value="78 Órdenes" subValue="$7,500.00 Acumulado" /></div>
-        <div id="ops-sells"><StatCard title="Ventas Totales" value="76 Órdenes" subValue="$7,745.00 Acumulado" /></div>
-        <div id="ops-fees"><StatCard title="Comisiones Totales" value="$12.40" subValue="Costos operativos" /></div>
+        <div id="ops-count"><StatCard title="Cantidad de Operaciones" value="---" subValue="Total ejecutadas" /></div>
+        <div id="ops-rates"><StatCard title="Tasas Globales PP" value="---" subValue="Compra / Venta" /></div>
+        <div id="ops-buys"><StatCard title="Compras Totales" value="---" subValue="Cargando..." /></div>
+        <div id="ops-sells"><StatCard title="Ventas Totales" value="---" subValue="Cargando..." /></div>
+        <div id="ops-fees"><StatCard title="Comisiones Totales" value="---" subValue="Costos operativos" /></div>
       </div>
     </section>
 
     <section>
       <h2 class="text-gray-500 text-[10px] font-black uppercase tracking-[0.2em] mb-4 italic">4. PROYECCIONES E INSIGHTS</h2>
       <div class="grid grid-cols-2 gap-3">
-        <div id="proj-daily"><StatCard title="Ganancia Diaria" value="+$124.39" type="success" subValue="Últimas 24h" /></div>
-        <div id="proj-vol"><StatCard title="Volumen Proyectado" value="$3,500.00" subValue="Meta estimada" /></div>
-        <StatCard title="Comisión Operador" value="60% (Cesar)" subValue="Pago configurado" />
+        <div id="proj-daily"><StatCard title="Ganancia Diaria" value="---" type="success" subValue="Últimas 24h" /></div>
+        <div id="proj-vol"><StatCard title="Volumen Proyectado" value="---" subValue="Meta estimada" /></div>
+        <StatCard title="Comisión Operador" value="60%" subValue="Configurado" />
         <div class="bg-[#161a1e] border border-gray-800 rounded-xl p-3 flex flex-col justify-center">
           <label class="text-[9px] font-bold text-gray-500 uppercase mb-2">Filtro Proyección Temporal</label>
           <select class="bg-black text-white text-xs border border-gray-700 p-2 rounded outline-none">
@@ -69,11 +69,52 @@ const banks = [
   <section class="mb-8">
     <h2 class="text-gray-500 text-[10px] font-black uppercase tracking-[0.2em] mb-4 italic">3. LOGÍSTICA DE CARTERAS (BALANCES INTERNOS)</h2>
     <div class="grid grid-cols-2 md:grid-cols-5 gap-3">
-      <div id="wallet-p2p"><StatCard title="Balance P2P" value="$5,400" /></div>
-      <div id="wallet-switch"><StatCard title="Balance Switch" value="$2,100" /></div>
-      <div id="wallet-red"><StatCard title="Balance Red" value="$1,250" /></div>
-      <div id="wallet-pay"><StatCard title="Balance Pay" value="$450" /></div>
-      <div id="wallet-fiat"><StatCard title="Balance Fiat" value="85,000 VES" /></div>
+      <div id="wallet-p2p"><StatCard title="Balance P2P" value="---" /></div>
+      <div id="wallet-switch"><StatCard title="Balance Switch" value="---" /></div>
+      
+      <div id="wallet-red" class="relative group min-h-[160px] bg-gray-900/50 rounded-xl p-4 border border-white/5">
+          <div class="flex justify-between items-start mb-4">
+            <div>
+              <p class="text-[10px] text-gray-500 font-black uppercase tracking-widest">Balance RED</p>
+              <h3 class="text-2xl font-bold text-white mt-1">N/A</h3>
+            </div>
+            <i class="fas fa-network-wired text-gray-600"></i>
+          </div>
+
+          <div id="red-details" class="space-y-2 border-t border-white/5 pt-3">
+            <div class="flex justify-between text-[10px]">
+              <span class="text-gray-500 uppercase font-bold">Total Operaciones:</span>
+              <span class="text-white font-mono">N/A</span>
+            </div>
+            
+            <div class="flex justify-between text-[10px]">
+              <span class="text-emerald-500/80 uppercase font-bold">Ingresos (Cant.):</span>
+              <span class="text-emerald-400 font-mono">N/A</span>
+            </div>
+            <div class="flex justify-between text-[10px]">
+              <span class="text-emerald-500/80 uppercase font-bold">Monto Ingresos:</span>
+              <span class="text-emerald-400 font-mono">N/A</span>
+            </div>
+
+            <div class="flex justify-between text-[10px]">
+              <span class="text-red-500/80 uppercase font-bold">Egresos (Cant.):</span>
+              <span class="text-red-400 font-mono">N/A</span>
+            </div>
+            <div class="flex justify-between text-[10px]">
+              <span class="text-red-500/80 uppercase font-bold">Monto Egresos:</span>
+              <span class="text-red-400 font-mono">N/A</span>
+            </div>
+          </div>
+
+          <a id="link-red-sheet" href="#" target="_blank" class="absolute top-4 right-10 opacity-20 hover:opacity-100 transition-all">
+            <svg class="w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+            </svg>
+          </a>
+        </div>
+
+      <div id="wallet-pay"><StatCard title="Balance Pay" value="---" /></div>
+      <div id="wallet-fiat"><StatCard title="Balance Fiat" value="---" /></div>
     </div>
   </section>
 
@@ -96,7 +137,7 @@ const banks = [
             {banks.map(b => (
               <tr class={`hover:bg-white/[0.02] border-l-4 ${b.color}`}>
                 <td class="px-3 py-4 font-bold text-white">{b.name}</td>
-                <td colspan="5" class="px-3 py-4 text-center text-gray-600 animate-pulse italic italic">Esperando datos de Sentinel...</td>
+                <td colspan="5" class="px-3 py-4 text-center text-gray-600 animate-pulse italic">Esperando datos de Sentinel...</td>
               </tr>
             ))}
           </tbody>
@@ -104,92 +145,35 @@ const banks = [
       </div>
     </div>
   </section>
-</DashboardLayout>
 
-<script>
-  const API_BASE = "http://144.91.110.204:3003";
-  const token = localStorage.getItem('session_token');
-  const alias = localStorage.getItem('operator_alias');
+  <script type="module">
+    import { updateDashboard } from '/scripts/dashboard.js';
 
-  // FORMATEADORES
-  const fUSDT = (v) => `$${Number(v || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-  const fVES = (v) => `${Number(v || 0).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} VES`;
+    const API_BASE = "http://144.91.110.204:3003";
+    const token = localStorage.getItem('session_token');
+    const alias = localStorage.getItem('operator_alias');
 
-  async function updateDashboard() {
-    if (!token) return;
+    // Inicialización inmediata
+    if (token) {
+      updateDashboard(API_BASE, token, alias);
+      
+      // Ciclo de actualización cada 30 segundos
+      const dashboardInterval = setInterval(() => {
+        updateDashboard(API_BASE, token, alias);
+      }, 30000);
 
-    try {
-      const [kpiRes, statsRes] = await Promise.all([
-        fetch(`${API_BASE}/api/kpis`, { headers: { 'Authorization': `Bearer ${token}` } }),
-        fetch(`${API_BASE}/api/stats`, { headers: { 'Authorization': `Bearer ${token}` } })
-      ]);
-
-      const kpis = await kpiRes.json();
-      const stats = await statsRes.json();
-
-      // 1. Cabecera
-      document.getElementById('operator-alias').textContent = alias || kpis.operatorAlias;
-      document.getElementById('last-update').textContent = `ACTUALIZADO: ${new Date().toLocaleTimeString()} (SENTINEL LIVE)`;
-
-      // 2. Función de inyección segura (no rompe el card)
-      const inject = (id, value, isProfit = false) => {
-        const el = document.querySelector(`#${id} h3`) || document.querySelector(`#${id} .text-white`) || document.querySelector(`#${id} span`);
-        if (el && value !== undefined) {
-          el.textContent = value;
-          if (isProfit) {
-            const num = parseFloat(String(value).replace(/[^0-9.-]+/g,""));
-            el.style.color = num >= 0 ? "#10b981" : "#ef4444";
-          }
-        }
-      };
-
-      // SECCIÓN 1: CRÍTICOS
-      inject('kpi-balance', fUSDT(stats.currentBalance || kpis.critical.balanceTotal));
-      inject('kpi-breakeven', fVES(kpis.critical.breakEvenRate));
-      inject('kpi-margin', `${kpis.critical.globalMarginPercent.toFixed(2)}%`);
-      inject('kpi-profit', fUSDT(kpis.critical.profitTotalUSDT), true);
-      inject('kpi-cycle', fUSDT(kpis.critical.currentCycleProfit), true);
-
-      // SECCIÓN 2: OPERACIONES
-      inject('ops-count', kpis.operations.totalOperations);
-      inject('ops-rates', `${fVES(kpis.operations.weightedAvgBuyRate)} / ${fVES(kpis.operations.weightedAvgSellRate)}`);
-      inject('ops-buys', `${kpis.operations.buys.count} Órdenes`);
-      inject('ops-sells', `${kpis.operations.sells.count} Órdenes`);
-      inject('ops-fees', fUSDT(kpis.operations.totalFeesPaid));
-
-      // SECCIÓN 3: CARTERAS
-      inject('wallet-p2p', fUSDT(kpis.wallets.balanceP2P));
-      inject('wallet-switch', fUSDT(kpis.wallets.balanceSwitch));
-      inject('wallet-red', fUSDT(kpis.wallets.balanceRed));
-      inject('wallet-pay', fUSDT(kpis.wallets.balancePay));
-      inject('wallet-fiat', fVES(kpis.wallets.balanceFiat));
-
-      // SECCIÓN 5: TABLA DE BANCOS
-      const tableBody = document.getElementById('bank-table-body');
-      if (tableBody && kpis.bankInsights) {
-        tableBody.innerHTML = kpis.bankInsights.map(b => `
-          <tr class="hover:bg-white/[0.02] border-l-4 border-l-gray-700">
-            <td class="px-3 py-4 font-bold text-white">${b.bank}</td>
-            <td class="px-3 py-4 text-center font-mono">${fVES(b.fiatBalance)}</td>
-            <td class="px-3 py-4 text-center font-mono">${fVES(b.avgBuyRate)}</td>
-            <td class="px-3 py-4 text-center font-mono">${fVES(b.avgSellRate)}</td>
-            <td class="px-3 py-4 text-center font-mono">${b.margin.toFixed(2)}%</td>
-            <td class="px-3 py-4 text-center font-bold" style="color: ${b.profit >= 0 ? '#10b981' : '#ef4444'}">${fUSDT(b.profit)}</td>
-          </tr>
-        `).join('');
-      }
-
-    } catch (err) {
-      console.error("Error sincronizando Dashboard:", err);
+      // Limpieza al cerrar o cambiar página (opcional pero recomendado en Astro)
+      document.addEventListener('astro:before-preparation', () => {
+        clearInterval(dashboardInterval);
+      });
+    } else {
+      window.location.href = "/login";
     }
-  }
 
-  // Logout
-  document.getElementById('logout-btn')?.addEventListener('click', () => {
-    localStorage.clear();
-    window.location.href = "/login";
-  });
-
-  updateDashboard();
-  setInterval(updateDashboard, 30000);
-</script>
+    // Evento Logout
+    document.getElementById('logout-btn')?.addEventListener('click', () => {
+      localStorage.clear();
+      window.location.href = "/login";
+    });
+  </script>
+</DashboardLayout>
