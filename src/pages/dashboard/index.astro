@@ -26,31 +26,37 @@ const banks = [
     </button>
   </div>
 
-  <section class="mb-8 bg-[#0f1216] border border-gray-800 rounded-xl p-4">
-    <div class="grid grid-cols-1 md:grid-cols-4 gap-3">
-      <div>
-        <label class="text-[9px] font-black text-gray-500 uppercase mb-1 block">Rango rápido</label>
-        <select id="kpi-quick-range" class="bg-black text-white text-xs border border-gray-700 p-2 rounded w-full outline-none">
-          <option value="today">Hoy</option>
-          <option value="this_week">Esta semana</option>
-          <option value="last_7">Últimos 7 días</option>
-          <option value="this_month">Mes actual</option>
-          <option value="last_30">Últimos 30 días</option>
-          <option value="ytd">YTD</option>
-          <option value="all">Todo</option>
-          <option value="custom">Personalizado</option>
-        </select>
+  <section class="mb-8 bg-gradient-to-br from-[#0f1216] to-[#0b0d11] border border-gray-800 rounded-2xl p-4 shadow-lg shadow-black/20">
+    <div class="flex items-center justify-between flex-wrap gap-2 mb-3">
+      <div class="flex items-center gap-2">
+        <span class="w-1 h-4 bg-[#F3BA2F]"></span>
+        <p class="text-[10px] font-black uppercase tracking-[0.25em] text-gray-400">Filtro temporal KPI</p>
       </div>
+      <p class="text-[10px] text-gray-600">Selecciona un rango rápido o personaliza fechas.</p>
+    </div>
+
+    <div class="flex flex-wrap gap-2 mb-4" id="kpi-preset-group">
+      <button class="kpi-preset-btn px-3 py-2 rounded-xl text-xs font-bold uppercase tracking-wide border border-gray-800 bg-white/5 hover:border-[#F3BA2F]/60" data-preset="today">Hoy</button>
+      <button class="kpi-preset-btn px-3 py-2 rounded-xl text-xs font-bold uppercase tracking-wide border border-gray-800 bg-white/5 hover:border-[#F3BA2F]/60" data-preset="this_week">Esta semana</button>
+      <button class="kpi-preset-btn px-3 py-2 rounded-xl text-xs font-bold uppercase tracking-wide border border-gray-800 bg-white/5 hover:border-[#F3BA2F]/60" data-preset="last_7">Últimos 7 días</button>
+      <button class="kpi-preset-btn px-3 py-2 rounded-xl text-xs font-bold uppercase tracking-wide border border-gray-800 bg-white/5 hover:border-[#F3BA2F]/60" data-preset="this_month">Mes actual</button>
+      <button class="kpi-preset-btn px-3 py-2 rounded-xl text-xs font-bold uppercase tracking-wide border border-gray-800 bg-white/5 hover:border-[#F3BA2F]/60" data-preset="last_30">Últimos 30 días</button>
+      <button class="kpi-preset-btn px-3 py-2 rounded-xl text-xs font-bold uppercase tracking-wide border border-gray-800 bg-white/5 hover:border-[#F3BA2F]/60" data-preset="ytd">YTD</button>
+      <button class="kpi-preset-btn px-3 py-2 rounded-xl text-xs font-bold uppercase tracking-wide border border-gray-800 bg-white/5 hover:border-[#F3BA2F]/60" data-preset="all">Todo</button>
+      <button class="kpi-preset-btn px-3 py-2 rounded-xl text-xs font-bold uppercase tracking-wide border border-gray-800 bg-white/5 hover:border-[#F3BA2F]/60" data-preset="custom">Personalizado</button>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
       <div>
         <label class="text-[9px] font-black text-gray-500 uppercase mb-1 block">Desde</label>
-        <input id="kpi-date-from" type="date" class="bg-black text-white text-xs border border-gray-700 p-2 rounded w-full outline-none" />
+        <input id="kpi-date-from" type="date" class="bg-black text-white text-xs border border-gray-700 p-3 rounded-xl w-full outline-none focus:border-[#F3BA2F]/70" />
       </div>
       <div>
         <label class="text-[9px] font-black text-gray-500 uppercase mb-1 block">Hasta</label>
-        <input id="kpi-date-to" type="date" class="bg-black text-white text-xs border border-gray-700 p-2 rounded w-full outline-none" />
+        <input id="kpi-date-to" type="date" class="bg-black text-white text-xs border border-gray-700 p-3 rounded-xl w-full outline-none focus:border-[#F3BA2F]/70" />
       </div>
-      <div class="flex items-end">
-        <button id="kpi-apply-range" class="bg-[#F3BA2F] text-black text-[11px] font-black py-2 px-4 rounded w-full uppercase tracking-wide hover:bg-[#d9a927] transition-all">Aplicar filtro</button>
+      <div class="flex items-end gap-2">
+        <button id="kpi-apply-range" class="bg-[#F3BA2F] text-black text-[11px] font-black py-3 px-4 rounded-xl w-full uppercase tracking-wide hover:bg-[#d9a927] transition-all">Aplicar filtro</button>
       </div>
     </div>
   </section>

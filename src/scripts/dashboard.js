@@ -194,7 +194,7 @@ export function initDashboard() {
     const token = localStorage.getItem('session_token');
     const alias = localStorage.getItem('operator_alias');
 
-    const quickRangeSelect = document.getElementById('kpi-quick-range');
+    const presetButtons = Array.from(document.querySelectorAll('.kpi-preset-btn'));
     const fromInput = document.getElementById('kpi-date-from');
     const toInput = document.getElementById('kpi-date-to');
     const applyRangeBtn = document.getElementById('kpi-apply-range');
@@ -203,6 +203,31 @@ export function initDashboard() {
     const syncInputsWithRange = (range) => {
         if (fromInput) fromInput.value = range.from || '';
         if (toInput) toInput.value = range.to || range.from || '';
+    };
+
+    const setActivePresetBtn = (preset) => {
+        presetButtons.forEach((btn) => {
+            const isActive = btn.dataset.preset === preset;
+            btn.classList.toggle('border-[#F3BA2F]', isActive);
+            btn.classList.toggle('bg-[#F3BA2F]/10', isActive);
+            btn.classList.toggle('text-[#F3BA2F]', isActive);
+        });
+    };
+
+    const enableNativePicker = (input) => {
+        if (!input) return;
+        input.placeholder = 'YYYY-MM-DD';
+        input.inputMode = 'none';
+        input.addEventListener('focus', () => {
+            if (typeof input.showPicker === 'function') input.showPicker();
+        });
+        input.addEventListener('click', () => {
+            if (typeof input.showPicker === 'function') input.showPicker();
+        });
+        // Acotar fechas para evitar valores absurdos
+        const todayIso = toDateInputValue(new Date());
+        input.setAttribute('max', todayIso);
+        input.setAttribute('min', '2000-01-01');
     };
 
     const refreshDashboard = () => updateDashboard(API_BASE, token, alias, activeRange);
@@ -225,22 +250,27 @@ export function initDashboard() {
     // 3. Configurar filtros
     syncInputsWithRange(activeRange);
     renderRangeLabel(activeRange);
+    setActivePresetBtn(activeRange.preset);
 
-    if (quickRangeSelect) {
-        quickRangeSelect.addEventListener('change', () => {
-            const preset = quickRangeSelect.value;
+    enableNativePicker(fromInput);
+    enableNativePicker(toInput);
+
+    presetButtons.forEach((btn) => {
+        btn.addEventListener('click', () => {
+            const preset = btn.dataset.preset;
             if (preset === 'custom') return;
             activeRange = getPresetRange(preset);
             syncInputsWithRange(activeRange);
             renderRangeLabel(activeRange);
+            setActivePresetBtn(preset);
             refreshDashboard();
         });
-    }
+    });
 
     [fromInput, toInput].forEach((input) => {
         if (!input) return;
         input.addEventListener('input', () => {
-            if (quickRangeSelect) quickRangeSelect.value = 'custom';
+            setActivePresetBtn('custom');
         });
     });
 
@@ -251,6 +281,7 @@ export function initDashboard() {
             if (!from) return;
             activeRange = { from, to, preset: 'custom' };
             renderRangeLabel(activeRange);
+            setActivePresetBtn('custom');
             refreshDashboard();
         });
     }
