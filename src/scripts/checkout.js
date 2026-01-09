@@ -8,13 +8,14 @@ export const CheckoutUI = {
         const amount = prices[data.plan] || '49.99';
         
         // --- TUS DATOS ---
+        // Asegúrate de usar el número completo con código de país 
         const MI_BINANCE_ID = "173109190"; 
-        const MI_WHATSAPP = "1448204"; // Sin el "+" para la URL
+        const MI_WHATSAPP = "14482045984"; // Actualizado al número completo
         // -----------------
 
         // Construcción del mensaje profesional para WhatsApp
         const message = encodeURIComponent(
-            `🚀 *NUEVA ORDEN - DIGITAL LEVEL*\n` +
+            `🌐 *NUEVA ORDEN - DIGITAL LEVEL*\n` + // Agregamos el mundito para identificar origen
             `━━━━━━━━━━━━━━━━━━━━\n\n` +
             `Hola! He realizado mi pago por Binance Pay. Aquí están mis detalles:\n\n` +
             `🆔 *ORDEN:* ${data.orderId}\n` +
@@ -56,7 +57,7 @@ export const CheckoutUI = {
                 </div>
 
                 <div class="flex flex-col items-center gap-5 bg-white/[0.03] border border-dashed border-gray-700 rounded-3xl p-6 transition-all hover:border-[#F3BA2F]/50">
-                    <div class="bg-white p-2 rounded-2xl shadow-[0_0_30px_rgba(255,255,255,0.05)]">
+                    <div class="bg-white p-2 rounded-2xl shadow-[0_0_30_rgba(255,255,255,0.05)]">
                         <img src="/img/qr.png" alt="QR Binance" class="w-36 h-36 object-contain" />
                     </div>
                     
@@ -73,6 +74,7 @@ export const CheckoutUI = {
 
                 <a href="${whatsappUrl}" 
                 target="_blank"
+                rel="noopener noreferrer"
                 class="w-full py-4 bg-[#25D366] text-white font-black uppercase tracking-widest rounded-xl text-center block text-xs shadow-[0_10px_20px_rgba(37,211,102,0.2)] hover:bg-[#20bd5a] transition-all hover:-translate-y-1">
                     <i class="fab fa-whatsapp text-lg mr-2"></i> Confirmar Pago en WhatsApp
                 </a>

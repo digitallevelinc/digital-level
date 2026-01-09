@@ -70,8 +70,8 @@ const banks = [
     <h2 class="text-gray-500 text-[10px] font-black uppercase tracking-[0.2em] mb-4 italic">3. LOGÍSTICA DE CARTERAS (BALANCES INTERNOS)</h2>
     <div class="grid grid-cols-2 md:grid-cols-5 gap-3">
       <div id="wallet-p2p"><StatCard title="Balance P2P" value="---" /></div>
-      <div id="wallet-switch"><StatCard title="Balance Switch" value="---" /></div>
       
+      <!--balance red module -->
       <div id="wallet-red" class="relative group min-h-[160px] bg-gray-900/50 rounded-xl p-4 border border-white/5">
           <div class="flex justify-between items-start mb-4">
             <div>
@@ -112,8 +112,53 @@ const banks = [
             </svg>
           </a>
         </div>
+      <!--balance red module -->
+      <!--balance switch module -->
+      <div id="wallet-switch" class="relative group min-h-[160px] bg-gray-900/50 rounded-xl p-4 border border-white/5">
+          <div class="flex justify-between items-start mb-4">
+            <div>
+              <p class="text-[10px] text-gray-500 font-black uppercase tracking-widest">BALANCE SWITCH</p>
+              <h3 class="text-2xl font-bold text-white mt-1">N/A</h3>
+            </div>
+            <i class="fas fa-exchange-alt text-gray-600"></i>
+          </div>
 
-      <div id="wallet-pay"><StatCard title="Balance Pay" value="---" /></div>
+          <div id="switch-details" class="space-y-2 border-t border-white/5 pt-3">
+            <div class="flex justify-between text-[10px]">
+              <span class="text-gray-500 uppercase font-bold">Total Movimientos:</span>
+              <span class="text-white font-mono">N/A</span>
+            </div>
+            
+            <div class="flex justify-between text-[10px]">
+              <span class="text-blue-500/80 uppercase font-bold">Spot → Fondos (Cant):</span>
+              <span class="text-blue-400 font-mono">N/A</span>
+            </div>
+            <div class="flex justify-between text-[10px]">
+              <span class="text-blue-500/80 uppercase font-bold">Volumen Enviado:</span>
+              <span class="text-blue-400 font-mono">N/A</span>
+            </div>
+
+            <div class="flex justify-between text-[10px]">
+              <span class="text-orange-500/80 uppercase font-bold">Fondos → Spot (Cant):</span>
+              <span class="text-orange-400 font-mono">N/A</span>
+            </div>
+            <div class="flex justify-between text-[10px]">
+              <span class="text-orange-500/80 uppercase font-bold">Volumen Devuelto:</span>
+              <span class="text-orange-400 font-mono">N/A</span>
+            </div>
+          </div>
+
+          <a id="link-switch-sheet" href="#" target="_blank" class="absolute top-4 right-10 opacity-20 hover:opacity-100 transition-all">
+            <svg class="w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+            </svg>
+          </a>
+        </div>
+      <!--balance switch module -->
+
+      
+
+      
       <div id="wallet-fiat"><StatCard title="Balance Fiat" value="---" /></div>
     </div>
   </section>
@@ -147,12 +192,7 @@ const banks = [
   </section>
 
   <script>
-  // Astro detecta que este archivo vive en tu PC/Servidor de desarrollo,
-  // lo procesa y genera la importación correcta automáticamente.
-  import { initDashboard } from '../../scripts/dashboard.js';
-
-  // Al llamar a la función aquí, te aseguras de que el JS 
-  // se ejecute en cuanto el HTML esté listo.
-  initDashboard();
-</script>
+    import { initDashboard } from '../../scripts/dashboard.js';
+    initDashboard();
+  </script>
 </DashboardLayout>

@@ -21,7 +21,44 @@ export const inject = (id, value, isProfit = false) => {
 };
 
 /**
- * Procesa la lógica de la sección RED con los 5 valores específicos
+ * Procesa la lógica de la sección SWITCH (Spot / Fondos)
+ */
+const updateSwitchSection = (kpis) => {
+    const container = document.getElementById('wallet-switch');
+    if (!container) return;
+
+    const data = kpis.wallets?.switch;
+    const mainValue = container.querySelector('h3');
+    const labels = container.querySelectorAll('span.font-mono');
+    const sheetLink = document.getElementById('link-switch-sheet');
+
+    if (data && Object.keys(data).length > 0) {
+        if (mainValue) mainValue.textContent = fUSDT(data.balanceSwitch);
+        if (labels.length >= 5) {
+            labels[0].textContent = data.totalOperations ?? "0";
+            labels[1].textContent = data.countIn ?? "0";
+            labels[2].textContent = fUSDT(data.totalIn);
+            labels[3].textContent = data.countOut ?? "0";
+            labels[4].textContent = fUSDT(data.totalOut);
+        }
+    } else {
+        if (mainValue) mainValue.textContent = "N/A";
+        labels.forEach(label => { label.textContent = "N/A"; });
+    }
+
+    // Link dinámico al GID de Trade (1474172895) según tu captura
+    if (sheetLink && kpis.config?.googleSheetId) {
+        sheetLink.setAttribute('href', `https://docs.google.com/spreadsheets/d/${kpis.config.googleSheetId}/edit#gid=1474172895`);
+        sheetLink.style.opacity = "1";
+        sheetLink.style.color = "#F3BA2F";
+    } else if (sheetLink) {
+        sheetLink.setAttribute('href', '#');
+        sheetLink.style.opacity = "0.3";
+    }
+};
+
+/**
+ * Procesa la lógica de la sección RED
  */
 const updateRedSection = (kpis) => {
     const container = document.getElementById('wallet-red');
@@ -94,11 +131,12 @@ export async function updateDashboard(API_BASE, token, alias) {
         inject('ops-fees', fUSDT(kpis.operations.totalFeesPaid));
 
         inject('wallet-p2p', fUSDT(kpis.wallets.balanceP2P));
-        inject('wallet-switch', fUSDT(kpis.wallets.balanceSwitch));
         inject('wallet-pay', fUSDT(kpis.wallets.balancePay));
         inject('wallet-fiat', fVES(kpis.wallets.balanceFiat));
 
+        // Actualización de Secciones Modulares
         updateRedSection(kpis);
+        updateSwitchSection(kpis);
 
         const tableBody = document.getElementById('bank-table-body');
         if (tableBody && kpis.bankInsights) {
@@ -121,19 +159,18 @@ export async function updateDashboard(API_BASE, token, alias) {
             updateEl.style.color = "#ef4444";
         }
         updateRedSection({});
+        updateSwitchSection({});
     }
 }
 
 /**
- * NUEVA FUNCIÓN: INICIALIZACIÓN (Llamada desde Astro)
- * Orquestra el login, el logout y el intervalo
+ * INICIALIZACIÓN
  */
 export function initDashboard() {
     const API_BASE = "http://144.91.110.204:3003";
     const token = localStorage.getItem('session_token');
     const alias = localStorage.getItem('operator_alias');
 
-    // 1. Configurar Logout (Independiente de la carga de datos)
     const logoutBtn = document.getElementById('logout-btn');
     if (logoutBtn) {
         logoutBtn.onclick = () => {
@@ -142,20 +179,16 @@ export function initDashboard() {
         };
     }
 
-    // 2. Validar sesión
     if (!token) {
         window.location.href = "/login";
         return;
     }
 
-    // 3. Primera carga
     updateDashboard(API_BASE, token, alias);
 
-    // 4. Ciclo de actualización
     const interval = setInterval(() => {
         updateDashboard(API_BASE, token, alias);
     }, 30000);
 
-    // Limpieza de intervalo para Astro
     document.addEventListener('astro:before-preparation', () => clearInterval(interval));
 }
