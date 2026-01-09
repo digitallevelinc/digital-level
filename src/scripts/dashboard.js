@@ -22,7 +22,6 @@ export const inject = (id, value, isProfit = false) => {
 
 /**
  * Procesa la lógica de la sección RED con los 5 valores específicos
- * Si no hay datos, mantiene o pone N/A para alertar al usuario
  */
 const updateRedSection = (kpis) => {
     const container = document.getElementById('wallet-red');
@@ -30,31 +29,23 @@ const updateRedSection = (kpis) => {
 
     const data = kpis.wallets?.red;
     const mainValue = container.querySelector('h3');
-    // Buscamos todos los spans donde pusimos "N/A" en el HTML
     const labels = container.querySelectorAll('span.font-mono');
     const sheetLink = document.getElementById('link-red-sheet');
 
-    // SI HAY CONEXIÓN Y DATOS
     if (data && Object.keys(data).length > 0) {
-        // 1. Balance Principal
         if (mainValue) mainValue.textContent = fUSDT(data.balanceRed);
-
-        // Actualizamos los 5 valores siguiendo el orden del HTML
         if (labels.length >= 5) {
-            labels[0].textContent = data.totalOperations ?? "0"; // Total Ops
-            labels[1].textContent = data.countIn ?? "0";          // Cant. Ingresos
-            labels[2].textContent = fUSDT(data.totalIncome);     // Monto Ingresos
-            labels[3].textContent = data.countOut ?? "0";         // Cant. Egresos
-            labels[4].textContent = fUSDT(data.totalExpense);    // Monto Egresos
+            labels[0].textContent = data.totalOperations ?? "0";
+            labels[1].textContent = data.countIn ?? "0";
+            labels[2].textContent = fUSDT(data.totalIncome);
+            labels[3].textContent = data.countOut ?? "0";
+            labels[4].textContent = fUSDT(data.totalExpense);
         }
-    } 
-    // SI NO HAY DATOS (FORCE N/A)
-    else {
+    } else {
         if (mainValue) mainValue.textContent = "N/A";
         labels.forEach(label => { label.textContent = "N/A"; });
     }
 
-    // Manejo del Link de Google Sheets
     if (sheetLink && kpis.config?.googleSheetId) {
         sheetLink.setAttribute('href', `https://docs.google.com/spreadsheets/d/${kpis.config.googleSheetId}`);
         sheetLink.style.opacity = "1";
@@ -66,7 +57,7 @@ const updateRedSection = (kpis) => {
 };
 
 /**
- * Función principal que orquestra la actualización
+ * FUNCIÓN PRINCIPAL DE ACTUALIZACIÓN
  */
 export async function updateDashboard(API_BASE, token, alias) {
     if (!token) return;
@@ -82,7 +73,6 @@ export async function updateDashboard(API_BASE, token, alias) {
         const kpis = await kpiRes.json();
         const stats = await statsRes.json();
 
-        // 1. Cabecera
         const aliasEl = document.getElementById('operator-alias');
         if (aliasEl) aliasEl.textContent = alias || kpis.operatorAlias;
         
@@ -92,7 +82,6 @@ export async function updateDashboard(API_BASE, token, alias) {
             updateEl.style.color = "#6b7280";
         }
 
-        // 2. Inyección de KPIs Críticos y Operaciones
         inject('kpi-balance', fUSDT(stats.currentBalance || kpis.critical.balanceTotal));
         inject('kpi-breakeven', fVES(kpis.critical.breakEvenRate));
         inject('kpi-margin', `${kpis.critical.globalMarginPercent.toFixed(2)}%`);
@@ -104,16 +93,13 @@ export async function updateDashboard(API_BASE, token, alias) {
         inject('ops-sells', `${kpis.operations.sells.count} Órdenes`);
         inject('ops-fees', fUSDT(kpis.operations.totalFeesPaid));
 
-        // 3. Logística de Carteras
         inject('wallet-p2p', fUSDT(kpis.wallets.balanceP2P));
         inject('wallet-switch', fUSDT(kpis.wallets.balanceSwitch));
         inject('wallet-pay', fUSDT(kpis.wallets.balancePay));
         inject('wallet-fiat', fVES(kpis.wallets.balanceFiat));
 
-        // 4. Módulo RED DETALLADO (Los 5 valores + Balance)
         updateRedSection(kpis);
 
-        // 5. Tabla de Bancos
         const tableBody = document.getElementById('bank-table-body');
         if (tableBody && kpis.bankInsights) {
             tableBody.innerHTML = kpis.bankInsights.map((b) => `
@@ -127,15 +113,49 @@ export async function updateDashboard(API_BASE, token, alias) {
                 </tr>
             `).join('');
         }
-
     } catch (err) {
         console.error("Error en sincronización:", err);
-        // Si hay error de red, forzamos N/A en el dashboard
         const updateEl = document.getElementById('last-update');
         if (updateEl) {
             updateEl.textContent = "⚠️ ERROR DE CONEXIÓN - VALORES EN N/A";
             updateEl.style.color = "#ef4444";
         }
-        updateRedSection({}); // Llama con objeto vacío para poner N/A en RED
+        updateRedSection({});
     }
+}
+
+/**
+ * NUEVA FUNCIÓN: INICIALIZACIÓN (Llamada desde Astro)
+ * Orquestra el login, el logout y el intervalo
+ */
+export function initDashboard() {
+    const API_BASE = "http://144.91.110.204:3003";
+    const token = localStorage.getItem('session_token');
+    const alias = localStorage.getItem('operator_alias');
+
+    // 1. Configurar Logout (Independiente de la carga de datos)
+    const logoutBtn = document.getElementById('logout-btn');
+    if (logoutBtn) {
+        logoutBtn.onclick = () => {
+            localStorage.clear();
+            window.location.href = "/login";
+        };
+    }
+
+    // 2. Validar sesión
+    if (!token) {
+        window.location.href = "/login";
+        return;
+    }
+
+    // 3. Primera carga
+    updateDashboard(API_BASE, token, alias);
+
+    // 4. Ciclo de actualización
+    const interval = setInterval(() => {
+        updateDashboard(API_BASE, token, alias);
+    }, 30000);
+
+    // Limpieza de intervalo para Astro
+    document.addEventListener('astro:before-preparation', () => clearInterval(interval));
 }

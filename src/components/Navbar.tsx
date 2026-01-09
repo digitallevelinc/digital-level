@@ -23,7 +23,6 @@ const services: NavItem[] = [
     description: 'Calcula tus arbitrajes en tiempo real.', 
     badge: 'FREE' 
   },
-  { name: 'Sincronización P2P', href: '/#precios', icon: FaSyncAlt, description: 'Conexión directa con Binance, TG y Discord.' },
   { name: 'Guías Oficiales Binance', href: '/#guias', icon: FaBtc, description: 'Lo que todo comerciante debe tener.' },
 ]
 

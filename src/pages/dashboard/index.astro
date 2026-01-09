@@ -146,34 +146,13 @@ const banks = [
     </div>
   </section>
 
-  <script type="module">
-    import { updateDashboard } from '/scripts/dashboard.js';
+  <script>
+  // Astro detecta que este archivo vive en tu PC/Servidor de desarrollo,
+  // lo procesa y genera la importación correcta automáticamente.
+  import { initDashboard } from '../../scripts/dashboard.js';
 
-    const API_BASE = "http://144.91.110.204:3003";
-    const token = localStorage.getItem('session_token');
-    const alias = localStorage.getItem('operator_alias');
-
-    // Inicialización inmediata
-    if (token) {
-      updateDashboard(API_BASE, token, alias);
-      
-      // Ciclo de actualización cada 30 segundos
-      const dashboardInterval = setInterval(() => {
-        updateDashboard(API_BASE, token, alias);
-      }, 30000);
-
-      // Limpieza al cerrar o cambiar página (opcional pero recomendado en Astro)
-      document.addEventListener('astro:before-preparation', () => {
-        clearInterval(dashboardInterval);
-      });
-    } else {
-      window.location.href = "/login";
-    }
-
-    // Evento Logout
-    document.getElementById('logout-btn')?.addEventListener('click', () => {
-      localStorage.clear();
-      window.location.href = "/login";
-    });
-  </script>
+  // Al llamar a la función aquí, te aseguras de que el JS 
+  // se ejecute en cuanto el HTML esté listo.
+  initDashboard();
+</script>
 </DashboardLayout>
