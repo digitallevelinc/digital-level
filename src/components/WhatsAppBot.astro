@@ -1,6 +1,8 @@
 ---
 // src/components/WhatsAppBot.astro
-const PHONE = "14482045"; // El número de tu referencia
+// Reemplaza con el número final cuando lo tengas
+const PHONE = "584120000000"; 
+const MESSAGE = encodeURIComponent("🌐 Hola Digital Team, me gustaria suscribirme");
 ---
 
 <style>
@@ -19,7 +21,7 @@ const PHONE = "14482045"; // El número de tu referencia
 
 <a
   id="chat-fab"
-  href={`https://wa.me/${PHONE}?text=Hola%20Digital%20Level,%20necesito%20información%20sobre%20el%20sistema.`}
+  href={`https://wa.me/${PHONE}?text=${MESSAGE}`}
   target="_blank"
   rel="noopener noreferrer"
   aria-label="Chatea por WhatsApp"
@@ -32,7 +34,7 @@ const PHONE = "14482045"; // El número de tu referencia
   <span class="font-bold tracking-wide">WhatsApp</span>
 </a>
 
-<script>
+<script is:inline>
   const el = document.getElementById("chat-fab");
   if (el) {
     setInterval(() => {

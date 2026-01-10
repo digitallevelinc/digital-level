@@ -1,10 +1,17 @@
 ---
 // src/layouts/Base.astro
 import '../styles/global.css';
+
+// Importamos los componentes globales para que salgan en TODAS las páginas
+import Footer from '../components/Footer.astro';
+import WhatsAppBot from '../components/WhatsAppBot.astro';
+import ShareDrawer from '../components/ShareButton.astro';
+import SocialProofMini from '../components/SocialProofMini.tsx';
+
 const { title } = Astro.props;
 ---
 <!DOCTYPE html>
-<html lang="es" class="bg-[#0b0e11]">
+<html lang="es" class="bg-[#0b0e11] scroll-smooth">
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width" />
@@ -13,9 +20,26 @@ const { title } = Astro.props;
     <link rel="icon" type="image/png" sizes="32x32" href="/img/logo.png" />
     <link rel="icon" type="image/png" sizes="16x16" href="/img/logo.png" />
     <link rel="apple-touch-icon" href="/img/logo.png" />
+    <!-- Google Tag Manager -->
+    <script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+    new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+    j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+    'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+    })(window,document,'script','dataLayer','GTM-5DSQLR4P');
+    </script>
+    <!-- End Google Tag Manager -->
 </head>
-<body class="text-white antialiased selection:bg-[#F3BA2F] selection:text-black">
-    <slot />
+<body 
+class="text-white antialiased selection:bg-[#F3BA2F] selection:text-black min-h-screen flex flex-col">
+    <div class="flex-grow">
+        <slot />
+    </div>
+
+    <Footer />
+    
+    <ShareDrawer />
+    <WhatsAppBot />
+    <SocialProofMini client:idle />
 
     <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
 
@@ -24,5 +48,9 @@ const { title } = Astro.props;
         emailjs.init("u9CDgZGqG3T1dof5g");
       })();
     </script>
+    <!-- Google Tag Manager (noscript) -->
+    <noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-5DSQLR4P"
+    height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
+    <!-- End Google Tag Manager (noscript) -->
 </body>
 </html>

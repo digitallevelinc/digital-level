@@ -1,3 +1,4 @@
+/** @jsxImportSource react */
 import { useState, useEffect } from 'react'
 import { Dialog, Transition, Disclosure } from '@headlessui/react'
 import { Bars3Icon, XMarkIcon, ChevronDownIcon } from '@heroicons/react/24/outline'
@@ -5,31 +6,46 @@ import {
   FaCalculator, FaRocket, FaBtc, FaSyncAlt, FaShieldAlt 
 } from 'react-icons/fa'
 
-const services = [
+// Definición de tipos
+interface NavItem {
+  name: string;
+  href: string;
+  icon: any;
+  description?: string;
+  badge?: string;
+}
+
+const services: NavItem[] = [
   { 
     name: 'Calculadora P2P', 
-    href: '/calculadora', // <--- Asegúrate que esté así
+    href: '/calculadora', 
     icon: FaCalculator, 
     description: 'Calcula tus arbitrajes en tiempo real.', 
     badge: 'FREE' 
   },
-  { name: 'Sincronización P2P', href: '#ecosistema', icon: FaSyncAlt, description: 'Conexión directa con Binance, TG y Discord.' },
-  { name: 'Guías Oficiales Binance', href: '#guias', icon: FaBtc, description: 'Lo que todo comerciante debe tener.' },
+  { name: 'Guías Oficiales Binance', href: '/#guias', icon: FaBtc, description: 'Lo que todo comerciante debe tener.' },
 ]
 
-const company = [{ name: 'Sobre Nosotros', href: '#nosotros', icon: FaRocket }]
+const company: NavItem[] = [{ name: 'Sobre Nosotros', href: '/#nosotros', icon: FaRocket }]
 
-function classNames(...classes) {
+function classNames(...classes: (string | boolean | undefined)[]) {
   return classes.filter(Boolean).join(' ')
 }
 
 export default function NavbarReact() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [scrolled, setScrolled] = useState(false)
-  
-  // Estados para controlar el HOVER en Desktop
   const [isToolsOpen, setIsToolsOpen] = useState(false)
   const [isCompanyOpen, setIsCompanyOpen] = useState(false)
+
+  // Lógica de fecha dinámica para Mobile
+  const startYear = 2025;
+  const now = new Date();
+  const currentYear = now.getFullYear();
+  const monthName = now.toLocaleString('es-ES', { month: 'long' });
+  const currentMonth = monthName.charAt(0).toUpperCase() + monthName.slice(1);
+  const yearDisplay = currentYear > startYear ? `${startYear} - ${currentYear}` : `${startYear}`;
+  const displayFullDate = `${yearDisplay} ${currentMonth}`;
 
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 20)
@@ -37,15 +53,16 @@ export default function NavbarReact() {
     return () => window.removeEventListener('scroll', handleScroll)
   }, [])
 
-  const handleScrollTo = (e, href) => {
-    if (href.startsWith('#')) {
-      e.preventDefault();
-      const targetId = href.replace('#', '');
-      const elem = document.getElementById(targetId);
+  const handleNavigation = (e: React.MouseEvent<HTMLAnchorElement>, href: string) => {
+    setIsToolsOpen(false);
+    setIsCompanyOpen(false);
+    setMobileMenuOpen(false);
+
+    if (href.startsWith('#') || (href.startsWith('/#') && window.location.pathname === '/')) {
+      const targetId = href.split('#')[1] || href.split('#')[0];
+      const elem = document.getElementById(targetId.replace('/', ''));
       if (elem) {
-        setMobileMenuOpen(false);
-        setIsToolsOpen(false);
-        setIsCompanyOpen(false);
+        e.preventDefault();
         elem.scrollIntoView({ behavior: 'smooth' });
       }
     }
@@ -54,6 +71,7 @@ export default function NavbarReact() {
   const handleOpenSentinelModal = () => {
     setMobileMenuOpen(false);
     setIsToolsOpen(false);
+    setIsCompanyOpen(false);
     if (typeof window !== 'undefined' && (window as any).openModal) {
       (window as any).openModal('Pro'); 
     }
@@ -70,56 +88,36 @@ export default function NavbarReact() {
         <nav className="mx-auto flex max-w-7xl items-center justify-between px-6 lg:px-8">
           <div className="flex lg:flex-1">
             <a href="/" className="flex items-center gap-3 transition-transform hover:scale-105">
-              <img className="h-10 w-auto" src="/img/logo.png" alt="Logo" />
-              <span className="text-xl font-bold text-white tracking-tighter">
+              <img className="h-10 w-auto" src="/img/logo.png" alt="Logo Digital Level" />
+              <span className="text-xl font-bold text-white tracking-tighter uppercase">
                 DIGITAL<span className="text-[#F3BA2F]">LEVEL</span>
               </span>
             </a>
           </div>
 
-          {/* Hamburguesa Móvil */}
           <div className="flex lg:hidden">
-            <button onClick={() => setMobileMenuOpen(true)} className="text-gray-400 p-2.5 outline-none">
+            <button type="button" onClick={() => setMobileMenuOpen(true)} className="text-gray-400 p-2.5 outline-none hover:text-white transition-colors">
               <Bars3Icon className="h-8 w-8" />
             </button>
           </div>
 
-          {/* MENU DESKTOP CON HOVER */}
           <div className="hidden lg:flex lg:gap-x-8 items-center">
-            
-            {/* HERRAMIENTAS */}
-            <div 
-              className="relative py-2"
-              onMouseEnter={() => setIsToolsOpen(true)}
-              onMouseLeave={() => setIsToolsOpen(false)}
-            >
-              <button className={classNames(
-                "flex items-center gap-x-1 text-sm font-semibold uppercase outline-none transition-colors",
-                isToolsOpen ? "text-[#F3BA2F]" : "text-gray-300 hover:text-[#F3BA2F]"
-              )}>
-                HERRAMIENTAS 
-                <ChevronDownIcon className={classNames("h-5 w-5 transition-transform", isToolsOpen ? "rotate-180" : "")} />
+            {/* HERRAMIENTAS DESKTOP */}
+            <div className="relative py-2" onMouseEnter={() => setIsToolsOpen(true)} onMouseLeave={() => setIsToolsOpen(false)}>
+              <button className={classNames("flex items-center gap-x-1 text-sm font-black uppercase tracking-widest transition-colors", isToolsOpen ? "text-[#F3BA2F]" : "text-gray-300 hover:text-[#F3BA2F]")}>
+                Herramientas <ChevronDownIcon className={classNames("h-4 w-4 transition-transform duration-300", isToolsOpen ? "rotate-180" : "")} />
               </button>
-
-              <Transition
-                show={isToolsOpen}
-                enter="transition duration-200 ease-out"
-                enterFrom="opacity-0 translate-y-1"
-                enterTo="opacity-100 translate-y-0"
-                leave="transition duration-150 ease-in"
-                leaveFrom="opacity-100 translate-y-0"
-                leaveTo="opacity-0 translate-y-1"
-              >
+              <Transition show={isToolsOpen} enter="transition duration-200" enterFrom="opacity-0 translate-y-2" enterTo="opacity-100 translate-y-0" leave="transition duration-150" leaveFrom="opacity-100 translate-y-0" leaveTo="opacity-0 translate-y-2">
                 <div className="absolute -left-8 top-full pt-4 w-screen max-w-md">
-                  <div className="rounded-2xl bg-[#181a20] border border-gray-800 p-4 shadow-[0_20px_50px_rgba(0,0,0,0.5)]">
+                  <div className="rounded-2xl bg-[#181a20] border border-gray-800 p-4 shadow-2xl">
                     {services.map((item) => (
-                      <a key={item.name} href={item.href} onClick={(e) => handleScrollTo(e, item.href)} className="group relative flex items-center gap-x-6 rounded-xl p-4 hover:bg-white/5 transition-all">
-                        <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-gray-800 group-hover:bg-[#F3BA2F]/10">
-                          <item.icon className="h-6 w-6 text-gray-400 group-hover:text-[#F3BA2F]" />
+                      <a key={item.name} href={item.href} onClick={(e) => handleNavigation(e, item.href)} className="group flex items-center gap-x-6 rounded-xl p-4 hover:bg-white/5 transition-all">
+                        <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-gray-800 group-hover:bg-[#F3BA2F]">
+                          <item.icon className="h-5 w-5 text-gray-400 group-hover:text-black" />
                         </div>
                         <div>
-                          <div className="font-semibold text-white">{item.name} {item.badge && <span className="ml-2 bg-[#F3BA2F]/10 text-[#F3BA2F] text-[10px] px-2 py-1 rounded-md">{item.badge}</span>}</div>
-                          <p className="text-gray-400 text-sm">{item.description}</p>
+                          <div className="font-bold text-white">{item.name} {item.badge && <span className="ml-2 bg-[#F3BA2F]/20 text-[#F3BA2F] text-[9px] px-2 py-0.5 rounded border border-[#F3BA2F]/30">{item.badge}</span>}</div>
+                          <p className="text-gray-500 text-xs mt-1">{item.description}</p>
                         </div>
                       </a>
                     ))}
@@ -128,93 +126,72 @@ export default function NavbarReact() {
               </Transition>
             </div>
 
-            <a href="#precios" onClick={(e) => handleScrollTo(e, '#precios')} className="text-sm font-semibold text-gray-300 hover:text-[#F3BA2F] uppercase transition-colors">PRECIOS</a>
+            <a href="/#precios" onClick={(e) => handleNavigation(e, '/#precios')} className="text-sm font-black text-gray-300 hover:text-[#F3BA2F] uppercase tracking-widest transition-colors">Precios</a>
 
-            {/* COMUNIDAD */}
-            <div 
-              className="relative py-2"
-              onMouseEnter={() => setIsCompanyOpen(true)}
-              onMouseLeave={() => setIsCompanyOpen(false)}
-            >
-              <button className={classNames(
-                "flex items-center gap-x-1 text-sm font-semibold uppercase outline-none transition-colors",
-                isCompanyOpen ? "text-[#F3BA2F]" : "text-gray-300 hover:text-[#F3BA2F]"
-              )}>
-                COMUNIDAD 
-                <ChevronDownIcon className={classNames("h-5 w-5 transition-transform", isCompanyOpen ? "rotate-180" : "")} />
+            <div className="relative py-2" onMouseEnter={() => setIsCompanyOpen(true)} onMouseLeave={() => setIsCompanyOpen(false)}>
+              <button className={classNames("flex items-center gap-x-1 text-sm font-black uppercase tracking-widest transition-colors", isCompanyOpen ? "text-[#F3BA2F]" : "text-gray-300 hover:text-[#F3BA2F]")}>
+                Comunidad <ChevronDownIcon className="h-4 w-4" />
               </button>
-
-              <Transition
-                show={isCompanyOpen}
-                enter="transition duration-200 ease-out"
-                enterFrom="opacity-0 translate-y-1"
-                enterTo="opacity-100 translate-y-0"
-                leave="transition duration-150 ease-in"
-                leaveFrom="opacity-100 translate-y-0"
-                leaveTo="opacity-0 translate-y-1"
-              >
-                <div className="absolute -left-8 top-full pt-4 w-56">
-                  <div className="rounded-2xl bg-[#181a20] border border-gray-800 p-2 shadow-[0_20px_50px_rgba(0,0,0,0.5)]">
-                    {company.map((item) => (
-                      <a key={item.name} href={item.href} onClick={(e) => handleScrollTo(e, item.href)} className="flex items-center gap-x-3 rounded-lg p-3 text-sm font-semibold text-gray-300 hover:bg-white/5 hover:text-[#F3BA2F] transition-all">
-                        <item.icon className="h-5 w-5 text-gray-500" /> {item.name}
-                      </a>
-                    ))}
-                  </div>
+              <Transition show={isCompanyOpen} className="absolute -left-8 top-full pt-4 w-56">
+                <div className="rounded-2xl bg-[#181a20] border border-gray-800 p-2 shadow-2xl">
+                  {company.map((item) => (
+                    <a key={item.name} href={item.href} onClick={(e) => handleNavigation(e, item.href)} className="flex items-center gap-x-3 rounded-lg p-3 text-sm font-bold text-gray-400 hover:bg-white/5 hover:text-[#F3BA2F]">
+                      <item.icon className="h-4 w-4" /> {item.name}
+                    </a>
+                  ))}
                 </div>
               </Transition>
             </div>
           </div>
 
-          {/* Botones Derecha */}
-          <div className="hidden lg:flex lg:flex-1 lg:justify-end lg:gap-x-4 items-center">
-            <a href="/login" className="text-sm font-semibold text-white hover:text-[#F3BA2F]">Iniciar Sesión</a>
-            <button onClick={handleOpenSentinelModal} className="bg-[#F3BA2F] text-black px-8 py-4 rounded-xl font-extrabold text-lg hover:scale-105 transition-all shadow-[0_0_30px_rgba(243,186,47,0.3)] flex items-center justify-center gap-2">
-              <FaShieldAlt className="text-xl" /> BINANCE SENTINEL
+          <div className="hidden lg:flex lg:flex-1 lg:justify-end lg:gap-x-6 items-center">
+            <a href="/login" className="text-xs font-black uppercase tracking-widest text-gray-400 hover:text-white transition-colors">Login</a>
+            <button onClick={handleOpenSentinelModal} className="bg-[#F3BA2F] text-black px-5 py-2.5 rounded-xl font-black text-xs uppercase hover:bg-[#ffdb4d] transition-all flex items-center gap-2 group">
+              <FaShieldAlt className="text-base group-hover:rotate-12 transition-transform" /> Binance Sentinel
             </button>
           </div>
         </nav>
 
-        {/* MOBILE DIALOG (Mantiene su lógica de click porque en móvil NO hay hover) */}
+        {/* MÓVIL */}
         <Dialog as="div" className="lg:hidden" open={mobileMenuOpen} onClose={setMobileMenuOpen}>
-          <div className="fixed inset-0 z-[110] bg-black/60 backdrop-blur-sm" />
-          <Dialog.Panel className="fixed inset-y-0 right-0 z-[110] w-full bg-[#0b0e11] px-6 py-6 shadow-2xl overflow-y-auto">
-             <div className="flex items-center justify-between mb-8">
-              <span className="text-xl font-bold text-white uppercase tracking-tighter">DIGITAL<span className="text-[#F3BA2F]">LEVEL</span></span>
-              <button onClick={() => setMobileMenuOpen(false)} className="text-gray-400 p-2.5 outline-none"><XMarkIcon className="h-7 w-7" /></button>
+          <div className="fixed inset-0 z-[110] bg-[#0b0e11]/90 backdrop-blur-xl" />
+          <Dialog.Panel className="fixed inset-y-0 right-0 z-[110] w-full bg-[#0b0e11] px-6 py-6 overflow-y-auto">
+            <div className="flex items-center justify-between mb-12">
+              <div className="flex items-center gap-3">
+                <img src="/img/logo.png" alt="Logo" className="h-8 w-auto" />
+                <span className="text-xl font-black text-white uppercase tracking-tighter italic">
+                  Digital<span className="text-[#F3BA2F]">Level</span>
+                </span>
+              </div>
+              <button onClick={() => setMobileMenuOpen(false)} className="text-gray-400 p-2"><XMarkIcon className="h-8 w-8" /></button>
             </div>
-            <div className="space-y-2">
-              <Disclosure as="div" className="-mx-3">
+            
+            <div className="space-y-4">
+              <Disclosure as="div">
                 {({ open }) => (
                   <>
-                    <Disclosure.Button className="flex w-full items-center justify-between rounded-lg py-3 px-3 text-lg font-bold text-white hover:bg-gray-800 uppercase">
-                      Herramientas <ChevronDownIcon className={classNames(open ? 'rotate-180' : '', 'h-6 w-6 transition-transform text-gray-500')} />
+                    <Disclosure.Button className="flex w-full items-center justify-between rounded-xl py-4 px-4 text-xl font-black text-white hover:bg-white/5 uppercase">
+                      Herramientas <ChevronDownIcon className={classNames(open ? 'rotate-180' : '', 'h-6 w-6 text-[#F3BA2F]')} />
                     </Disclosure.Button>
-                    <Disclosure.Panel className="mt-2 space-y-2 px-4 border-l-2 border-[#F3BA2F]/30 ml-2">
-                      {services.map((item) => ( <a key={item.name} href={item.href} onClick={(e) => handleScrollTo(e, item.href)} className="block py-2 text-gray-300 font-medium">{item.name}</a> ))}
+                    <Disclosure.Panel className="mt-2 space-y-1 px-4 border-l-2 border-[#F3BA2F]/20 ml-4">
+                      {services.map((item) => ( <a key={item.name} href={item.href} onClick={(e) => handleNavigation(e, item.href)} className="block py-3 text-gray-400 font-bold text-lg">{item.name}</a> ))}
                     </Disclosure.Panel>
                   </>
                 )}
               </Disclosure>
-              <a href="#precios" onClick={(e) => handleScrollTo(e, '#precios')} className="block py-3 text-lg font-bold text-white uppercase">Precios</a>
-              <Disclosure as="div" className="-mx-3">
-                {({ open }) => (
-                  <>
-                    <Disclosure.Button className="flex w-full items-center justify-between rounded-lg py-3 px-3 text-lg font-bold text-white hover:bg-gray-800 uppercase">
-                      Comunidad <ChevronDownIcon className={classNames(open ? 'rotate-180' : '', 'h-6 w-6 transition-transform text-gray-500')} />
-                    </Disclosure.Button>
-                    <Disclosure.Panel className="mt-2 space-y-2 px-4 border-l-2 border-[#F3BA2F]/30 ml-2">
-                      {company.map((item) => ( <a key={item.name} href={item.href} onClick={(e) => handleScrollTo(e, item.href)} className="block py-2 text-gray-300 font-medium">{item.name}</a> ))}
-                    </Disclosure.Panel>
-                  </>
-                )}
-              </Disclosure>
-              <a href="/login" className="block py-3 text-lg font-bold text-white uppercase">Iniciar Sesión</a>
+              <a href="/#precios" onClick={(e) => handleNavigation(e, '/#precios')} className="block py-4 px-4 text-xl font-black text-white uppercase tracking-tight">Precios</a>
+              <a href="/login" className="block py-4 px-4 text-xl font-black text-white uppercase tracking-tight">Iniciar Sesión</a>
             </div>
-            <div className="mt-10 py-8 border-t border-gray-800 text-center">
-              <button onClick={handleOpenSentinelModal} className="w-full bg-[#F3BA2F] text-black font-black py-4 rounded-full mb-6 shadow-lg shadow-[#F3BA2F]/10">BINANCE SENTINEL</button>
-              <p className="text-[10px] uppercase font-bold tracking-[0.3em] text-[#F3BA2F] mb-2">IN GOD WE TRUST</p>
-              <p className="text-xs text-gray-500">&copy; 2026 Digital Level INC</p>
+
+            <div className="mt-16 py-8 border-t border-gray-800/50 text-center">
+              <button onClick={handleOpenSentinelModal} className="w-full bg-[#F3BA2F] text-black font-black py-5 rounded-2xl shadow-xl text-lg uppercase">Binance Sentinel</button>
+              
+              <div className="mt-8 space-y-1">
+                <p className="text-[10px] uppercase font-black text-[#F3BA2F] tracking-widest">In God We Trust</p>
+                <p className="text-[9px] uppercase font-bold text-gray-500 tracking-tighter">
+                  © {displayFullDate} Digital Level
+                </p>
+              </div>
             </div>
           </Dialog.Panel>
         </Dialog>

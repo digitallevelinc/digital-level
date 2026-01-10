@@ -1,6 +1,13 @@
 ---
+// src/pages/dashboard/index.astro (o la ruta correspondiente)
 import DashboardLayout from '../../layouts/DashboardLayout.astro';
 import StatCard from '../../components/dashboard/StatCard.astro';
+
+// Importación de componentes modulares de logística
+import P2P from '../../components/dashboard/p2p.astro';
+import Pay from '../../components/dashboard/pay.astro';
+import Red from '../../components/dashboard/red.astro';
+import Switch from '../../components/dashboard/switch.astro';
 
 const banks = [
   { name: 'Mercantil', color: 'border-l-blue-600' },
@@ -13,16 +20,64 @@ const banks = [
 ---
 
 <DashboardLayout>
+  <div class="flex justify-between items-center mb-6 px-2">
+    <div>
+      <h1 class="text-white font-black text-xl uppercase tracking-tighter">
+        Bienvenido, <span id="operator-alias" class="text-[#F3BA2F]">Cargando...</span>
+      </h1>
+      <p id="last-update" class="text-[9px] text-gray-500 uppercase font-bold tracking-widest mt-1 italic">Sincronizando con Sentinel...</p>
+      <p id="kpi-filter-label" class="text-[9px] text-gray-500 uppercase font-bold tracking-widest mt-1">Rango activo: Hoy</p>
+    </div>
+    <button id="logout-btn" class="bg-red-500/10 hover:bg-red-500/20 text-red-500 text-[10px] font-black py-2 px-4 rounded-xl border border-red-500/20 transition-all uppercase tracking-widest">
+      Cerrar Sesión
+    </button>
+  </div>
+
+  <section class="mb-8 bg-gradient-to-br from-[#0f1216] to-[#0b0d11] border border-gray-800 rounded-2xl p-4 shadow-lg shadow-black/20">
+    <div class="flex items-center justify-between flex-wrap gap-2 mb-3">
+      <div class="flex items-center gap-2">
+        <span class="w-1 h-4 bg-[#F3BA2F]"></span>
+        <p class="text-[10px] font-black uppercase tracking-[0.25em] text-gray-400">Filtro temporal KPI</p>
+      </div>
+      <p class="text-[10px] text-gray-600">Selecciona un rango rápido o personaliza fechas.</p>
+    </div>
+
+    <div class="flex flex-wrap gap-2 mb-4" id="kpi-preset-group">
+      <button class="kpi-preset-btn px-3 py-2 rounded-xl text-xs font-bold uppercase tracking-wide border border-gray-800 bg-white/5 hover:border-[#F3BA2F]/60" data-preset="today">Hoy</button>
+      <button class="kpi-preset-btn px-3 py-2 rounded-xl text-xs font-bold uppercase tracking-wide border border-gray-800 bg-white/5 hover:border-[#F3BA2F]/60" data-preset="this_week">Esta semana</button>
+      <button class="kpi-preset-btn px-3 py-2 rounded-xl text-xs font-bold uppercase tracking-wide border border-gray-800 bg-white/5 hover:border-[#F3BA2F]/60" data-preset="last_7">Últimos 7 días</button>
+      <button class="kpi-preset-btn px-3 py-2 rounded-xl text-xs font-bold uppercase tracking-wide border border-gray-800 bg-white/5 hover:border-[#F3BA2F]/60" data-preset="this_month">Mes actual</button>
+      <button class="kpi-preset-btn px-3 py-2 rounded-xl text-xs font-bold uppercase tracking-wide border border-gray-800 bg-white/5 hover:border-[#F3BA2F]/60" data-preset="last_30">Últimos 30 días</button>
+      <button class="kpi-preset-btn px-3 py-2 rounded-xl text-xs font-bold uppercase tracking-wide border border-gray-800 bg-white/5 hover:border-[#F3BA2F]/60" data-preset="ytd">YTD</button>
+      <button class="kpi-preset-btn px-3 py-2 rounded-xl text-xs font-bold uppercase tracking-wide border border-gray-800 bg-white/5 hover:border-[#F3BA2F]/60" data-preset="all">Todo</button>
+      <button class="kpi-preset-btn px-3 py-2 rounded-xl text-xs font-bold uppercase tracking-wide border border-gray-800 bg-white/5 hover:border-[#F3BA2F]/60" data-preset="custom">Personalizado</button>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+      <div>
+        <label class="text-[9px] font-black text-gray-500 uppercase mb-1 block">Desde</label>
+        <input id="kpi-date-from" type="date" class="bg-black text-white text-xs border border-gray-700 p-3 rounded-xl w-full outline-none focus:border-[#F3BA2F]/70" />
+      </div>
+      <div>
+        <label class="text-[9px] font-black text-gray-500 uppercase mb-1 block">Hasta</label>
+        <input id="kpi-date-to" type="date" class="bg-black text-white text-xs border border-gray-700 p-3 rounded-xl w-full outline-none focus:border-[#F3BA2F]/70" />
+      </div>
+      <div class="flex items-end gap-2">
+        <button id="kpi-apply-range" class="bg-[#F3BA2F] text-black text-[11px] font-black py-3 px-4 rounded-xl w-full uppercase tracking-wide hover:bg-[#d9a927] transition-all">Aplicar filtro</button>
+      </div>
+    </div>
+  </section>
+
   <section class="mb-8">
     <h2 class="text-[#F3BA2F] text-[10px] font-black uppercase tracking-[0.2em] mb-4 italic flex items-center gap-2">
       <span class="w-1 h-3 bg-[#F3BA2F]"></span> 1. MÉTRICAS DE RENDIMIENTO CRÍTICO
     </h2>
     <div class="grid grid-cols-1 md:grid-cols-5 gap-3">
-      <StatCard title="Balance Real Total" value="$15,240.50" subValue="Suma total carteras" icon="fas fa-vault" />
-      <StatCard title="Tasa Mínima Compra" value="613.04 VES" type="warning" subValue="Break-even" icon="fas fa-shield-halved" />
-      <StatCard title="Margen Global %" value="1.25%" subValue="Beneficio neto" icon="fas fa-chart-line" />
-      <StatCard title="Profit Total" value="$2,450.00" subValue="Ganancia acumulada" icon="fas fa-coins" />
-      <StatCard title="Ganancia por Ciclo" value="$45.20" type="success" subValue="Rendimiento actual" icon="fas fa-sync" />
+      <div id="kpi-balance"><StatCard title="Balance Real Total" value="---" subValue="Suma total carteras" icon="fas fa-vault" /></div>
+      <div id="kpi-breakeven"><StatCard title="Tasa Mínima Compra" value="---" type="warning" subValue="Break-even" icon="fas fa-shield-halved" /></div>
+      <div id="kpi-margin"><StatCard title="Margen Global %" value="---" subValue="Beneficio neto" icon="fas fa-chart-line" /></div>
+      <div id="kpi-profit"><StatCard title="Profit Total" value="---" subValue="Ganancia acumulada" icon="fas fa-coins" /></div>
+      <div id="kpi-cycle"><StatCard title="Ganancia por Ciclo" value="---" type="success" subValue="Rendimiento actual" icon="fas fa-sync" /></div>
     </div>
   </section>
 
@@ -30,20 +85,20 @@ const banks = [
     <section>
       <h2 class="text-gray-500 text-[10px] font-black uppercase tracking-[0.2em] mb-4 italic">2. CONTROL DE OPERACIONES Y VOLUMEN</h2>
       <div class="grid grid-cols-2 gap-3">
-        <StatCard title="Cantidad de Operaciones" value="154" subValue="Total ejecutadas" />
-        <StatCard title="Tasas Globales PP" value="612.50 / 618.20" subValue="Compra / Venta" />
-        <StatCard title="Compras Totales" value="78 Órdenes" subValue="$7,500.00 Acumulado" />
-        <StatCard title="Ventas Totales" value="76 Órdenes" subValue="$7,745.00 Acumulado" />
-        <StatCard title="Comisiones Totales" value="$12.40" subValue="Costos operativos" />
+        <div id="ops-count"><StatCard title="Cantidad de Operaciones" value="---" subValue="Total ejecutadas" /></div>
+        <div id="ops-rates"><StatCard title="Tasas Globales PP" value="---" subValue="Compra / Venta" /></div>
+        <div id="ops-buys"><StatCard title="Compras Totales" value="---" subValue="Cargando..." /></div>
+        <div id="ops-sells"><StatCard title="Ventas Totales" value="---" subValue="Cargando..." /></div>
+        <div id="ops-fees"><StatCard title="Comisiones Totales" value="---" subValue="Costos operativos" /></div>
       </div>
     </section>
 
     <section>
       <h2 class="text-gray-500 text-[10px] font-black uppercase tracking-[0.2em] mb-4 italic">4. PROYECCIONES E INSIGHTS</h2>
       <div class="grid grid-cols-2 gap-3">
-        <StatCard title="Ganancia Diaria" value="+$124.39" type="success" subValue="Últimas 24h" />
-        <StatCard title="Volumen Proyectado" value="$3,500.00" subValue="Meta estimada" />
-        <StatCard title="Comisión Operador" value="60% (Cesar)" subValue="Pago configurado" />
+        <div id="proj-daily"><StatCard title="Ganancia Diaria" value="---" type="success" subValue="Últimas 24h" /></div>
+        <div id="proj-vol"><StatCard title="Volumen Proyectado" value="---" subValue="Meta estimada" /></div>
+        <StatCard title="Comisión Operador" value="60%" subValue="Configurado" />
         <div class="bg-[#161a1e] border border-gray-800 rounded-xl p-3 flex flex-col justify-center">
           <label class="text-[9px] font-bold text-gray-500 uppercase mb-2">Filtro Proyección Temporal</label>
           <select class="bg-black text-white text-xs border border-gray-700 p-2 rounded outline-none">
@@ -57,11 +112,15 @@ const banks = [
   <section class="mb-8">
     <h2 class="text-gray-500 text-[10px] font-black uppercase tracking-[0.2em] mb-4 italic">3. LOGÍSTICA DE CARTERAS (BALANCES INTERNOS)</h2>
     <div class="grid grid-cols-2 md:grid-cols-5 gap-3">
-      <StatCard title="Balance P2P" value="$5,400" />
-      <StatCard title="Balance Switch" value="$2,100" />
-      <StatCard title="Balance Red" value="$1,250" />
-      <StatCard title="Balance Pay" value="$450" />
-      <StatCard title="Balance Fiat" value="85,000 VES" />
+      
+      <P2P />
+      <Pay />
+      <Red />
+      <Switch />
+      
+      <div id="wallet-fiat">
+        <StatCard title="Balance Fiat" value="---" subValue="Efectivo en bancos" />
+      </div>
     </div>
   </section>
 
@@ -73,30 +132,18 @@ const banks = [
           <thead class="bg-black/40 text-gray-500 uppercase font-black border-b border-gray-800">
             <tr>
               <th class="px-3 py-4 text-white italic">Bancos Operando</th>
-              <th class="px-3 py-4 text-center">P2P Sell FIAT</th>
-              <th class="px-3 py-4 text-center">P2P Buy FIAT</th>
               <th class="px-3 py-4 text-center">Balance FIAT</th>
-              <th class="px-3 py-4 text-center">Balance USDT ≈</th>
-              <th class="px-3 py-4 text-center">Tasa Venta PP</th>
               <th class="px-3 py-4 text-center">Tasa Compra PP</th>
+              <th class="px-3 py-4 text-center">Tasa Venta PP</th>
               <th class="px-3 py-4 text-center">Margen %</th>
-              <th class="px-3 py-4 text-center text-[#F3BA2F]">Profit FIAT ≈</th>
               <th class="px-3 py-4 text-center text-[#F3BA2F]">Profit USDT ≈</th>
             </tr>
           </thead>
-          <tbody class="divide-y divide-gray-800/50">
+          <tbody id="bank-table-body" class="divide-y divide-gray-800/50">
             {banks.map(b => (
               <tr class={`hover:bg-white/[0.02] border-l-4 ${b.color}`}>
                 <td class="px-3 py-4 font-bold text-white">{b.name}</td>
-                <td class="px-3 py-4 text-center font-mono">#N/A</td>
-                <td class="px-3 py-4 text-center font-mono">#N/A</td>
-                <td class="px-3 py-4 text-center font-mono">#N/A</td>
-                <td class="px-3 py-4 text-center font-mono italic text-gray-400">#N/A</td>
-                <td class="px-3 py-4 text-center font-mono">0.00</td>
-                <td class="px-3 py-4 text-center font-mono">0.00</td>
-                <td class="px-3 py-4 text-center font-mono">0.00%</td>
-                <td class="px-3 py-4 text-center text-green-500 font-bold">#N/A</td>
-                <td class="px-3 py-4 text-center text-green-500 font-bold">#N/A</td>
+                <td colspan="5" class="px-3 py-4 text-center text-gray-600 animate-pulse italic">Esperando datos de Sentinel...</td>
               </tr>
             ))}
           </tbody>
@@ -104,4 +151,10 @@ const banks = [
       </div>
     </div>
   </section>
+
+  <script>
+    // Importamos la lógica orquestadora desde el nuevo script modular
+    import { initDashboard } from '../../scripts/dashboard.js';
+    initDashboard();
+  </script>
 </DashboardLayout>

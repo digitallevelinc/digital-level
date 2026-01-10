@@ -6,7 +6,7 @@ const services = [
     title: "Ganancias en vivo",
     description: "Tu radar de Arbitraje P2P en vivo. Accede al flujo directo de lo que hacen tus Makers en Binance. Recibe alertas instantáneas en Telegram/Discord Captura cada orden de compra/venta directamente desde la cuenta de Binance del operador apenas ocurre.",
     icon: "fa-eye",
-    waMsg: "Hola! Quiero configurar las ganancias en vivo",
+    waMsg: "🌐 Hola Digital Team, me gustaría configurar las ganancias en vivo",
     hasPreview: true
   },
   {
@@ -14,7 +14,7 @@ const services = [
     title: "Sincronizacion En Google Sheets",
     description: "Olvida la intervención manual. Logra registros automáticos del P2P USDT/FIAT, Binance Pay, Transfers y mas en tiempo real. Mantén el control absoluto de tu arbitraje sin errores.",
     icon: "fa-sync-alt",
-    waMsg: "Hola! Me interesa la Sincronización en Spreadsheets para mi registro de operaciones.",
+    waMsg: "🌐 Hola Digital Team, me interesa la Sincronización en Spreadsheets para mi registro de operaciones.",
     hasPreview: true 
   },
   {
@@ -22,7 +22,7 @@ const services = [
     title: "Seguridad Blindada",
     description: "Protección de nivel bancario para tu capital. Protocolos de acceso restringido y auditorías de integridad permanentes al operador, permitiéndote delegar tu operativa sin exponerte nunca a fugas de capital, credenciales o llaves 2FA.",
     icon: "fa-shield-alt",
-    waMsg: "Hola! Solicito información sobre los protocolos de Seguridad y auditoría.",
+    waMsg: "🌐 Hola Digital Team, solicito información sobre los protocolos de Seguridad y auditoría.",
     hasPreview: true
   },
   {
@@ -30,7 +30,7 @@ const services = [
     title: "Insights Reales",
     description: "Toma decisiones como comerciante p2p basadas en datos, no en suposiciones. Visualiza tu rentabilidad del P2P neta con gráficos profesionales para un control total de tu spread, ROI y Arbitraje en tiempo real.",
     icon: "fa-chart-pie",
-    waMsg: "Hola! Me gustaría ver cómo funcionan los Insights Reales y la exportación a Sheets.",
+    waMsg: "🌐 Hola Digital Team, me gustaría ver cómo funcionan los Insights Reales y la exportación a Sheets.",
     hasPreview: true
   },
   {
@@ -38,19 +38,20 @@ const services = [
     title: "Gestión de Operadores",
     description: "Escala tu negocio delegando con confianza. Control absoluto sobre tu equipo de trabajo, protegiendo tus credenciales y monitoreando cada movimiento.",
     icon: "fa-users-cog",
-    waMsg: "Hola! Tengo un equipo de operadores y quiero usar su sistema de Gestión.",
+    waMsg: "🌐 Hola Digital Team, tengo un equipo de operadores y quiero usar su sistema de Gestión.",
     hasPreview: true
   },
   {
     id: "curso-p2p",
     title: "Maestría en Binance P2P",
     description: "Domina el P2P de pies a cabeza. Aprende a gestionar tus propios Makers, maximizar spreads de arbitraje y operar con seguridad total sin arriesgar tu capital.",
-    icon: "fa-graduation-cap", // Cambié el icono a uno de graduación/educación
-    waMsg: "¡Hola! Me interesa el curso de Binance P2P para profesionalizar mi operativa.",
+    icon: "fa-graduation-cap",
+    waMsg: "🌐 Hola Digital Team, me interesa el curso de Binance P2P para profesionalizar mi operativa.",
     hasPreview: true
 }
 ];
 
+// Reemplaza este número cuando tengas el definitivo de Digital Level
 const waNumber = "584120000000"; 
 ---
 
@@ -90,6 +91,7 @@ const waNumber = "584120000000";
 
                             <div 
                                 x-show={`openPreview === '${service.id}'`} 
+                                x-on:click.away={`openPreview = null`}
                                 x-collapse
                                 class="mt-4 space-y-4 bg-black/30 p-4 rounded-xl border border-white/5"
                             >
@@ -150,6 +152,7 @@ const waNumber = "584120000000";
                     <a 
                         href={`https://wa.me/${waNumber}?text=${encodeURIComponent(service.waMsg)}`}
                         target="_blank"
+                        rel="noopener noreferrer"
                         class="w-full py-3 px-4 bg-transparent border border-[#F3BA2F] text-[#F3BA2F] rounded-xl font-bold text-sm hover:bg-[#F3BA2F] hover:text-black transition-all text-center flex items-center justify-center gap-2 group-hover:shadow-[0_0_15px_rgba(243,186,47,0.2)]"
                     >
                         CONSULTAR {service.title}
