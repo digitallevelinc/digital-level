@@ -5,6 +5,7 @@ export function updateBancosUI(insights = []) {
     if (!insights) return;
 
     insights.forEach(b => {
+        // Normalización del ID para coincidir con el .astro
         const id = b.bank.toLowerCase().split(' ')[0].replace(/\s+/g, '');
 
         const ui = {
@@ -12,32 +13,58 @@ export function updateBancosUI(insights = []) {
             usdt: document.getElementById(`bank-usdt-${id}`),
             buy: document.getElementById(`bank-buy-${id}`),
             sell: document.getElementById(`bank-sell-${id}`),
-            // Nuevos campos de volumen
             volBuy: document.getElementById(`bank-vol-buy-${id}`),
             volSell: document.getElementById(`bank-vol-sell-${id}`),
-            // Fees
             feeBuy: document.getElementById(`bank-fee-buy-${id}`),
             feeSell: document.getElementById(`bank-fee-sell-${id}`),
             profit: document.getElementById(`bank-profit-${id}`),
-            margin: document.getElementById(`bank-margin-${id}`)
+            margin: document.getElementById(`bank-margin-${id}`),
+            // Elementos de la nueva barra triple
+            barRecompra: document.getElementById(`bank-bar-recompra-${id}`),
+            barComprado: document.getElementById(`bank-bar-comprado-${id}`),
+            barProfit: document.getElementById(`bank-bar-profit-${id}`),
+            cycleText: document.getElementById(`bank-cycle-text-${id}`)
         };
 
+        // 1. Datos Básicos
         if (ui.fiat) ui.fiat.textContent = fVES(b.fiatBalance);
         if (ui.usdt) ui.usdt.textContent = fUSDT(b.usdtBalance || 0);
         if (ui.buy) ui.buy.textContent = b.buyRate || '0.00';
         if (ui.sell) ui.sell.textContent = b.sellRate || '0.00';
-        
-        // Volumen transaccionado por banco
         if (ui.volBuy) ui.volBuy.textContent = fUSDT(b.volumeBuy || 0);
         if (ui.volSell) ui.volSell.textContent = fUSDT(b.volumeSell || 0);
-
         if (ui.feeBuy) ui.feeBuy.textContent = fUSDT(b.feeBuy || 0);
         if (ui.feeSell) ui.feeSell.textContent = fUSDT(b.feeSell || 0);
         if (ui.profit) ui.profit.textContent = `${fUSDT(b.profit)} ≈ Profit`;
+
+        // 2. Lógica de la Barra de Ciclo (Tricolor)
+        if (ui.barRecompra && ui.barComprado && ui.barProfit) {
+            // Calculamos el valor del FIAT en términos de USDT para poder sumar peras con peras
+            const fiatInUsdt = b.sellRate > 0 ? (b.fiatBalance / b.sellRate) : 0;
+            const usdtActual = b.usdtBalance || 0;
+            const profitActual = b.profit || 0;
+
+            // El "Capital Total en el Banco" es lo que falta comprar + lo comprado + la ganancia
+            const totalCycle = fiatInUsdt + usdtActual + profitActual;
+
+            if (totalCycle > 0) {
+                const pRecompra = (fiatInUsdt / totalCycle) * 100;
+                const pComprado = (usdtActual / totalCycle) * 100;
+                const pProfit = (profitActual / totalCycle) * 100;
+
+                ui.barRecompra.style.width = `${pRecompra}%`;
+                ui.barComprado.style.width = `${pComprado}%`;
+                ui.barProfit.style.width = `${pProfit}%`;
+
+                if (ui.cycleText) {
+                    ui.cycleText.textContent = `${Math.round(pComprado)}% Comprado`;
+                }
+            }
+        }
         
+        // 3. Margen y Colores
         if (ui.margin) {
             ui.margin.textContent = `${b.margin || 0}%`;
-            // Cambiamos el color al padre (el span que contiene "Margen")
             const container = ui.margin.parentElement;
             if (b.margin >= 0) {
                 container.className = 'text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400';
