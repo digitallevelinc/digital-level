@@ -19,9 +19,11 @@ export function initModalLogic() {
         if (!planName || !planBtns) return;
 
         planBtns.forEach(btn => {
-            const isMatch = btn.getAttribute('data-plan') === planName;
+            const btnPlan = btn.getAttribute('data-plan');
+            const isMatch = btnPlan === planName;
+            
             if (isMatch) {
-                // Estilo Activo (Amarillo Binance)
+                // Estilo Activo (Amarillo Binance) - Usamos classList para mayor seguridad
                 btn.className = "plan-btn py-3 rounded-xl font-black text-[10px] uppercase border transition-all bg-[#F3BA2F] text-black border-[#F3BA2F]";
                 if (planInput) planInput.value = planName;
             } else {
@@ -39,8 +41,9 @@ export function initModalLogic() {
         }
         modal.classList.remove('hidden');
         modal.classList.add('flex');
-        document.body.style.overflow = 'hidden'; // Bloquear scroll
-        window.updateActivePlan(requestedPlan || "Pro");
+        document.body.style.overflow = 'hidden'; 
+        // Pequeño delay para asegurar que el DOM está listo antes de pintar el plan activo
+        setTimeout(() => window.updateActivePlan(requestedPlan || "Pro"), 10);
     };
 
     window.closeModal = () => {
@@ -48,7 +51,7 @@ export function initModalLogic() {
         if (!modal) return;
         modal.classList.add('hidden');
         modal.classList.remove('flex');
-        document.body.style.overflow = 'auto'; // Liberar scroll
+        document.body.style.overflow = 'auto';
     };
 
     // --- LÓGICA INTERNA DEL FORMULARIO ---
@@ -72,37 +75,35 @@ export function initModalLogic() {
         }
     };
 
-    // Listeners para botones de plan dentro del modal
+    // Listeners para botones de plan (Usando EventListener para evitar colisiones)
     if (planBtns) {
         planBtns.forEach(btn => {
-            btn.onclick = (e) => {
+            btn.addEventListener('click', (e) => {
                 e.preventDefault();
                 window.updateActivePlan(btn.getAttribute('data-plan'));
-            };
+            });
         });
     }
 
     if (form) {
-        // Validaciones en tiempo real (Inputs)
-        form.querySelectorAll('input').forEach(input => {
-            input.oninput = (e) => {
-                const { name, value } = e.target;
-                if (name === 'phone') {
-                    const res = FormValidator.formatAndValidatePhone(value);
-                    e.target.value = res.displayValue; 
-                    setFieldStatus('phone', res.isValid);
-                } else if (name === 'firstname' || name === 'lastname') {
-                    const res = FormValidator.validateName(value);
-                    e.target.value = res.cleanValue;
-                    setFieldStatus(name, res.isValid);
-                } else if (name === 'email') {
-                    setFieldStatus('email', FormValidator.validateEmail(value));
-                }
-            };
+        // Validaciones en tiempo real
+        form.addEventListener('input', (e) => {
+            const { name, value } = e.target;
+            if (name === 'phone') {
+                const res = FormValidator.formatAndValidatePhone(value);
+                e.target.value = res.displayValue; 
+                setFieldStatus('phone', res.isValid);
+            } else if (name === 'firstname' || name === 'lastname') {
+                const res = FormValidator.validateName(value);
+                e.target.value = res.cleanValue;
+                setFieldStatus(name, res.isValid);
+            } else if (name === 'email') {
+                setFieldStatus('email', FormValidator.validateEmail(value));
+            }
         });
 
         // Manejo del Envío
-        form.onsubmit = async (e) => {
+        form.addEventListener('submit', async (e) => {
             e.preventDefault();
             
             const formData = new FormData(form);
@@ -119,8 +120,11 @@ export function initModalLogic() {
             if (isFnOk && isLnOk && isEmOk && isPhOk) {
                 const { submitBtn, header } = getElements();
                 
-                // Botón cargando
+                // Prevenir múltiples envíos
+                if (submitBtn.disabled) return;
+                
                 submitBtn.disabled = true;
+                const originalBtnContent = submitBtn.innerHTML;
                 submitBtn.innerHTML = '<i class="fas fa-circle-notch animate-spin text-lg"></i>';
 
                 const prices = { 'Básico': '24.99', 'Pro': '49.99', 'VIP': '99.99' };
@@ -136,17 +140,20 @@ export function initModalLogic() {
                 };
 
                 try {
-                    // Envío a EmailJS
-                    await emailjs.send("service_ylhupwp", "template_xnu6xi4", orderData);
-                    console.log("Email enviado con éxito");
+                    // Verificamos si emailjs está cargado para evitar que el script muera
+                    if (typeof emailjs !== 'undefined') {
+                        await emailjs.send("service_ylhupwp", "template_xnu6xi4", orderData);
+                    } else {
+                        throw new Error("EmailJS no cargado");
+                    }
                 } catch (err) {
-                    console.error("Error al enviar email:", err);
+                    console.error("Error en flujo de email:", err);
                 } finally {
-                    // Mostrar recibo de CheckoutUI pase lo que pase con el email
                     if (header) header.classList.add('hidden');
                     CheckoutUI.renderReceipt(form, orderData);
+                    // No rehabilitamos el botón porque ya mostramos el recibo
                 }
             }
-        };
+        });
     }
 }
