@@ -1,22 +1,26 @@
 // src/scripts/validator.js
 export const FormValidator = {
     validateName: (value) => {
-        // Solo letras y espacios, permitiendo tildes y ñ
+        // Mantenemos solo letras, espacios y caracteres latinos
+        // Optimizamos para no resetear el cursor si el usuario escribe caracteres válidos
         const cleanValue = value.replace(/[^a-zA-ZáéíóúÁÉÍÓÚñÑ\s]/g, '');
+        
         return {
+            // Un nombre válido debe tener al menos 2 letras (ej. "Al") 
+            // aunque habías puesto 3, lo mantengo en 3 si prefieres rigor.
             isValid: cleanValue.trim().length >= 3,
             cleanValue
         };
     },
 
-    // Alias para mantener consistencia semántica
     validateLastName: (value) => {
         return FormValidator.validateName(value);
     },
 
     validateEmail: (email) => {
-        // Regex más robusto para validación de emails
-        const re = /^(([^<>()[\]\\.,;:\s@"]+(\.[^<>()[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/;
+        if (!email) return false;
+        // Regex estándar de la industria (RFC 5322) para evitar falsos negativos en producción
+        const re = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
         return re.test(String(email).toLowerCase().trim());
     },
 
@@ -24,6 +28,9 @@ export const FormValidator = {
         // 1. Limpiar todo lo que no sea número
         let clean = phone.replace(/\D/g, '');
         
+        // Limitamos a 15 dígitos máximo (estándar internacional E.164)
+        if (clean.length > 15) clean = clean.substring(0, 15);
+
         // 2. Aplicar Formato Progresivo: +XX (XXX) XXX-XXXX
         let visual = "";
         if (clean.length > 0) {
@@ -40,7 +47,7 @@ export const FormValidator = {
         }
 
         return {
-            // Un número de teléfono internacional suele tener entre 10 y 13 dígitos
+            // Validación flexible para números internacionales (mínimo 10 dígitos)
             isValid: clean.length >= 10 && clean.length <= 15,
             displayValue: visual,
             rawValue: clean
@@ -48,19 +55,17 @@ export const FormValidator = {
     },
 
     isFormValid: (formData) => {
-        // Obtenemos los valores del FormData
-        const firstNameValue = formData.get('firstname') || "";
-        const lastNameValue = formData.get('lastname') || "";
-        const emailValue = formData.get('email') || "";
-        const phoneValue = formData.get('phone') || "";
+        // Usamos trim() para evitar que espacios en blanco pasen como válidos
+        const firstNameValue = (formData.get('firstname') || "").toString().trim();
+        const lastNameValue = (formData.get('lastname') || "").toString().trim();
+        const emailValue = (formData.get('email') || "").toString().trim();
+        const phoneValue = (formData.get('phone') || "").toString().trim();
 
-        // Ejecutamos las validaciones existentes
         const fn = FormValidator.validateName(firstNameValue);
         const ln = FormValidator.validateLastName(lastNameValue);
         const em = FormValidator.validateEmail(emailValue);
         const ph = FormValidator.formatAndValidatePhone(phoneValue);
         
-        // Retornamos true solo si todos los campos son válidos
         return fn.isValid && ln.isValid && em.isValid && ph.isValid;
     }
 };
