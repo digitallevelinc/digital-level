@@ -30,9 +30,20 @@ export async function initDashboard() {
         return;
     }
 
+    // Logout seguro y consistente en toda la app
+    const logoutBtn = document.getElementById('logout-btn');
+    logoutBtn?.addEventListener('click', () => {
+        localStorage.removeItem('auth_token');
+        localStorage.removeItem('session_token');
+        localStorage.removeItem('operator_alias');
+        localStorage.removeItem('api_base');
+        window.location.href = '/login';
+    });
+
     // Estado de filtro temporal
     let currentRange = getPresetRange('today');
     updateKpiFilterLabel(currentRange.label);
+    highlightPreset('today');
 
     // Bind de UI de filtros
     setupKpiFilters((range) => {
@@ -68,6 +79,12 @@ export async function updateDashboard(API_BASE, token, alias, range = {}) {
         if (!kpiRes.ok) throw new Error('Fallo en la respuesta de la API');
 
         const kpis = await kpiRes.json();
+
+        // Tarjetas principales y proyecciones
+        updateMainKpis(kpis);
+        updateProjections(kpis);
+        updateRatesCard(kpis);
+        updateWalletFiat(kpis);
 
         // --- ACTUALIZACIÓN DE MÓDULOS MODULARES ---
         const transactions = kpis.transactions || [];
@@ -163,6 +180,7 @@ function setupKpiFilters(onApply) {
         const range = getPresetRange(preset);
         if (range.from) fromEl && (fromEl.value = range.from);
         if (range.to) toEl && (toEl.value = range.to);
+        highlightPreset(preset);
         onApply(range);
     });
 
@@ -176,6 +194,7 @@ function setupKpiFilters(onApply) {
             alert('Formato de fecha inválido. Use YYYY-MM-DD');
             return;
         }
+        highlightPreset('custom');
         onApply({ label: 'Personalizado', from, to });
     });
 }
@@ -183,4 +202,50 @@ function setupKpiFilters(onApply) {
 function updateKpiFilterLabel(label) {
     const el = document.getElementById('kpi-filter-label');
     if (el) el.textContent = `Rango activo: ${label || 'Hoy'}`;
+}
+
+// --- UI Helpers para KPIs ---
+function highlightPreset(preset) {
+    const group = document.getElementById('kpi-preset-group');
+    if (!group) return;
+    group.querySelectorAll('.kpi-preset-btn').forEach(btn => {
+        const isActive = btn.getAttribute('data-preset') === preset;
+        btn.classList.toggle('border-[#F3BA2F]', isActive);
+        btn.classList.toggle('bg-[#F3BA2F]/10', isActive);
+    });
+}
+
+function pct(value) {
+    const num = Number(value ?? 0);
+    return `${num.toFixed(2)}%`;
+}
+
+function updateMainKpis(kpis = {}) {
+    const summary = kpis.metrics || kpis.kpis || kpis.summary || {};
+
+    inject('kpi-balance', fUSDT(summary.totalBalance ?? summary.balance ?? 0));
+    inject('kpi-breakeven', summary.minBuyRate ? pct(summary.minBuyRate) : (summary.breakEven ? pct(summary.breakEven) : '---'));
+    inject('kpi-margin', summary.globalMarginPct !== undefined ? pct(summary.globalMarginPct) : '---', true);
+    inject('kpi-profit', fUSDT(summary.totalProfit ?? summary.profit ?? 0), true);
+    inject('kpi-cycle', fUSDT(summary.cycleProfit ?? summary.cycleGain ?? 0), true);
+}
+
+function updateProjections(kpis = {}) {
+    const proj = kpis.projections || kpis.forecast || {};
+    inject('proj-daily', fUSDT(proj.dailyProfit ?? proj.daily ?? 0), true);
+    inject('proj-vol', fUSDT(proj.projectedVolume ?? proj.volume ?? 0));
+}
+
+function updateRatesCard(kpis = {}) {
+    const rates = kpis.rates || kpis.market || {};
+    const buy = rates.buyRate ?? rates.buy ?? null;
+    const sell = rates.sellRate ?? rates.sell ?? null;
+    const label = (buy || sell) ? `${buy ?? '---'} / ${sell ?? '---'}` : '---';
+    inject('ops-rates', label);
+}
+
+function updateWalletFiat(kpis = {}) {
+    const wallets = kpis.wallets || {};
+    const fiatTotal = wallets.fiatBalance ?? wallets.balanceFiat ?? wallets.fiatTotal ?? 0;
+    inject('wallet-fiat', fVES(fiatTotal));
 }
