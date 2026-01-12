@@ -20,7 +20,7 @@ export async function initDashboard() {
     console.log("Sentinel Dashboard: Sincronizando módulos...");
 
     // Recuperamos credenciales del localStorage (ajusta según tu lógica de login)
-    const API_BASE = localStorage.getItem('api_base') || 'https://tu-api.com';
+    const API_BASE = localStorage.getItem('api_base') || 'http://144.91.110.204:3003';
     const token = localStorage.getItem('auth_token');
     const alias = localStorage.getItem('operator_alias') || 'Operador';
 

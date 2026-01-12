@@ -101,8 +101,17 @@ import Footer from '../components/Footer.astro';
 
       if (response.ok && result.success) {
         // Almacenamos el token para autorizar las siguientes vistas
+        // Persistencia en localStorage (para peticiones cliente)
         localStorage.setItem('session_token', result.token);
+        localStorage.setItem('auth_token', result.token);
         localStorage.setItem('operator_alias', result.operator.alias);
+        // Base de la API (puerto 3003 del VPS)
+        localStorage.setItem('api_base', 'http://144.91.110.204:3003');
+
+        // Persistencia en cookie (para middleware de Astro)
+        const maxAgeDays = 7;
+        const maxAge = maxAgeDays * 24 * 60 * 60; // 7 días
+        document.cookie = `session_token=${result.token}; Path=/; Max-Age=${maxAge}; SameSite=Lax`;
         
         window.location.href = "/dashboard";
       } else {
