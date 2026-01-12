@@ -21,7 +21,7 @@ export async function initDashboard() {
 
     // Recuperamos credenciales del localStorage (ajusta según tu lógica de login)
     const API_BASE = localStorage.getItem('api_base') || 'http://144.91.110.204:3003';
-    const token = localStorage.getItem('auth_token');
+    const token = localStorage.getItem('auth_token') || localStorage.getItem('session_token');
     const alias = localStorage.getItem('operator_alias') || 'Operador';
 
     if (!token) {
@@ -30,11 +30,22 @@ export async function initDashboard() {
         return;
     }
 
-    // Primera carga de datos
-    await updateDashboard(API_BASE, token, alias);
+    // Estado de filtro temporal
+    let currentRange = getPresetRange('today');
+    updateKpiFilterLabel(currentRange.label);
+
+    // Bind de UI de filtros
+    setupKpiFilters((range) => {
+        currentRange = range;
+        updateKpiFilterLabel(range.label);
+        updateDashboard(API_BASE, token, alias, range);
+    });
+
+    // Primera carga de datos con filtro inicial
+    await updateDashboard(API_BASE, token, alias, currentRange);
 
     // Opcional: Configurar actualización automática cada 30 segundos
-    setInterval(() => updateDashboard(API_BASE, token, alias), 30000);
+    setInterval(() => updateDashboard(API_BASE, token, alias, currentRange), 30000);
 }
 
 /**
@@ -45,7 +56,12 @@ export async function updateDashboard(API_BASE, token, alias, range = {}) {
     if (!token) return;
 
     try {
-        const kpiRes = await fetch(`${API_BASE}/api/kpis`, { 
+        const params = new URLSearchParams();
+        if (range?.from) params.set('from', range.from);
+        if (range?.to) params.set('to', range.to);
+        const url = `${API_BASE}/api/kpis${params.toString() ? `?${params.toString()}` : ''}`;
+
+        const kpiRes = await fetch(url, { 
             headers: { 'Authorization': `Bearer ${token}` } 
         });
 
@@ -84,4 +100,87 @@ export async function updateDashboard(API_BASE, token, alias, range = {}) {
         const updateEl = document.getElementById('last-update');
         if (updateEl) updateEl.textContent = "Error de conexión con Sentinel";
     }
+}
+
+// --- Filtros KPI ---
+function pad(n) { return String(n).padStart(2, '0'); }
+function toYmd(date) { return `${date.getFullYear()}-${pad(date.getMonth()+1)}-${pad(date.getDate())}`; }
+
+function getWeekRange(date) {
+    const d = new Date(date);
+    const day = d.getDay(); // 0=Sun..6=Sat
+    const diffToMonday = (day === 0 ? -6 : 1 - day);
+    const start = new Date(d);
+    start.setDate(d.getDate() + diffToMonday);
+    const end = new Date(start);
+    end.setDate(start.getDate() + 6);
+    return { from: toYmd(start), to: toYmd(end) };
+}
+
+function getPresetRange(preset) {
+    const today = new Date();
+    const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+    const startOfYear = new Date(today.getFullYear(), 0, 1);
+    switch (preset) {
+        case 'today':
+            return { label: 'Hoy', from: toYmd(today), to: toYmd(today) };
+        case 'this_week': {
+            const r = getWeekRange(today);
+            return { label: 'Esta semana', ...r };
+        }
+        case 'last_7': {
+            const from = new Date(today);
+            from.setDate(today.getDate() - 6);
+            return { label: 'Últimos 7 días', from: toYmd(from), to: toYmd(today) };
+        }
+        case 'this_month':
+            return { label: 'Mes actual', from: toYmd(startOfMonth), to: toYmd(today) };
+        case 'last_30': {
+            const from = new Date(today);
+            from.setDate(today.getDate() - 29);
+            return { label: 'Últimos 30 días', from: toYmd(from), to: toYmd(today) };
+        }
+        case 'ytd':
+            return { label: 'YTD', from: toYmd(startOfYear), to: toYmd(today) };
+        case 'all':
+            return { label: 'Todo', from: undefined, to: undefined };
+        default:
+            return { label: 'Personalizado' };
+    }
+}
+
+function setupKpiFilters(onApply) {
+    const presetGroup = document.getElementById('kpi-preset-group');
+    const fromEl = document.getElementById('kpi-date-from');
+    const toEl = document.getElementById('kpi-date-to');
+    const applyBtn = document.getElementById('kpi-apply-range');
+
+    // Presets
+    presetGroup?.addEventListener('click', (e) => {
+        const btn = e.target.closest('.kpi-preset-btn');
+        if (!btn) return;
+        const preset = btn.getAttribute('data-preset');
+        const range = getPresetRange(preset);
+        if (range.from) fromEl && (fromEl.value = range.from);
+        if (range.to) toEl && (toEl.value = range.to);
+        onApply(range);
+    });
+
+    // Custom apply
+    applyBtn?.addEventListener('click', () => {
+        const from = fromEl?.value || undefined;
+        const to = toEl?.value || undefined;
+        // Validación básica: formato YYYY-MM-DD
+        const re = /^\d{4}-\d{2}-\d{2}$/;
+        if ((from && !re.test(from)) || (to && !re.test(to))) {
+            alert('Formato de fecha inválido. Use YYYY-MM-DD');
+            return;
+        }
+        onApply({ label: 'Personalizado', from, to });
+    });
+}
+
+function updateKpiFilterLabel(label) {
+    const el = document.getElementById('kpi-filter-label');
+    if (el) el.textContent = `Rango activo: ${label || 'Hoy'}`;
 }
