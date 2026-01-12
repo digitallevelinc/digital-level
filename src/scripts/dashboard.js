@@ -20,8 +20,8 @@ export async function initDashboard() {
     console.log("Sentinel Dashboard: Sincronizando módulos...");
 
     // Recuperamos credenciales del localStorage (ajusta según tu lógica de login)
-    const API_BASE = localStorage.getItem('api_base') || 'https://tu-api.com';
-    const token = localStorage.getItem('auth_token');
+    const API_BASE = localStorage.getItem('api_base') || 'http://144.91.110.204:3003';
+    const token = localStorage.getItem('auth_token') || localStorage.getItem('session_token');
     const alias = localStorage.getItem('operator_alias') || 'Operador';
 
     if (!token) {
@@ -30,11 +30,33 @@ export async function initDashboard() {
         return;
     }
 
-    // Primera carga de datos
-    await updateDashboard(API_BASE, token, alias);
+    // Logout seguro y consistente en toda la app
+    const logoutBtn = document.getElementById('logout-btn');
+    logoutBtn?.addEventListener('click', () => {
+        localStorage.removeItem('auth_token');
+        localStorage.removeItem('session_token');
+        localStorage.removeItem('operator_alias');
+        localStorage.removeItem('api_base');
+        window.location.href = '/login';
+    });
+
+    // Estado de filtro temporal
+    let currentRange = getPresetRange('today');
+    updateKpiFilterLabel(currentRange.label);
+    highlightPreset('today');
+
+    // Bind de UI de filtros
+    setupKpiFilters((range) => {
+        currentRange = range;
+        updateKpiFilterLabel(range.label);
+        updateDashboard(API_BASE, token, alias, range);
+    });
+
+    // Primera carga de datos con filtro inicial
+    await updateDashboard(API_BASE, token, alias, currentRange);
 
     // Opcional: Configurar actualización automática cada 30 segundos
-    setInterval(() => updateDashboard(API_BASE, token, alias), 30000);
+    setInterval(() => updateDashboard(API_BASE, token, alias, currentRange), 30000);
 }
 
 /**
@@ -45,13 +67,24 @@ export async function updateDashboard(API_BASE, token, alias, range = {}) {
     if (!token) return;
 
     try {
-        const kpiRes = await fetch(`${API_BASE}/api/kpis`, { 
+        const params = new URLSearchParams();
+        if (range?.from) params.set('from', range.from);
+        if (range?.to) params.set('to', range.to);
+        const url = `${API_BASE}/api/kpis${params.toString() ? `?${params.toString()}` : ''}`;
+
+        const kpiRes = await fetch(url, { 
             headers: { 'Authorization': `Bearer ${token}` } 
         });
 
         if (!kpiRes.ok) throw new Error('Fallo en la respuesta de la API');
 
         const kpis = await kpiRes.json();
+
+        // Tarjetas principales y proyecciones
+        updateMainKpis(kpis);
+        updateProjections(kpis);
+        updateRatesCard(kpis);
+        updateWalletFiat(kpis);
 
         // --- ACTUALIZACIÓN DE MÓDULOS MODULARES ---
         const transactions = kpis.transactions || [];
@@ -84,4 +117,135 @@ export async function updateDashboard(API_BASE, token, alias, range = {}) {
         const updateEl = document.getElementById('last-update');
         if (updateEl) updateEl.textContent = "Error de conexión con Sentinel";
     }
+}
+
+// --- Filtros KPI ---
+function pad(n) { return String(n).padStart(2, '0'); }
+function toYmd(date) { return `${date.getFullYear()}-${pad(date.getMonth()+1)}-${pad(date.getDate())}`; }
+
+function getWeekRange(date) {
+    const d = new Date(date);
+    const day = d.getDay(); // 0=Sun..6=Sat
+    const diffToMonday = (day === 0 ? -6 : 1 - day);
+    const start = new Date(d);
+    start.setDate(d.getDate() + diffToMonday);
+    const end = new Date(start);
+    end.setDate(start.getDate() + 6);
+    return { from: toYmd(start), to: toYmd(end) };
+}
+
+function getPresetRange(preset) {
+    const today = new Date();
+    const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+    const startOfYear = new Date(today.getFullYear(), 0, 1);
+    switch (preset) {
+        case 'today':
+            return { label: 'Hoy', from: toYmd(today), to: toYmd(today) };
+        case 'this_week': {
+            const r = getWeekRange(today);
+            return { label: 'Esta semana', ...r };
+        }
+        case 'last_7': {
+            const from = new Date(today);
+            from.setDate(today.getDate() - 6);
+            return { label: 'Últimos 7 días', from: toYmd(from), to: toYmd(today) };
+        }
+        case 'this_month':
+            return { label: 'Mes actual', from: toYmd(startOfMonth), to: toYmd(today) };
+        case 'last_30': {
+            const from = new Date(today);
+            from.setDate(today.getDate() - 29);
+            return { label: 'Últimos 30 días', from: toYmd(from), to: toYmd(today) };
+        }
+        case 'ytd':
+            return { label: 'YTD', from: toYmd(startOfYear), to: toYmd(today) };
+        case 'all':
+            return { label: 'Todo', from: undefined, to: undefined };
+        default:
+            return { label: 'Personalizado' };
+    }
+}
+
+function setupKpiFilters(onApply) {
+    const presetGroup = document.getElementById('kpi-preset-group');
+    const fromEl = document.getElementById('kpi-date-from');
+    const toEl = document.getElementById('kpi-date-to');
+    const applyBtn = document.getElementById('kpi-apply-range');
+
+    // Presets
+    presetGroup?.addEventListener('click', (e) => {
+        const btn = e.target.closest('.kpi-preset-btn');
+        if (!btn) return;
+        const preset = btn.getAttribute('data-preset');
+        const range = getPresetRange(preset);
+        if (range.from) fromEl && (fromEl.value = range.from);
+        if (range.to) toEl && (toEl.value = range.to);
+        highlightPreset(preset);
+        onApply(range);
+    });
+
+    // Custom apply
+    applyBtn?.addEventListener('click', () => {
+        const from = fromEl?.value || undefined;
+        const to = toEl?.value || undefined;
+        // Validación básica: formato YYYY-MM-DD
+        const re = /^\d{4}-\d{2}-\d{2}$/;
+        if ((from && !re.test(from)) || (to && !re.test(to))) {
+            alert('Formato de fecha inválido. Use YYYY-MM-DD');
+            return;
+        }
+        highlightPreset('custom');
+        onApply({ label: 'Personalizado', from, to });
+    });
+}
+
+function updateKpiFilterLabel(label) {
+    const el = document.getElementById('kpi-filter-label');
+    if (el) el.textContent = `Rango activo: ${label || 'Hoy'}`;
+}
+
+// --- UI Helpers para KPIs ---
+function highlightPreset(preset) {
+    const group = document.getElementById('kpi-preset-group');
+    if (!group) return;
+    group.querySelectorAll('.kpi-preset-btn').forEach(btn => {
+        const isActive = btn.getAttribute('data-preset') === preset;
+        btn.classList.toggle('border-[#F3BA2F]', isActive);
+        btn.classList.toggle('bg-[#F3BA2F]/10', isActive);
+    });
+}
+
+function pct(value) {
+    const num = Number(value ?? 0);
+    return `${num.toFixed(2)}%`;
+}
+
+function updateMainKpis(kpis = {}) {
+    const summary = kpis.metrics || kpis.kpis || kpis.summary || {};
+
+    inject('kpi-balance', fUSDT(summary.totalBalance ?? summary.balance ?? 0));
+    inject('kpi-breakeven', summary.minBuyRate ? pct(summary.minBuyRate) : (summary.breakEven ? pct(summary.breakEven) : '---'));
+    inject('kpi-margin', summary.globalMarginPct !== undefined ? pct(summary.globalMarginPct) : '---', true);
+    inject('kpi-profit', fUSDT(summary.totalProfit ?? summary.profit ?? 0), true);
+    inject('kpi-cycle', fUSDT(summary.cycleProfit ?? summary.cycleGain ?? 0), true);
+}
+
+function updateProjections(kpis = {}) {
+    const proj = kpis.projections || kpis.forecast || {};
+    inject('proj-daily', fUSDT(proj.dailyProfit ?? proj.daily ?? 0), true);
+    inject('proj-vol', fUSDT(proj.projectedVolume ?? proj.volume ?? 0));
+}
+
+function updateRatesCard(kpis = {}) {
+    const rates = kpis.rates || kpis.market || {};
+    const buy = rates.buyRate ?? rates.buy ?? null;
+    const sell = rates.sellRate ?? rates.sell ?? null;
+    const label = (buy || sell) ? `${buy ?? '---'} / ${sell ?? '---'}` : '---';
+    inject('ops-rates', label);
+}
+
+function updateWalletFiat(kpis = {}) {
+    const wallets = kpis.wallets || {};
+    const fiatTotal = wallets.fiatBalance ?? wallets.balanceFiat ?? wallets.fiatTotal ?? 0;
+    inject('wallet-fiat', fVES(fiatTotal));
 }
