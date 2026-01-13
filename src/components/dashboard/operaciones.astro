@@ -1,0 +1,31 @@
+---
+// src/components/dashboard/operaciones.astro
+---
+<div class="bg-[#0b0e11]/50 rounded-xl p-4 border border-white/5 min-h-[160px] flex flex-col justify-between">
+    <div>
+        <p class="text-[10px] text-blue-400 font-black uppercase tracking-widest">Total Operaciones</p>
+        <h3 id="ops-total-count" class="text-2xl font-bold text-white mt-1">0</h3>
+    </div>
+
+    <div class="mt-4 pt-3 border-t border-white/5 grid grid-cols-2 gap-x-4 gap-y-2">
+        <div class="flex justify-between items-center border-b border-white/[0.02] pb-1">
+            <span class="text-[8px] text-gray-500 uppercase font-bold">P2P (V/C):</span>
+            <span id="ops-p2p-counts" class="text-white font-mono text-[10px]">0/0</span>
+        </div>
+        
+        <div class="flex justify-between items-center border-b border-white/[0.02] pb-1">
+            <span class="text-[8px] text-gray-500 uppercase font-bold">PAY (D/R):</span>
+            <span id="ops-pay-counts" class="text-white font-mono text-[10px]">0/0</span>
+        </div>
+
+        <div class="flex justify-between items-center border-b border-white/[0.02] pb-1">
+            <span class="text-[8px] text-gray-500 uppercase font-bold">RED (D/R):</span>
+            <span id="ops-red-counts" class="text-white font-mono text-[10px]">0/0</span>
+        </div>
+
+        <div class="flex justify-between items-center border-b border-white/[0.02] pb-1">
+            <span class="text-[8px] text-gray-500 uppercase font-bold">SWITCH (S/F):</span>
+            <span id="ops-switch-counts" class="text-white font-mono text-[10px]">0/0</span>
+        </div>
+    </div>
+</div>

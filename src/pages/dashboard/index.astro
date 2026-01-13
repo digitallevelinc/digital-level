@@ -1,22 +1,16 @@
 ---
-// src/pages/dashboard/index.astro (o la ruta correspondiente)
+// src/pages/dashboard/index.astro
 import DashboardLayout from '../../layouts/DashboardLayout.astro';
 import StatCard from '../../components/dashboard/StatCard.astro';
 
-// Importación de componentes modulares de logística
+// Importación de componentes modulares
+import Operaciones from '../../components/dashboard/operaciones.astro';
+import Comisiones from '../../components/dashboard/comisiones.astro';
 import P2P from '../../components/dashboard/p2p.astro';
 import Pay from '../../components/dashboard/pay.astro';
 import Red from '../../components/dashboard/red.astro';
 import Switch from '../../components/dashboard/switch.astro';
-
-const banks = [
-  { name: 'Mercantil', color: 'border-l-blue-600' },
-  { name: 'Banesco', color: 'border-l-green-600' },
-  { name: 'BNC', color: 'border-l-orange-500' },
-  { name: 'Provincial', color: 'border-l-blue-900' },
-  { name: 'Pago Movil', color: 'border-l-yellow-500' },
-  { name: 'Bancamiga', color: 'border-l-green-800' }
-];
+import Bancos from '../../components/dashboard/bancos.astro'; // <--- Nueva importación modular
 ---
 
 <DashboardLayout>
@@ -85,11 +79,9 @@ const banks = [
     <section>
       <h2 class="text-gray-500 text-[10px] font-black uppercase tracking-[0.2em] mb-4 italic">2. CONTROL DE OPERACIONES Y VOLUMEN</h2>
       <div class="grid grid-cols-2 gap-3">
-        <div id="ops-count"><StatCard title="Cantidad de Operaciones" value="---" subValue="Total ejecutadas" /></div>
+        <Operaciones />
         <div id="ops-rates"><StatCard title="Tasas Globales PP" value="---" subValue="Compra / Venta" /></div>
-        <div id="ops-buys"><StatCard title="Compras Totales" value="---" subValue="Cargando..." /></div>
-        <div id="ops-sells"><StatCard title="Ventas Totales" value="---" subValue="Cargando..." /></div>
-        <div id="ops-fees"><StatCard title="Comisiones Totales" value="---" subValue="Costos operativos" /></div>
+        <Comisiones />
       </div>
     </section>
 
@@ -112,48 +104,20 @@ const banks = [
   <section class="mb-8">
     <h2 class="text-gray-500 text-[10px] font-black uppercase tracking-[0.2em] mb-4 italic">3. LOGÍSTICA DE CARTERAS (BALANCES INTERNOS)</h2>
     <div class="grid grid-cols-2 md:grid-cols-5 gap-3">
-      
       <P2P />
       <Pay />
       <Red />
       <Switch />
-      
-      <div id="wallet-fiat">
-        <StatCard title="Balance Fiat" value="---" subValue="Efectivo en bancos" />
-      </div>
+      <div id="wallet-fiat"><StatCard title="Balance Fiat" value="---" subValue="Efectivo en bancos" /></div>
     </div>
   </section>
 
   <section class="pb-20">
     <h2 class="text-gray-500 text-[10px] font-black uppercase tracking-[0.2em] mb-4 italic">5. PANEL DE BANCOS (CONTROL DE VOLUMEN)</h2>
-    <div class="bg-[#161a1e] border border-gray-800 rounded-xl overflow-hidden">
-      <div class="overflow-x-auto">
-        <table class="w-full text-left text-[9px] border-collapse">
-          <thead class="bg-black/40 text-gray-500 uppercase font-black border-b border-gray-800">
-            <tr>
-              <th class="px-3 py-4 text-white italic">Bancos Operando</th>
-              <th class="px-3 py-4 text-center">Balance FIAT</th>
-              <th class="px-3 py-4 text-center">Tasa Compra PP</th>
-              <th class="px-3 py-4 text-center">Tasa Venta PP</th>
-              <th class="px-3 py-4 text-center">Margen %</th>
-              <th class="px-3 py-4 text-center text-[#F3BA2F]">Profit USDT ≈</th>
-            </tr>
-          </thead>
-          <tbody id="bank-table-body" class="divide-y divide-gray-800/50">
-            {banks.map(b => (
-              <tr class={`hover:bg-white/[0.02] border-l-4 ${b.color}`}>
-                <td class="px-3 py-4 font-bold text-white">{b.name}</td>
-                <td colspan="5" class="px-3 py-4 text-center text-gray-600 animate-pulse italic">Esperando datos de Sentinel...</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </div>
+    <Bancos />
   </section>
 
   <script>
-    // Importamos la lógica orquestadora desde el nuevo script modular
     import { initDashboard } from '../../scripts/dashboard.js';
     initDashboard();
   </script>
