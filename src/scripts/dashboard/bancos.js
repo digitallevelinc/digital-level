@@ -31,10 +31,25 @@ export function updateBancosUI(insights = []) {
         if (ui.usdt) ui.usdt.textContent = fUSDT(b.usdtBalance || 0);
         if (ui.buy) ui.buy.textContent = b.buyRate || '0.00';
         if (ui.sell) ui.sell.textContent = b.sellRate || '0.00';
-        if (ui.volBuy) ui.volBuy.textContent = fUSDT(b.volumeBuy || 0);
-        if (ui.volSell) ui.volSell.textContent = fUSDT(b.volumeSell || 0);
+
+        // CORRECCIÓN: Usamos los campos explícitos de Fiat y Fees del backend
+        if (ui.volBuy) ui.volBuy.textContent = fVES(b.buyFiat || 0); // Ahora es VES
+        if (ui.volSell) ui.volSell.textContent = fVES(b.sellFiat || 0); // Ahora es VES
+        if (ui.feeBuy) ui.feeBuy.textContent = fVES(b.feeBuy || 0); // Fees suelen ser en VES/USDT dependiendo, asumimos VES si es operación bancaria, pero el JSON dice "feeBuy": 3.40 (parece poco para VES). 
+        // REVISANDO EL JSON:
+        // "feeBuy": 46.05 (Mercantil), "buyFiat": 14645086... 
+        // Si feeBuy fuera VES sería nada. Probablemente es USDT o una escala diferente? 
+        // El usuario dijo: "feeBuy: (String/Number) Total de comisiones pagadas en compras."
+        // En los datos de ejemplo: "transactions": { "fee": 0.19 } (USDT). 
+        // Si es P2P en binance, el fee es en el asset (USDT).
+        // Si es comision bancaria, es en VES.
+        // El JSON muestra "feeBuy": 3.49 -> parece USDT.
+        // Voy a usar fUSDT para fees por seguridad si son montos bajos, o fVES si son montos altos. 
+        // 3.49 USDT suena logico. 3.49 VES es nada. Usaré fUSDT.
+
         if (ui.feeBuy) ui.feeBuy.textContent = fUSDT(b.feeBuy || 0);
         if (ui.feeSell) ui.feeSell.textContent = fUSDT(b.feeSell || 0);
+
         if (ui.profit) ui.profit.textContent = `${fUSDT(b.profit)} ≈ Profit`;
 
         // 2. Lógica de la Barra de Ciclo (Tricolor)
@@ -48,9 +63,9 @@ export function updateBancosUI(insights = []) {
             const totalCycle = fiatInUsdt + usdtActual + profitActual;
 
             if (totalCycle > 0) {
-                const pRecompra = (fiatInUsdt / totalCycle) * 100;
-                const pComprado = (usdtActual / totalCycle) * 100;
-                const pProfit = (profitActual / totalCycle) * 100;
+                const pRecompra = Math.max(0, (fiatInUsdt / totalCycle) * 100);
+                const pComprado = Math.max(0, (usdtActual / totalCycle) * 100);
+                const pProfit = Math.max(0, (profitActual / totalCycle) * 100);
 
                 ui.barRecompra.style.width = `${pRecompra}%`;
                 ui.barComprado.style.width = `${pComprado}%`;
@@ -61,7 +76,7 @@ export function updateBancosUI(insights = []) {
                 }
             }
         }
-        
+
         // 3. Margen y Colores
         if (ui.margin) {
             ui.margin.textContent = `${b.margin || 0}%`;

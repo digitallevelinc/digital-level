@@ -6,7 +6,7 @@ import { updateRedSection } from './dashboard/red.js';
 import { updatePaySection } from './dashboard/pay.js';
 import { updateSwitchSection } from './dashboard/switch.js';
 import { updateP2PSection } from './dashboard/p2p.js';
-import { updateFiatSection } from './dashboard/fiat.js'; 
+import { updateFiatSection } from './dashboard/fiat.js';
 import { updateCiclosUI } from './dashboard/ciclos.js';
 import { updateTasaUI } from './dashboard/tasa.js';
 import { updateProfitUI } from './dashboard/profit.js';
@@ -69,8 +69,8 @@ export async function updateDashboard(API_BASE, token, alias, range = {}) {
         if (range?.to) params.set('to', range.to);
         const url = `${API_BASE}/api/kpis${params.toString() ? `?${params.toString()}` : ''}`;
 
-        const kpiRes = await fetch(url, { 
-            headers: { 'Authorization': `Bearer ${token}` } 
+        const kpiRes = await fetch(url, {
+            headers: { 'Authorization': `Bearer ${token}` }
         });
 
         if (!kpiRes.ok) throw new Error('Fallo en la respuesta de la API');
@@ -79,15 +79,14 @@ export async function updateDashboard(API_BASE, token, alias, range = {}) {
         // --- ACTUALIZACIÓN DE MÉTRICAS BASE ---
         updateMainKpis(kpis);
         updateRatesCard(kpis);
-        
-        const transactions = kpis.transactions || [];
-        updateComisionesUI(transactions);
-        updateOperacionesUI(transactions);
-        
+
+        updateComisionesUI(kpis.operations);
+        updateOperacionesUI(kpis);
+
         // --- PANEL DE BANCOS E INSIGHTS ---
         if (kpis.bankInsights) {
             updateBancosUI(kpis.bankInsights);
-            updateCiclosUI(kpis); 
+            updateCiclosUI(kpis);
         }
 
         // --- MÓDULOS DE ANÁLISIS AVANZADO ---
@@ -101,7 +100,7 @@ export async function updateDashboard(API_BASE, token, alias, range = {}) {
         updatePaySection(kpis);
         updateSwitchSection(kpis);
         updateP2PSection(kpis);
-        updateFiatSection(kpis); 
+        updateFiatSection(kpis);
 
         // --- UI ESTADO ---
         const aliasEl = document.getElementById('operator-alias');
@@ -119,7 +118,7 @@ export async function updateDashboard(API_BASE, token, alias, range = {}) {
 
 // --- FUNCIONES AUXILIARES DE CÁLCULO ---
 function pad(n) { return String(n).padStart(2, '0'); }
-function toYmd(date) { return `${date.getFullYear()}-${pad(date.getMonth()+1)}-${pad(date.getDate())}`; }
+function toYmd(date) { return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`; }
 
 function getWeekRange(date) {
     const d = new Date(date);
