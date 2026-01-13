@@ -7,10 +7,10 @@ export function updateTasaUI(kpis = {}) {
      * Tasa Mínima = Precio Venta - Comisiones
      * (Si compras por ARRIBA de este resultado, pierdes dinero)
      */
-    
+
     // 1. Precio al que se está vendiendo en el mercado P2P actualmente
-    // En el futuro, este valor vendrá de kpis.rates.sell
-    const precioVentaP2P = 37.50; 
+    const rates = kpis.rates || {};
+    const precioVentaP2P = rates.sellRate || 0;
 
     // 2. Definición de bancos con sus comisiones (Binance + Banco)
     // Ejemplo: 0.01 es 1% de comisión total
@@ -24,7 +24,7 @@ export function updateTasaUI(kpis = {}) {
     const calculatedRates = configuracionBancos.map(banco => {
         const montoComision = precioVentaP2P * banco.comision;
         const tasaMinima = precioVentaP2P - montoComision;
-        
+
         return {
             name: banco.name,
             rate: tasaMinima,

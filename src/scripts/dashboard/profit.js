@@ -2,10 +2,11 @@ import { fUSDT, inject } from './utils.js';
 
 export function updateProfitUI(kpis = {}) {
     // 1. Datos Teóricos (Suma de canales)
-    const red = kpis.redBalance || 0;
-    const switchVal = kpis.switchBalance || 0;
-    const p2p = kpis.p2pBalance || 0;
-    const pay = kpis.payBalance || 0;
+    const wallets = kpis.wallets || {};
+    const red = wallets.red?.balanceRed || 0;
+    const switchVal = wallets.switch?.balanceSwitch || 0;
+    const p2p = wallets.balanceP2P || 0;
+    const pay = wallets.pay?.balancePay || 0;
     const theoreticalTotal = red + switchVal + p2p + pay;
 
     // 2. Datos Reales (Llamada Mock de API Binance)
@@ -27,7 +28,7 @@ export function updateProfitUI(kpis = {}) {
 
     if (gapEl && gapStatus && gapContainer) {
         gapEl.textContent = fUSDT(gap);
-        
+
         if (Math.abs(gap) < 0.01) {
             gapEl.className = "text-xl font-mono font-bold text-center text-emerald-400";
             gapStatus.textContent = "Balance Cuadrado ✓";
