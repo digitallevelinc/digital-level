@@ -1,0 +1,46 @@
+---
+// src/components/dashboard/ciclos.astro
+---
+<div class="bg-[#161a1e] border border-gray-800 rounded-2xl p-4 shadow-lg transition-all hover:border-emerald-500/30 group">
+    <div class="flex justify-between items-start mb-4">
+        <div>
+            <p class="text-[10px] text-gray-500 font-black uppercase tracking-[0.2em]">Ganancia por Ciclo</p>
+            <div class="flex items-baseline gap-2 mt-1">
+                <h3 id="kpi-cycle-value" class="text-2xl font-bold text-emerald-400">≈ 32.1</h3>
+                <span class="flex items-center gap-1">
+                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                    <span class="text-[9px] text-emerald-500/70 font-black uppercase italic">Live Monitoring</span>
+                </span>
+            </div>
+        </div>
+        <div class="bg-emerald-500/10 p-2 rounded-lg group-hover:bg-emerald-500/20 transition-colors">
+            <i class="fas fa-sync-alt text-emerald-500 text-xs animate-spin-slow"></i>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-2 gap-4 mb-6">
+        <div class="bg-black/20 p-2 rounded-xl border border-white/5">
+            <span class="text-[8px] text-gray-500 uppercase font-black tracking-widest mb-1 block">Ciclos Totales</span>
+            <span id="cycle-count" class="text-lg font-mono font-bold text-white tracking-tighter">7</span>
+        </div>
+        <div class="bg-black/20 p-2 rounded-xl border border-white/5">
+            <span class="text-[8px] text-gray-500 uppercase font-black tracking-widest mb-1 block">Bancos Activos</span>
+            <span id="active-banks-count" class="text-lg font-mono font-bold text-[#F3BA2F] tracking-tighter">3</span>
+        </div>
+    </div>
+
+    <div class="space-y-4 max-h-[300px] overflow-y-auto pr-1 custom-scrollbar">
+    <div class="flex justify-between items-center border-b border-white/5 pb-2 sticky top-0 bg-[#161a1e] z-10">
+        <p class="text-[8px] text-gray-500 uppercase font-black tracking-widest">Desglose Operativo</p>
+        <p class="text-[7px] text-emerald-500/50 uppercase font-bold tracking-tighter italic">Profit Individual</p>
+    </div>
+    
+    <div id="cycle-banks-insights" class="space-y-4">
+        </div>
+</div>
+</div>
+
+<style>
+    .animate-spin-slow { animation: spin 6s linear infinite; }
+    @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+</style>
