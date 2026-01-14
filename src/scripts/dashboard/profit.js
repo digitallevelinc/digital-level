@@ -21,7 +21,7 @@ export function updateProfitUI(kpis = {}) {
     inject('channel-p2p', fUSDT(p2p));
     inject('channel-pay', fUSDT(pay));
 
-    // 4. Lógica del GAP (Diferencia)
+    // 4. Lógica del GAP (Diferencia) - Mantenemos lógica existente o usamos metrics.totalProfit si fuera el caso
     const gapEl = document.getElementById('balance-gap-value');
     const gapStatus = document.getElementById('balance-gap-status');
     const gapContainer = document.getElementById('balance-gap-container');
@@ -43,21 +43,34 @@ export function updateProfitUI(kpis = {}) {
     }
 
     // 5. Profit por Banco (Histórico/Acumulado)
-    const banks = kpis.bankInsights || [
-        { name: 'Banesco', profit: 120.50, color: '#00aa44' },
-        { name: 'Mercantil', profit: 85.20, color: '#1d4ed8' }
-    ];
+    const banks = kpis.bankInsights || [];
+
+    // Colores para bancos
+    const bankColors = {
+        'Banesco': '#00aa44',
+        'Mercantil': '#1d4ed8',
+        'Provincial': '#004481',
+        'Bancamiga': '#00b386',
+        'PagoMovil': '#facc15',
+        'BANK': '#6b7280'
+    };
 
     const profitList = document.getElementById('profit-banks-list');
     if (profitList) {
-        profitList.innerHTML = banks.map(bank => `
+        profitList.innerHTML = banks.map(bank => {
+            const name = bank.bank || bank.name || 'Desconocido';
+            const color = bankColors[name] || '#F3BA2F';
+            const profitVal = bank.profit || 0;
+
+            return `
             <div class="flex justify-between items-center">
                 <div class="flex items-center gap-2">
-                    <span class="w-1 h-3 rounded-full" style="background-color: ${bank.color}"></span>
-                    <span class="text-[10px] font-black text-gray-300 uppercase">${bank.name}</span>
+                    <span class="w-1 h-3 rounded-full" style="background-color: ${color}"></span>
+                    <span class="text-[10px] font-black text-gray-300 uppercase">${name}</span>
                 </div>
-                <span class="text-[11px] font-mono font-bold text-emerald-400">+${fUSDT(bank.profit)}</span>
+                <span class="text-[11px] font-mono font-bold ${profitVal >= 0 ? 'text-emerald-400' : 'text-rose-400'}">${profitVal >= 0 ? '+' : ''}${fUSDT(profitVal)}</span>
             </div>
-        `).join('');
+            `;
+        }).join('');
     }
 }

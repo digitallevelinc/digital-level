@@ -6,8 +6,8 @@ export function updateComisionOperadorUI(kpis = {}) {
     const totalProfit = summary.totalProfit || 0;
 
     // 2. Obtenemos el % configurado (Viene del modulo admin a través de la API)
-    // Si la API no lo trae, usamos 60 por defecto como indica tu index
-    const configPct = kpis.operatorConfig?.commissionPct || 60; 
+    // Usamos kpis.config.commissionPercentage (nuevo backend) o fallback a la estructura vieja
+    const configPct = kpis.config?.commissionPercentage ?? kpis.operatorConfig?.commissionPct ?? 0;
 
     // 3. Calculamos la tajada del operador
     const netProfit = (totalProfit * configPct) / 100;
@@ -19,7 +19,7 @@ export function updateComisionOperadorUI(kpis = {}) {
     // 5. Animamos la barra (opcional: basado en una meta diaria de 100 USDT)
     const progressBar = document.getElementById('op-profit-bar');
     if (progressBar) {
-        const goal = 100; 
+        const goal = 100;
         const progress = Math.min((netProfit / goal) * 100, 100);
         progressBar.style.width = `${progress}%`;
     }
