@@ -6,7 +6,7 @@ export const fVES = (v) => `${Number(v || 0).toLocaleString('es-VE', { minimumFr
 export const inject = (id, value, isProfit = false) => {
     const container = document.getElementById(id);
     if (!container) return;
-    const el = container.querySelector('h3') || container.querySelector('.text-white') || container.querySelector('span');
+    const el = container.querySelector('h3') || container.querySelector('.text-white') || container.querySelector('span') || container;
     if (el) {
         el.textContent = value !== undefined && value !== null ? value : "N/A";
         if (isProfit && value !== "N/A") {
