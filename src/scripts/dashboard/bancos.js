@@ -36,26 +36,23 @@ export function updateBancosUI(insights = []) {
         if (ui.buy) ui.buy.textContent = b.buyRate || '0.00';
         
         // --- CORRECCIÓN DE VOLÚMENES FIAT ---
-        // Si el backend no envía 'volumeSellFiat', lo calculamos: Vol USDT * Tasa
         const volSellFiat = b.volumeSellFiat || (b.volumeSell * b.sellRate) || 0;
         const volBuyFiat = b.volumeBuyFiat || (b.volumeBuy * b.buyRate) || 0;
 
         if (ui.volSell) ui.volSell.textContent = fVES(volSellFiat);
         if (ui.volBuy) ui.volBuy.textContent = fVES(volBuyFiat);
         
-        // Los Fees sí se mantienen en USDT usualmente para el cálculo del profit
         if (ui.feeSell) ui.feeSell.textContent = fUSDT(b.feeSell || 0);
         if (ui.feeBuy) ui.feeBuy.textContent = fUSDT(b.feeBuy || 0);
         
         if (ui.profit) ui.profit.textContent = `${fUSDT(netProfit)} ≈ Profit`;
 
-        // 3. Lógica de la Barra de Ciclo (Mejorada para reflejar el progreso real)
+        // 3. Lógica de la Barra de Ciclo (Restaurada)
         if (ui.barRecompra && ui.barComprado && ui.barProfit) {
             const fiatInUsdt = b.sellRate > 0 ? (b.fiatBalance / b.sellRate) : 0;
             const usdtActual = b.usdtBalance || 0;
             const profitActual = netProfit > 0 ? netProfit : 0; 
 
-            // El total del ciclo es lo que tengo para comprar + lo que ya compré + mi ganancia
             const totalCycle = fiatInUsdt + usdtActual + profitActual;
 
             if (totalCycle > 0) {
@@ -68,7 +65,6 @@ export function updateBancosUI(insights = []) {
                 ui.barProfit.style.width = `${pProfit}%`;
 
                 if (ui.cycleText) {
-                    // Si el balance fiat es casi cero, mostramos que el ciclo está completado
                     const progress = pComprado + pProfit;
                     ui.cycleText.textContent = progress >= 99.5 ? "Completado" : `${Math.round(progress)}%`;
                 }
