@@ -1,21 +1,30 @@
+```javascript
 import { fUSDT, inject } from './utils.js';
 
 export function updateProfitUI(kpis = {}) {
-    // 1. Datos Teóricos (Suma de canales)
+    // Usar datos de auditoría directamente del backend
+    const audit = kpis.audit || {};
     const wallets = kpis.wallets || {};
+    
+    // Balance teórico: el que calcula el backend en currentBalanceEstimate
+    const theoreticalTotal = parseFloat(audit.currentBalanceEstimate || 0);
+    
+    // Balance Real de Binance: del backend audit.realBalance
+    const realBinance = parseFloat(audit.realBalance || 0);
+    
+    // Discrepancia: calculada por el backend
+    const gap = parseFloat(audit.discrepancy || 0);
+
+    // Inyectar Balances Principales
+    inject('theoretical-balance', fUSDT(theoreticalTotal));
+    inject('real-binance-balance', fUSDT(realBinance));
+    
+    // Desglose por canal (de wallets)
     const red = wallets.red?.balanceRed || 0;
     const switchVal = wallets.switch?.balanceSwitch || 0;
     const p2p = wallets.balanceP2P || 0;
     const pay = wallets.pay?.balancePay || 0;
-    const theoreticalTotal = red + switchVal + p2p + pay;
-
-    // 2. Datos Reales (Llamada Mock de API Binance)
-    const realBinance = kpis.binanceApiBalance || theoreticalTotal - 12.50; // Ejemplo: Faltan 12.50
-    const gap = realBinance - theoreticalTotal;
-
-    // 3. Inyectar Balances Principales
-    inject('theoretical-balance', fUSDT(theoreticalTotal));
-    inject('real-binance-balance', fUSDT(realBinance));
+    
     inject('channel-red', fUSDT(red));
     inject('channel-switch', fUSDT(switchVal));
     inject('channel-p2p', fUSDT(p2p));
@@ -36,7 +45,7 @@ export function updateProfitUI(kpis = {}) {
             gapContainer.className = "bg-emerald-500/5 p-4 rounded-lg border border-emerald-500/20";
         } else {
             gapEl.className = "text-xl font-mono font-bold text-center text-rose-400";
-            gapStatus.textContent = `Fuga / Error Detectado: ${fUSDT(gap)}`;
+            gapStatus.textContent = `Fuga / Error Detectado: ${ fUSDT(gap) } `;
             gapStatus.className = "text-[7px] text-center mt-2 text-rose-500 font-black italic";
             gapContainer.className = "bg-rose-500/5 p-4 rounded-lg border border-rose-500/20";
         }
@@ -63,14 +72,14 @@ export function updateProfitUI(kpis = {}) {
             const profitVal = bank.profit || 0;
 
             return `
-            <div class="flex justify-between items-center">
+    < div class="flex justify-between items-center" >
                 <div class="flex items-center gap-2">
                     <span class="w-1 h-3 rounded-full" style="background-color: ${color}"></span>
                     <span class="text-[10px] font-black text-gray-300 uppercase">${name}</span>
                 </div>
                 <span class="text-[11px] font-mono font-bold ${profitVal >= 0 ? 'text-emerald-400' : 'text-rose-400'}">${profitVal >= 0 ? '+' : ''}${fUSDT(profitVal)}</span>
-            </div>
-            `;
+            </div >
+    `;
         }).join('');
     }
 }
