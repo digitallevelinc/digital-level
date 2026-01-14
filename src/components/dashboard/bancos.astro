@@ -46,30 +46,31 @@ const banks = [
             <p><span class="text-emerald-500 font-bold">Verde:</span> Profit (Ganancia del ciclo).</p>
           </div>
         </div>
-        <div class="space-y-1 border-t border-white/5 pt-2">
-          <p class="text-[8px] text-emerald-500/80 uppercase font-black italic">Tasa Compra (PP)</p>
-          <p id={`bank-buy-${b.id}`} class="text-white font-mono text-[10px]">0.00</p>
-        </div>
-        <div class="space-y-1 border-t border-white/5 pt-2 text-right">
+        
+        <div class="space-y-1 border-t border-white/5 pt-2 text-left">
           <p class="text-[8px] text-rose-500/80 uppercase font-black italic">Tasa Venta (PP)</p>
           <p id={`bank-sell-${b.id}`} class="text-white font-mono text-[10px]">0.00</p>
         </div>
-
-        <div class="bg-black/20 p-2 rounded-lg">
-          <p class="text-[7px] text-emerald-400 uppercase font-bold">Comprado (FIAT)</p>
-          <p id={`bank-vol-buy-${b.id}`} class="text-white font-mono text-[9px]">0.00</p>
-          <div class="mt-1 border-t border-white/5 pt-1">
-            <p class="text-[7px] text-emerald-400/60 uppercase font-bold text-[6px]">Fee Compra</p>
-            <p id={`bank-fee-buy-${b.id}`} class="text-white/60 font-mono text-[8px]">0.00</p>
-          </div>
+        <div class="space-y-1 border-t border-white/5 pt-2 text-right">
+          <p class="text-[8px] text-emerald-500/80 uppercase font-black italic">Tasa Compra (PP)</p>
+          <p id={`bank-buy-${b.id}`} class="text-white font-mono text-[10px]">0.00</p>
         </div>
+        
 
-        <div class="bg-black/20 p-2 rounded-lg text-right">
+        <div class="bg-black/20 p-2 rounded-lg text-left">
           <p class="text-[7px] text-rose-400 uppercase font-bold">Vendido (FIAT)</p>
           <p id={`bank-vol-sell-${b.id}`} class="text-white font-mono text-[9px]">0.00</p>
           <div class="mt-1 border-t border-white/5 pt-1">
             <p class="text-[7px] text-rose-400/60 uppercase font-bold text-[6px]">Fee Venta</p>
             <p id={`bank-fee-sell-${b.id}`} class="text-white/60 font-mono text-[8px]">0.00</p>
+          </div>
+        </div>
+        <div class="bg-black/20 p-2 rounded-lg text-right">
+          <p class="text-[7px] text-emerald-400 uppercase font-bold">Comprado (FIAT)</p>
+          <p id={`bank-vol-buy-${b.id}`} class="text-white font-mono text-[9px]">0.00</p>
+          <div class="mt-1 border-t border-white/5 pt-1">
+            <p class="text-[7px] text-emerald-400/60 uppercase font-bold text-[6px]">Fee Compra</p>
+            <p id={`bank-fee-buy-${b.id}`} class="text-white/60 font-mono text-[8px]">0.00</p>
           </div>
         </div>
       </div>
