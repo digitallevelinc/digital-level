@@ -3,20 +3,39 @@ import { fUSDT, buildSheetLink } from './utils.js';
 export const updateP2PSection = (kpis) => {
     const container = document.getElementById('wallet-p2p-logic');
     if (!container) return;
+
     const data = kpis.operations; 
     const mainValue = document.getElementById('p2p-balance-total');
-    const labels = container.querySelectorAll('span.font-mono');
     const sheetLink = document.getElementById('link-p2p-sheet');
+
+    // Referencias específicas por ID actualizadas
+    const ui = {
+        sellCount: document.getElementById('p2p-sell-count'),
+        sellVol: document.getElementById('p2p-sell-vol'),
+        buyCount: document.getElementById('p2p-buy-count'),
+        buyVol: document.getElementById('p2p-buy-vol'),
+        totalOps: document.getElementById('p2p-total-ops') // Nuevo ID
+    };
 
     if (data && kpis.wallets) {
         if (mainValue) mainValue.textContent = fUSDT(kpis.wallets.balanceP2P);
-        if (labels.length >= 4) {
-            labels[0].textContent = data.buys?.count ?? "0";
-            labels[1].textContent = fUSDT(data.buys?.totalUSDT ?? 0);
-            labels[2].textContent = data.sells?.count ?? "0";
-            labels[3].textContent = fUSDT(data.sells?.totalUSDT ?? 0);
+
+        // --- Ventas (Sells) ---
+        const sells = data.sells?.count ?? 0;
+        if (ui.sellCount) ui.sellCount.textContent = sells.toString();
+        if (ui.sellVol) ui.sellVol.textContent = fUSDT(data.sells?.totalUSDT ?? 0);
+        
+        // --- Compras (Buys) ---
+        const buys = data.buys?.count ?? 0;
+        if (ui.buyCount) ui.buyCount.textContent = buys.toString();
+        if (ui.buyVol) ui.buyVol.textContent = fUSDT(data.buys?.totalUSDT ?? 0);
+
+        // --- Total de Operaciones (Suma) ---
+        if (ui.totalOps) {
+            ui.totalOps.textContent = (sells + buys).toString();
         }
     }
+
     if (sheetLink) {
         sheetLink.href = buildSheetLink(kpis.config?.googleSheetId);
         sheetLink.style.opacity = kpis.config?.googleSheetId ? "1" : "0.3";
