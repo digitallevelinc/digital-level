@@ -1,30 +1,29 @@
-```javascript
 import { fUSDT, inject } from './utils.js';
 
 export function updateProfitUI(kpis = {}) {
     // Usar datos de auditoría directamente del backend
     const audit = kpis.audit || {};
     const wallets = kpis.wallets || {};
-    
+
     // Balance teórico: el que calcula el backend en currentBalanceEstimate
     const theoreticalTotal = parseFloat(audit.currentBalanceEstimate || 0);
-    
+
     // Balance Real de Binance: del backend audit.realBalance
     const realBinance = parseFloat(audit.realBalance || 0);
-    
+
     // Discrepancia: calculada por el backend
     const gap = parseFloat(audit.discrepancy || 0);
 
     // Inyectar Balances Principales
     inject('theoretical-balance', fUSDT(theoreticalTotal));
     inject('real-binance-balance', fUSDT(realBinance));
-    
+
     // Desglose por canal (de wallets)
     const red = wallets.red?.balanceRed || 0;
     const switchVal = wallets.switch?.balanceSwitch || 0;
     const p2p = wallets.balanceP2P || 0;
     const pay = wallets.pay?.balancePay || 0;
-    
+
     inject('channel-red', fUSDT(red));
     inject('channel-switch', fUSDT(switchVal));
     inject('channel-p2p', fUSDT(p2p));
@@ -45,7 +44,7 @@ export function updateProfitUI(kpis = {}) {
             gapContainer.className = "bg-emerald-500/5 p-4 rounded-lg border border-emerald-500/20";
         } else {
             gapEl.className = "text-xl font-mono font-bold text-center text-rose-400";
-            gapStatus.textContent = `Fuga / Error Detectado: ${ fUSDT(gap) } `;
+            gapStatus.textContent = `Fuga / Error Detectado: ${fUSDT(gap)} `;
             gapStatus.className = "text-[7px] text-center mt-2 text-rose-500 font-black italic";
             gapContainer.className = "bg-rose-500/5 p-4 rounded-lg border border-rose-500/20";
         }
