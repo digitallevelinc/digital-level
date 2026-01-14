@@ -1,79 +1,77 @@
-// src/scripts/dashboard/fiat.js
-import { fVES, inject } from './utils.js';
+import { fVES, buildSheetLink } from './utils.js';
 
 /**
- * Actualiza la sección de Balance FIAT con los datos provenientes de la API.
- * @param {Object} kpis - El objeto de datos global de la API.
+ * Summariza todos los bancos y actualiza la tarjeta FIAT Balance
+ * @param {Object} kpis - Datos globales
+ * @param {Array} bankInsights - Array con la data de cada banco (proviene de bancos.js)
  */
-export function updateFiatSection(kpis = {}) {
-    const wallets = kpis.wallets || {};
-    const ops = kpis.operations || {};
-
-    // 1. Balance FIAT
-    // Nota: El ID 'fiat-amount' está en el H3, así que 'inject' podría fallar si busca dentro.
-    // Lo actualizamos directamente para mayor seguridad.
-    const fiatBalance = wallets.balanceFiat ?? wallets.fiatBalance ?? 0;
-    const amountEl = document.getElementById('fiat-amount');
-    if (amountEl) {
-        amountEl.textContent = fVES(fiatBalance);
-        // Opcional: Si queremos mantener el estilo del span grande/pequeño, tendríamos que reconstruir el HTML
-        // Pero fVES ya agrega "VES", así que mostrar solo texto es correcto.
-    }
-
-    // 2. Datos de Operaciones (Totales)
-    // Usamos ?. para evitar crash si ops.buys no existe
-    const buysCount = ops.buys?.count || 0;
-    const sellsCount = ops.sells?.count || 0;
-    const totalOps = buysCount + sellsCount;
-
-    // 3. Volúmenes (Compras = Ingresos de Fiat a la plataforma?, Ventas = Salidas?)
-    // Depende de la perspectiva. 
-    // "Comprado (FIAT)" en bancos.js usaba buyFiat. 
-    // "Compras (Cant)" aquí en fiat.astro probablemente se refiere a Buys.
-    // Ops tipo BUY -> Gastamos Fiat, Recibimos USDT. -> Egresos de Fiat ???
-    // Ops tipo SELL -> Vendemos USDT, Recibimos Fiat. -> Ingresos de Fiat ???
-
-    // REVISAR LOGICA DE IMPORTACION PREVIA:
-    // const depoCount = summary.fiatDepoCount ?? 0; 
-    // Depo = Deposito = Ingreso.
-    // Si yo vendo USDT, me depositan Fiat. -> Sell = Income de Fiat.
-    // Si yo compro USDT, transfiero Fiat. -> Buy = Expense de Fiat.
-
-    // Sin embargo, en dashboard/bancos.astro:
-    // "Comprado (FIAT)" -> buyFiat.
-    // "Vendido (FIAT)" -> sellFiat.
-
-    // Vamos a mapear literalmente:
-    // "Compras" -> Buys
-    // "Ventas" -> Sells
-
-    const buysFiat = ops.buys?.totalFiat || 0;
-    const sellsFiat = ops.sells?.totalFiat || 0;
-
-    // Injection
-    // Usamos inject todavía para estos porque en fiat.astro parecen ser spans simples con ID?
-    // fiat.astro: <span id="fiat-total-ops"...>N/A</span>. Direct IDs.
-    // Si inject busca hijos, fallará si el ID es el elemento final.
-    // Mejor usamos getElementById directo para todo en este archivo.
-
-    const set = (id, val) => {
-        const el = document.getElementById(id);
-        if (el) el.textContent = val;
+export function updateFiatSection(kpis = {}, bankInsights = []) {
+    const ui = {
+        amount: document.getElementById('fiat-amount'),
+        withdrawalCount: document.getElementById('fiat-withdrawal-count'),
+        withdrawalVol: document.getElementById('fiat-withdrawal-vol'),
+        depoCount: document.getElementById('fiat-depo-count'),
+        depoVol: document.getElementById('fiat-depo-vol'),
+        totalOps: document.getElementById('fiat-total-ops'), 
+        sheetLink: document.getElementById('link-fiat-sheet')
     };
 
-    set('fiat-total-ops', totalOps.toString());
+    // 1. Inicializamos acumuladores
+    let totalBalanceFiat = 0;
+    let totalVendidoVES = 0;
+    let totalCompradoVES = 0;
+    let totalCountVendido = 0;
+    let totalCountComprado = 0;
 
-    // Compras (Cant y Vol)
-    set('fiat-depo-count', buysCount.toString());
-    set('fiat-depo-vol', fVES(buysFiat));
+    // 2. Sumarizamos la data de todos los bancos detectados
+    if (bankInsights && bankInsights.length > 0) {
+        bankInsights.forEach(bank => {
+            // Balances
+            totalBalanceFiat += (bank.fiatBalance || 0);
 
-    // Ventas (Cant y Vol)
-    set('fiat-withdrawal-count', sellsCount.toString());
-    set('fiat-withdrawal-vol', fVES(sellsFiat));
+            // Volúmenes (Usando la lógica de bancos.js)
+            // Vendido: Salida de VES (Generalmente asociado a Buys de Cripto en tu flujo)
+            // Comprado: Entrada de VES (Generalmente asociado a Sells de Cripto)
+            
+            totalVendidoVES += (bank.volumeSellFiat || (bank.volumeSell * bank.sellRate) || 0);
+            totalCompradoVES += (bank.volumeBuyFiat || (bank.volumeBuy * bank.buyRate) || 0);
+            
+            // Operaciones (si tu API las entrega por banco, si no, se mantiene el global)
+            totalCountVendido += (bank.countSell || 0);
+            totalCountComprado += (bank.countBuy || 0);
+        });
+    } else {
+        // Fallback: Si no hay array de bancos, intentar usar el objeto wallets general
+        totalBalanceFiat = kpis.wallets?.balanceFiat || 0;
+        // Aquí podrías usar ops.sells / ops.buys como respaldo
+        totalVendidoVES = kpis.operations?.sells?.totalFiat || 0;
+        totalCompradoVES = kpis.operations?.buys?.totalFiat || 0;
+    }
+
+    // 3. Inyección en UI
+    
+    // Balance Total Sumarizado
+    if (ui.amount) ui.amount.textContent = fVES(totalBalanceFiat);
+
+    // ROJO: Salidas/Vendido (Suma de todos los bancos)
+    if (ui.withdrawalCount) ui.withdrawalCount.textContent = (totalCountVendido || kpis.operations?.sells?.count || 0).toString();
+    if (ui.withdrawalVol) ui.withdrawalVol.textContent = fVES(totalVendidoVES);
+
+    // VERDE: Entradas/Comprado (Suma de todos los bancos)
+    if (ui.depoCount) ui.depoCount.textContent = (totalCountComprado || kpis.operations?.buys?.count || 0).toString();
+    if (ui.depoVol) ui.depoVol.textContent = fVES(totalCompradoVES);
+
+    // TOTAL DE OPERACIONES
+    if (ui.totalOps) {
+        const total = (totalCountVendido + totalCountComprado) || 
+                      ((kpis.operations?.sells?.count || 0) + (kpis.operations?.buys?.count || 0));
+        ui.totalOps.textContent = total.toString();
+    }
 
     // 4. Link Sheet
-    const sheetLink = document.getElementById('link-fiat-sheet');
-    if (sheetLink && kpis.config?.fiatSheetUrl) {
-        sheetLink.href = kpis.config.fiatSheetUrl;
+    if (ui.sheetLink) {
+        const url = kpis.config?.fiatSheetUrl || buildSheetLink(kpis.config?.googleSheetId);
+        ui.sheetLink.href = url;
+        ui.sheetLink.style.opacity = url ? "1" : "0.3";
     }
 }

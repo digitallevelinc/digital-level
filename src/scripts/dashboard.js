@@ -1,5 +1,3 @@
-// src/scripts/dashboard.js
-
 // 1. IMPORTACIONES UNIFICADAS
 import { fUSDT, fVES, inject } from './dashboard/utils.js';
 import { updateRedSection } from './dashboard/red.js';
@@ -11,7 +9,7 @@ import { updateCiclosUI } from './dashboard/ciclos.js';
 import { updateTasaUI } from './dashboard/tasa.js';
 import { updateProfitUI } from './dashboard/profit.js';
 import { updateComisionOperadorUI } from './dashboard/comisionOp.js';
-import { updateProyeccionesUI } from './dashboard/proyecciones.js'; // <-- NUEVA IMPORTACIÓN
+import { updateProyeccionesUI } from './dashboard/proyecciones.js';
 
 // Módulos refactorizados
 import { updateComisionesUI } from './dashboard/comisiones.js';
@@ -76,31 +74,39 @@ export async function updateDashboard(API_BASE, token, alias, range = {}) {
         if (!kpiRes.ok) throw new Error('Fallo en la respuesta de la API');
         const kpis = await kpiRes.json();
 
+        // --- PREPARACIÓN DE DATOS ---
+        const bankInsights = kpis.bankInsights || [];
+
         // --- ACTUALIZACIÓN DE MÉTRICAS BASE ---
         updateMainKpis(kpis);
         updateRatesCard(kpis);
-
         updateComisionesUI(kpis.operations);
         updateOperacionesUI(kpis);
 
         // --- PANEL DE BANCOS E INSIGHTS ---
-        if (kpis.bankInsights) {
-            updateBancosUI(kpis.bankInsights);
-            updateCiclosUI(kpis);
+        if (bankInsights.length > 0) {
+            updateBancosUI(bankInsights);
+            // PASO DE PARÁMETROS: Ahora Ciclos recibe los insights para calcular la media real
+            updateCiclosUI(kpis, bankInsights); 
         }
 
         // --- MÓDULOS DE ANÁLISIS AVANZADO ---
-        updateTasaUI(kpis);             // Tasa mínima de compra
-        updateProfitUI(kpis);           // Auditoría de Balances y GAP
-        updateComisionOperadorUI(kpis); // Profit neto del usuario (%)
-        updateProyeccionesUI(kpis);    // Escenarios 1D, 7D, 15D, 1M
+        updateTasaUI(kpis);             
+        updateProfitUI(kpis);           
+        
+        // PASO DE PARÁMETROS: Comisión recibe los insights para restar los fees de Binance
+        updateComisionOperadorUI(kpis, bankInsights); 
+        
+        updateProyeccionesUI(kpis);    
 
         // --- SECCIONES DE CARTERAS (LOGÍSTICA) ---
         updateRedSection(kpis);
         updatePaySection(kpis);
         updateSwitchSection(kpis);
         updateP2PSection(kpis);
-        updateFiatSection(kpis);
+        
+        // PASO DE PARÁMETROS: Fiat recibe insights para sumarizar el balance de todos los bancos
+        updateFiatSection(kpis, bankInsights);
 
         // --- UI ESTADO ---
         const aliasEl = document.getElementById('operator-alias');
