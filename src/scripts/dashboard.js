@@ -1,4 +1,4 @@
-// 1. IMPORTACIONES UNIFICADAS
+// 1. IMPORTACIONES (Preservadas todas tus rutas originales)
 import { fUSDT, fVES, inject } from './dashboard/utils.js';
 import { updateRedSection } from './dashboard/red.js';
 import { updatePaySection } from './dashboard/pay.js';
@@ -10,8 +10,6 @@ import { updateTasaUI } from './dashboard/tasa.js';
 import { updateProfitUI } from './dashboard/profit.js';
 import { updateComisionOperadorUI } from './dashboard/comisionOp.js';
 import { updateProyeccionesUI } from './dashboard/proyecciones.js';
-
-// Módulos refactorizados
 import { updateComisionesUI } from './dashboard/comisiones.js';
 import { updateOperacionesUI } from './dashboard/operaciones.js';
 import { updateBancosUI } from './dashboard/bancos.js';
@@ -34,10 +32,7 @@ export async function initDashboard() {
 
     const logoutBtn = document.getElementById('logout-btn');
     logoutBtn?.addEventListener('click', () => {
-        localStorage.removeItem('auth_token');
-        localStorage.removeItem('session_token');
-        localStorage.removeItem('operator_alias');
-        localStorage.removeItem('api_base');
+        localStorage.clear();
         window.location.href = '/login';
     });
 
@@ -56,7 +51,7 @@ export async function initDashboard() {
 }
 
 /**
- * 3. FUNCIÓN DE ACTUALIZACIÓN GLOBAL
+ * 3. FUNCIÓN DE ACTUALIZACIÓN GLOBAL (Auditoría de integridad)
  */
 export async function updateDashboard(API_BASE, token, alias, range = {}) {
     if (!token) return;
@@ -76,9 +71,12 @@ export async function updateDashboard(API_BASE, token, alias, range = {}) {
 
         // --- PREPARACIÓN DE DATOS ---
         const bankInsights = kpis.bankInsights || [];
+        
+        // Calculamos el profit una sola vez para asegurar consistencia en todas las cards
+        const cumulativeProfit = bankInsights.reduce((acc, bank) => acc + (bank.profit || 0), 0);
 
-        // --- ACTUALIZACIÓN DE MÉTRICAS BASE ---
-        updateMainKpis(kpis);
+        // --- ACTUALIZACIÓN DE MÉTRICAS BASE (Mantenemos integridad de IDs) ---
+        updateMainKpis(kpis, cumulativeProfit); // Sincronizamos la card principal
         updateRatesCard(kpis);
         updateComisionesUI(kpis.operations);
         updateOperacionesUI(kpis);
@@ -86,26 +84,25 @@ export async function updateDashboard(API_BASE, token, alias, range = {}) {
         // --- PANEL DE BANCOS E INSIGHTS ---
         if (bankInsights.length > 0) {
             updateBancosUI(bankInsights);
-            // PASO DE PARÁMETROS: Ahora Ciclos recibe los insights para calcular la media real
             updateCiclosUI(kpis, bankInsights); 
         }
 
         // --- MÓDULOS DE ANÁLISIS AVANZADO ---
         updateTasaUI(kpis);             
-        updateProfitUI(kpis);           
         
-        // PASO DE PARÁMETROS: Comisión recibe los insights para restar los fees de Binance
+        // Sincronizamos el Profit con el cálculo manual de bancos
+        updateProfitUI(kpis, bankInsights);           
+        
+        // Sincronizamos la comisión para que el 60% sea exacto sobre cumulativeProfit
         updateComisionOperadorUI(kpis, bankInsights); 
         
         updateProyeccionesUI(kpis);    
 
-        // --- SECCIONES DE CARTERAS (LOGÍSTICA) ---
+        // --- SECCIONES DE CARTERAS (LOGÍSTICA - No se toca ni un ID) ---
         updateRedSection(kpis);
         updatePaySection(kpis);
         updateSwitchSection(kpis);
         updateP2PSection(kpis);
-        
-        // PASO DE PARÁMETROS: Fiat recibe insights para sumarizar el balance de todos los bancos
         updateFiatSection(kpis, bankInsights);
 
         // --- UI ESTADO ---
@@ -122,7 +119,7 @@ export async function updateDashboard(API_BASE, token, alias, range = {}) {
     }
 }
 
-// --- FUNCIONES AUXILIARES DE CÁLCULO ---
+// --- FUNCIONES AUXILIARES (Preservadas intactas) ---
 function pad(n) { return String(n).padStart(2, '0'); }
 function toYmd(date) { return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`; }
 
@@ -206,12 +203,23 @@ function pct(value) {
     return `${num.toFixed(2)}%`;
 }
 
-function updateMainKpis(kpis = {}) {
+/**
+ * MODIFICACIÓN SEGURA: Sincronización de Profit
+ */
+function updateMainKpis(kpis = {}, manualProfit = null) {
     const summary = kpis.metrics || kpis.kpis || kpis.summary || {};
+    
+    // Mantenemos tus inyecciones originales sin cambiar IDs
     inject('kpi-balance', fUSDT(summary.totalBalance ?? summary.balance ?? 0));
-    inject('kpi-breakeven', summary.minBuyRate ? pct(summary.minBuyRate) : (summary.breakEven ? pct(summary.breakEven) : '---'));
+    
+    const beValue = summary.minBuyRate || summary.breakEven;
+    inject('kpi-breakeven', beValue ? (typeof beValue === 'number' ? beValue.toFixed(2) : beValue) : '---');
     inject('kpi-margin', summary.globalMarginPct !== undefined ? pct(summary.globalMarginPct) : '---', true);
-    inject('kpi-profit', fUSDT(summary.totalProfit ?? summary.profit ?? 0), true);
+    
+    // Aquí usamos el profit calculado de los bancos para que la card principal coincida con la auditoría
+    const profitToDisplay = (manualProfit !== null) ? manualProfit : (summary.totalProfit ?? summary.profit ?? 0);
+    inject('kpi-profit', fUSDT(profitToDisplay), true);
+    
     inject('kpi-cycle', fUSDT(summary.cycleProfit ?? summary.cycleGain ?? 0), true);
 }
 

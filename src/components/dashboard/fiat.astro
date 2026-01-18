@@ -1,44 +1,51 @@
 ---
 // fiat.astro
 ---
-<div id="fiat-balance-card" class="relative group min-h-[160px] bg-gray-900/50 rounded-xl p-4 border border-white/5">
-    <div class="flex justify-between items-start mb-4">
+<div id="fiat-balance-card" class="relative group min-h-[160px] bg-gray-900/50 rounded-xl p-4 border border-white/5 overflow-hidden">
+    <div class="absolute -top-10 -right-10 w-32 h-32 bg-emerald-500/5 rounded-full blur-3xl group-hover:bg-emerald-500/10 transition-all duration-700"></div>
+
+    <div class="flex justify-between items-start mb-4 relative z-10">
         <div>
-            <p class="text-[10px] text-gray-500 font-black uppercase tracking-widest">FIAT BALANCE</p>
-            <h3 id="fiat-amount" class="text-2xl font-bold text-white mt-1">0.00 <span class="text-xs text-gray-400 font-normal">USD</span></h3>
+            <p class="text-[10px] text-gray-500 font-black uppercase tracking-[0.15em]">FIAT BALANCE</p>
+            <h3 id="fiat-amount" class="text-2xl font-bold text-white mt-1">0.00 <span class="text-xs text-gray-400 font-normal">VES</span></h3>
+            
+            <div class="flex items-center gap-1.5 mt-0.5 opacity-80">
+                <span class="text-[10px] text-[#F3BA2F] font-bold">≈</span>
+                <span id="fiat-amount-usd" class="text-[11px] font-mono font-medium text-gray-300 tracking-tight">0.00 USD</span>
+            </div>
         </div>
-        <i class="fas fa-university text-gray-600 group-hover:text-emerald-500 transition-colors"></i>
+        <div class="p-2 bg-white/5 rounded-lg border border-white/5">
+            <i class="fas fa-university text-gray-500 group-hover:text-emerald-500 transition-colors"></i>
+        </div>
     </div>
 
-    <div id="fiat-details" class="space-y-2 border-t border-white/5 pt-3">
-    
-
+    <div id="fiat-details" class="space-y-2 border-t border-white/5 pt-3 relative z-10">
         <div class="flex justify-between text-[10px]">
-            <span class="text-rose-500/80 uppercase font-bold">Vendido (Cant):</span>
+            <span class="text-rose-500/80 uppercase font-bold tracking-tighter">Vendido (Cant):</span>
             <span id="fiat-withdrawal-count" class="text-rose-400 font-mono">N/A</span>
         </div>
         <div class="flex justify-between text-[10px]">
-            <span class="text-rose-500/80 uppercase font-bold">Volumen Vendido:</span>
+            <span class="text-rose-500/80 uppercase font-bold tracking-tighter">Volumen Vendido:</span>
             <span id="fiat-withdrawal-vol" class="text-rose-400 font-mono">N/A</span>
         </div>
 
         <div class="flex justify-between text-[10px]">
-            <span class="text-emerald-500/80 uppercase font-bold">Compras (Cant):</span>
+            <span class="text-emerald-500/80 uppercase font-bold tracking-tighter">Compras (Cant):</span>
             <span id="fiat-depo-count" class="text-emerald-400 font-mono">N/A</span>
         </div>
         <div class="flex justify-between text-[10px]">
-            <span class="text-emerald-500/80 uppercase font-bold">Volumen Comprado:</span>
+            <span class="text-emerald-500/80 uppercase font-bold tracking-tighter">Volumen Comprado:</span>
             <span id="fiat-depo-vol" class="text-emerald-400 font-mono">N/A</span>
         </div>
     </div>
-    <div class="flex justify-between text-[10px]">
-    <span class="text-gray-500 uppercase font-bold">Total Operaciones:</span>
-    <span id="fiat-total-ops" class="text-white font-mono">0</span>
-</div>
 
-    <a id="link-fiat-sheet" href="#" target="_blank" class="absolute top-4 right-10 opacity-20 hover:opacity-100 transition-all">
-        <svg class="w-4 h-4 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-        </svg>
-    </a>
+    <div class="mt-3 pt-2 border-t border-white/5 flex justify-between items-center relative z-10">
+        <span class="text-[9px] text-gray-500 uppercase font-black">Total Operaciones:</span>
+        <div class="flex items-center gap-2">
+            <span id="fiat-total-ops" class="text-xs text-white font-mono font-bold">0</span>
+            <div class="w-1.5 h-1.5 rounded-full bg-emerald-500/40 animate-pulse"></div>
+        </div>
+    </div>
+
+    
 </div>
