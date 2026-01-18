@@ -1,25 +1,21 @@
-// src/scripts/dashboard/tasa.js
 import { inject } from './utils.js';
 
 export function updateTasaUI(kpis = {}) {
-    /**
-     * LÓGICA DE CÁLCULO:
+    /** * MANTENEMOS TU LÓGICA DE CÁLCULO ORIGINAL:
      * Tasa Mínima = Precio Venta - Comisiones
-     * (Si compras por ARRIBA de este resultado, pierdes dinero)
      */
-
-    // 1. Tasa Mínima Global (Min Buy Rate del Backend)
+    
+    // 1. Extraemos los datos igual que en tu código original
     const summary = kpis.metrics || kpis.summary || {};
-    // La tasa minima de compra es aquella que el backend calcula. Si compras mas caro que esto, pierdes.
     const globalBreakeven = summary.minBuyRate || 0;
 
+    // Inyectamos el valor global sin alterar el cálculo
     inject('global-breakeven', globalBreakeven.toFixed(2));
 
-    // 2. Lista de Bancos (Usamos bankInsights)
-    // bankInsights ya trae "buyRate" que es el promedio ponderado de compra
+    // 2. Lista de Bancos (Usamos bankInsights tal cual viene del backend)
     const bankInsights = kpis.bankInsights || [];
 
-    // Colores para bancos
+    // Colores originales
     const bankColors = {
         'Banesco': '#00aa44',
         'Mercantil': '#1d4ed8',
@@ -30,22 +26,28 @@ export function updateTasaUI(kpis = {}) {
     };
 
     const listContainer = document.getElementById('bank-rates-list');
+    
     if (listContainer) {
+        // Renderizamos usando map sobre bankInsights (tu misma fuente de datos)
         listContainer.innerHTML = bankInsights.map(bank => {
             const name = bank.bank || bank.name || 'Desconocido';
             const color = bankColors[name] || '#F3BA2F';
-            // Mostramos la tasa de compra real del banco
+            
+            // USAMOS TU MISMA VARIABLE DE TASA REAL
             const rate = bank.buyRate || 0;
 
+            // ÚNICO CAMBIO: Estructura visual de "banquito" (Grid de 2 columnas)
             return `
-            <div class="flex justify-between items-center leading-tight py-1">
-                <div class="flex items-center gap-1.5">
-                    <span class="w-1.5 h-1.5 rounded-full" style="background-color: ${color}"></span>
-                    <span class="text-[9px] font-bold text-gray-400">${name}</span>
+            <div class="bg-black/40 p-2 rounded-lg border border-white/5 flex flex-col items-center justify-center transition-all hover:border-orange-500/30">
+                <div class="flex items-center gap-1.5 w-full justify-center mb-1">
+                    <span class="w-1 h-2.5 rounded-full" style="background-color: ${color}"></span>
+                    <span class="text-[9px] font-bold text-gray-400 uppercase truncate">${name}</span>
                 </div>
-                <div class="flex items-baseline gap-1">
-                    <span class="text-[10px] font-mono font-bold text-orange-400">${rate.toFixed(2)}</span>
-                    <span class="text-[7px] text-gray-600 font-bold uppercase">ves</span>
+                <div class="flex items-baseline gap-0.5">
+                    <span class="text-[13px] font-mono font-black text-orange-400">
+                        ${rate.toFixed(2)}
+                    </span>
+                    <span class="text-[7px] text-gray-600 font-bold uppercase italic tracking-tighter">v</span>
                 </div>
             </div>
             `;

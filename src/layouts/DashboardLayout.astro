@@ -3,22 +3,85 @@ import '../styles/global.css';
 ---
 <!doctype html>
 <html lang="es">
-	<head>
-		<meta charset="UTF-8" />
-		<link rel="icon" type="image/png" href="/img/logo.png" />
-		<title>Dashboard | Digital Level</title>
-	</head>
-	<body class="bg-[#0b0e11] text-white min-h-screen font-sans">
-		<header class="p-6 border-b border-gray-800/50 flex items-center justify-between">
-			<div class="flex items-center gap-3">
-				<img src="/img/logo.png" class="w-10 h-10 object-contain" alt="Logo" />
-				<div class="flex flex-col">
-					<span class="text-[#F3BA2F] font-black text-sm tracking-widest uppercase italic leading-none">DIGITAL LEVEL</span>
-				</div>
-			</div>
-		</header>
-		<main class="p-6 max-w-[1600px] mx-auto">
-			<slot />
-		</main>
-	</body>
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+        <link rel="icon" type="image/png" href="/img/logo.png" />
+        <title>Dashboard | Digital Level</title>
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" />
+    </head>
+    <body class="bg-[#0b0e11] text-white min-h-screen font-sans selection:bg-[#F3BA2F]/30 overflow-x-hidden">
+        
+        <header class="sticky top-0 z-50 bg-[#0b0e11]/80 backdrop-blur-md border-b border-gray-800/50 px-4 py-3 md:px-8 md:py-4">
+            <div class="max-w-[1600px] mx-auto flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                    <img src="/img/logo.png" class="w-8 h-8 md:w-10 md:h-10 object-contain" alt="Logo" />
+                    <div class="flex flex-col">
+                        <span class="text-[#F3BA2F] font-black text-xs md:text-sm tracking-[0.2em] uppercase italic leading-none">
+                            DIGITAL LEVEL
+                        </span>
+                        <span class="text-[7px] text-gray-500 uppercase font-bold tracking-widest mt-1 hidden md:block">
+                            Sentinel Core v2.0
+                        </span>
+                    </div>
+                </div>
+                <div class="flex items-center gap-4">
+                    <div id="connection-status" class="flex items-center gap-2">
+                         <span class="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]"></span>
+                         <span class="text-[10px] font-black uppercase text-gray-400 hidden sm:block tracking-widest">Cloud Sync</span>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <main class="p-4 md:p-8 lg:p-10 max-w-[1600px] mx-auto">
+            <slot />
+        </main>
+
+        <footer class="p-8 text-center border-t border-gray-900">
+            <p class="text-[9px] text-gray-600 font-black uppercase tracking-[0.3em]">
+                &copy; 2026 DIGITAL LEVEL Sentinel System
+            </p>
+        </footer>
+    </body>
 </html>
+
+<style is:global>
+    /* --- SISTEMA DE TIPOGRAFÍA CENTRALIZADO --- */
+    
+    /* 1. Títulos de Tarjetas (Bancos, Ciclos) */
+    .sentinel-title {
+        @apply text-[14px] font-black uppercase italic tracking-widest text-white;
+    }
+
+    /* 2. Etiquetas de datos (Label: FIAT, USDT, Tasa) */
+    .sentinel-label {
+        @apply text-[11px] text-gray-500 uppercase font-black tracking-widest;
+    }
+
+    /* 3. Valores Numéricos Estándar (Tasas, Vueltas) */
+    .sentinel-value-md {
+        @apply text-[13px] font-mono font-bold text-white tracking-tighter;
+    }
+
+    /* 4. Valores Principales (Balances, Profits) */
+    .sentinel-value-lg {
+        @apply text-[17px] font-mono font-bold text-white tracking-tighter;
+    }
+
+    /* 5. KPI Gigante (Profit Central) */
+    .sentinel-kpi-huge {
+        @apply text-5xl font-black text-emerald-400 tracking-tighter;
+    }
+
+    /* --- RESET & UTILS --- */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: #0b0e11; }
+    ::-webkit-scrollbar-thumb { background: #1f2937; border-radius: 10px; }
+    ::-webkit-scrollbar-thumb:hover { background: #F3BA2F; }
+
+    html, body {
+        max-width: 100vw;
+        overflow-x: hidden;
+    }
+</style>

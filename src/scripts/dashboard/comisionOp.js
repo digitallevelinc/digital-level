@@ -1,60 +1,42 @@
-// src/scripts/dashboard/comisionOp.js
-import { fUSDT } from './utils.js';
+import { fUSDT, inject } from './utils.js';
 
+/**
+ * Actualiza la UI de la comisión del operador basada en el profit real de los bancos.
+ * @param {Object} kpis - El objeto completo de la API.
+ * @param {Array} bankInsights - La lista de bancos con sus profits individuales.
+ */
 export function updateComisionOperadorUI(kpis = {}, bankInsights = []) {
-    const ui = {
-        pct: document.getElementById('op-config-pct'),
-        netProfit: document.getElementById('op-net-profit'),
-        bar: document.getElementById('op-profit-bar')
-    };
-
-    const configPct = kpis.config?.commissionPercentage ?? 0;
+    // 1. OBTENER CONFIGURACIÓN
+    // Buscamos el porcentaje en la API, si no existe usamos 60 como base
+    const configPct = kpis.config?.operatorCommissionPct || 60;
     
-    // 1. Sumarización Manual desde los bancos (donde sí hay fees)
-    let sumaProfitBruto = 0;
-    let sumaTotalFees = 0;
+    // 2. FUENTE DE VERDAD: PROFIT ACUMULADO
+    // Sumamos los profits de los bancos exactamente igual que en profit.js
+    const totalProfitCalculated = bankInsights.reduce((acc, bank) => acc + (bank.profit || 0), 0);
 
-    // Usamos bankInsights si existe, sino intentamos sacarlo de kpis
-    const bancos = bankInsights.length > 0 ? bankInsights : (kpis.bankInsights || []);
+    // 3. CÁLCULO DE LA COMISIÓN (Profit Share)
+    // Solo calculamos si el profit es positivo
+    const comisionMonto = totalProfitCalculated > 0 
+        ? (totalProfitCalculated * (configPct / 100)) 
+        : 0;
 
-    if (bancos.length > 0) {
-        bancos.forEach(b => {
-            sumaProfitBruto += (b.profit || 0);
-            sumaTotalFees += (b.feeBuy || 0) + (b.feeSell || 0);
-        });
-    } else {
-        // Si no hay bancos, usamos el fallback global pero el log ya nos dijo que es 0
-        sumaProfitBruto = kpis.summary?.totalProfit || 0;
+    // 4. INYECCIONES EN EL COMPONENTE ASTRO
+    // Inyectamos el porcentaje configurado
+    inject('op-config-pct', `${configPct}%`);
+    
+    // Inyectamos el monto neto acumulado para el operador
+    inject('op-net-profit', fUSDT(comisionMonto).replace('$', '')); 
+
+    // 5. LÓGICA DE LA BARRA DE PROGRESO (Rendimiento)
+    // Usamos el Profit actual vs una meta (ejemplo $1000) o simplemente el crecimiento
+    const progressBar = document.getElementById('op-profit-bar');
+    if (progressBar) {
+        // Calculamos un progreso visual (puedes ajustar el divisor según tu meta mensual)
+        const goal = 1000; 
+        const progress = Math.min((totalProfitCalculated / goal) * 100, 100);
+        progressBar.style.width = `${totalProfitCalculated > 0 ? progress : 0}%`;
     }
 
-    // 2. CÁLCULO REAL
-    // Ejemplo Mercantil: 17.04 (Bruto) - 4.70 (Fees) = 12.34 (Neto Mesa)
-    const netoRealMesa = sumaProfitBruto - sumaTotalFees;
-    
-    // 3. Tu tajada (60% de 12.34 = 7.40 aprox)
-    const operatorEarnings = (netoRealMesa * configPct) / 100;
-
-    // 4. Inyectar en UI
-    if (ui.pct) ui.pct.textContent = `${configPct}%`;
-    
-    if (ui.netProfit) {
-        ui.netProfit.textContent = fUSDT(operatorEarnings);
-        ui.netProfit.className = operatorEarnings >= 0 
-            ? "text-xl font-mono font-bold tracking-tight text-white leading-none"
-            : "text-xl font-mono font-bold tracking-tight text-rose-500 leading-none";
-    }
-
-    // 5. Barra
-    if (ui.bar) {
-        const goal = 50; 
-        const progress = Math.max(0, Math.min((operatorEarnings / goal) * 100, 100));
-        ui.bar.style.width = `${progress}%`;
-    }
-
-    // LOG DE VERIFICACIÓN
-    console.log("--- AJUSTE POR BANCOS ---");
-    console.log("Suma Bruta Bancos:", sumaProfitBruto);
-    console.log("Suma Fees Bancos:", sumaTotalFees);
-    console.log("Neto Real Mesa:", netoRealMesa);
-    console.log("Tu Comisión:", operatorEarnings);
+    // Opcional: Log de auditoría para el desarrollador
+    // console.log(`[Payroll] Profit: ${totalProfitCalculated} | Share: ${configPct}% | Total: ${comisionMonto}`);
 }

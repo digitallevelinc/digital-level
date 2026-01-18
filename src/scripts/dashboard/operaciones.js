@@ -1,35 +1,46 @@
 // src/scripts/dashboard/operaciones.js
 
+/**
+ * Procesa y actualiza la sección de Volumen de Operaciones
+ * @param {Object} kpis - Objeto principal de la API
+ */
 export function updateOperacionesUI(kpis = {}) {
-    const getEl = (id) => document.getElementById(id);
+    // Helper para evitar errores si el elemento no existe en el DOM
+    const inject = (id, value) => {
+        const el = document.getElementById(id);
+        if (el) el.textContent = value;
+    };
+
+    // Extraemos los objetos con safe-navigation para evitar crashes
     const ops = kpis.operations || {};
     const wallets = kpis.wallets || {};
 
-    // 1. Totales Generales (Buys + Sells count)
-    const totalOps = (ops.buys?.count || 0) + (ops.sells?.count || 0);
-    if (getEl('ops-total-count')) getEl('ops-total-count').textContent = totalOps;
+    // 1. TOTAL GENERAL (Suma de todas las ventas y compras registradas)
+    // Usamos Number() para asegurar que la suma sea aritmética y no concatenación
+    const totalOps = Number(ops.buys?.count || 0) + Number(ops.sells?.count || 0);
+    inject('ops-total-count', totalOps.toLocaleString());
 
-    // 2. P2P: Ventas / Compras (Desde objeto operations)
+    // 2. P2P: Ventas / Compras 
+    // Representa el flujo principal de intercambio
     const p2pSales = ops.sells?.count || 0;
     const p2pBuys = ops.buys?.count || 0;
-    if (getEl('ops-p2p-counts')) getEl('ops-p2p-counts').textContent = `${p2pSales}/${p2pBuys}`;
+    inject('ops-p2p-counts', `${p2pSales} / ${p2pBuys}`);
 
-    // 3. PAY: Depósitos (Received) / Retiros (Sent) (Desde wallets.pay)
+    // 3. PAY: Depósitos (Received) / Retiros (Sent)
+    // Datos provenientes de la Wallet Pay interna
     const payIn = wallets.pay?.payReceivedCount || 0;
     const payOut = wallets.pay?.paySentCount || 0;
-    if (getEl('ops-pay-counts')) getEl('ops-pay-counts').textContent = `${payIn}/${payOut}`;
+    inject('ops-pay-counts', `${payIn} / ${payOut}`);
 
-    // 4. RED: Entradas (CountIn) / Salidas (CountOut) (Desde wallets.red)
-    // Nota: Red suele ser "Caja Roja" o similar. 
-    // JSON muestra: "countIn": 46, "countOut": 1
+    // 4. RED: Entradas (In) / Salidas (Out)
+    // Monitoreo de flujo de la Caja Roja (RED)
     const redIn = wallets.red?.countIn || 0;
     const redOut = wallets.red?.countOut || 0;
-    if (getEl('ops-red-counts')) getEl('ops-red-counts').textContent = `${redIn}/${redOut}`;
+    inject('ops-red-counts', `${redIn} / ${redOut}`);
 
-    // 5. SWITCH: Spot->Fondos (TotalIn?) / Fondos->Spot (TotalOut?)
-    // JSON muestra: "countIn": 17, "countOut": 5. 
-    // Asumiremos In/Out mapping directo.
+    // 5. SWITCH: Transferencias Internas Spot <-> Fondos
+    // Mapeo de movimientos entre billeteras de Binance/Exchange
     const s2f = wallets.switch?.countIn || 0;
     const f2s = wallets.switch?.countOut || 0;
-    if (getEl('ops-switch-counts')) getEl('ops-switch-counts').textContent = `${s2f}/${f2s}`;
+    inject('ops-switch-counts', `${s2f} / ${f2s}`);
 }

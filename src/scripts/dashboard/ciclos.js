@@ -1,93 +1,119 @@
 import { fUSDT, fVES, inject } from './utils.js';
 
 export function updateCiclosUI(kpis = {}, bankInsights = []) {
-    const activeBanks = bankInsights.filter(b => (b.volumeSell || b.volumeBuy || b.fiatBalance > 0));
+    // 1. CONFIGURACIÓN INICIAL
+    const CAPITAL_TRABAJO = kpis.config?.capitalTrabajo || kpis.capitalTrabajo || 500;
     
-    // Capital base para definir una vuelta completa
-    const CAPITAL_TRABAJO = 500; 
-
     let totalCyclesAllBanks = 0;
-    let totalProfitAcumulado = 0;
+    let totalProfitNetoAcumulado = 0;
+    let countBancosOperando = 0;
 
-    const processedBanks = activeBanks.map(b => {
-        const volVendidoUsd = b.volumeSell || (b.volumeSellFiat / (b.sellRate || 1));
+    if (!bankInsights || bankInsights.length === 0) return;
+
+    // 2. PROCESAMIENTO DE DATOS
+    const processedBanks = bankInsights.map(b => {
+        const ciclosCompletados = Number(b.countSell || b.sellCount || 0);
+        const fees = Number(b.feeBuy || 0) + Number(b.feeSell || 0);
+        const netProfit = Number(b.profit || 0) - fees;
+
+        const fiatBalance = Number(b.fiatBalance || 0);
+        // Consideramos activo si tiene vueltas o si tiene más de 100 VES por recomprar
+        const estaRecomprando = fiatBalance > 100;
+        const tieneHistorial = ciclosCompletados > 0;
         
-        // C-TOT: Ciclos cerrados (vueltas completas de capital)
-        const ciclosCompletados = Math.floor(volVendidoUsd / CAPITAL_TRABAJO);
+        if (estaRecomprando || tieneHistorial) {
+            countBancosOperando++;
+        }
+
         totalCyclesAllBanks += ciclosCompletados;
+        totalProfitNetoAcumulado += netProfit;
 
-        // Profit Neto (Realizado hasta ahora)
-        const netProfitRealizado = (b.profit || 0) - ((b.feeBuy || 0) + (b.feeSell || 0));
-        totalProfitAcumulado += netProfitRealizado;
-
-        // ¿Está el ciclo en progreso? 
-        // Si hay bolívares en el banco, significa que la recompra no ha terminado.
-        const estaEnProgreso = b.fiatBalance > 100; // Más de 100 VES se considera "trabajando"
-
-        return { ...b, ciclosCompletados, netProfitRealizado, estaEnProgreso };
+        return { 
+            ...b, 
+            ciclosCompletados, 
+            netProfit, 
+            estaRecomprando, 
+            fiatBalance,
+            CAPITAL_TRABAJO 
+        };
     });
 
-    // KPI Superior: Ganancia Promedio Real por Ciclo
-    const profitPorCicloPromedio = totalCyclesAllBanks > 0 ? (totalProfitAcumulado / totalCyclesAllBanks) : 0;
+    // 3. CÁLCULO DE KPIS SUPERIORES
+    const profitPorCiclo = totalCyclesAllBanks > 0 
+        ? (totalProfitNetoAcumulado / totalCyclesAllBanks) 
+        : 0;
     
-    inject('kpi-cycle-value', `≈ ${fUSDT(profitPorCicloPromedio)}`); 
+    inject('kpi-cycle-value', `≈ ${fUSDT(profitPorCiclo)}`); 
     inject('cycle-count', totalCyclesAllBanks.toString().padStart(2, '0'));
-    inject('active-banks-count', processedBanks.length.toString().padStart(2, '0'));
+    inject('active-banks-count', countBancosOperando.toString().padStart(2, '0'));
 
+    // 4. RENDERIZADO DE LA LISTA
     const insightsContainer = document.getElementById('cycle-banks-insights');
     if (insightsContainer) {
-        insightsContainer.innerHTML = processedBanks.map(bank => {
-            const bsEnBanco = bank.fiatBalance || 0;
-            const bsYaComprados = bank.volumeBuyFiat || 0;
-            const volVentaCiclo = (bank.volumeSellFiat % (CAPITAL_TRABAJO * bank.sellRate)) || (CAPITAL_TRABAJO * bank.sellRate);
+        const activeList = processedBanks.filter(b => b.ciclosCompletados > 0 || b.estaRecomprando);
+        
+        if (activeList.length === 0) {
+            insightsContainer.innerHTML = `
+                <div class="flex flex-col items-center justify-center py-8 opacity-30">
+                    <div class="text-[10px] font-black uppercase tracking-widest">No hay ciclos activos</div>
+                    <div class="text-[8px] mt-1 italic font-bold text-emerald-500">Esperando venta P2P...</div>
+                </div>`;
+            return;
+        }
+
+        insightsContainer.innerHTML = activeList.map(bank => {
+            const tasaVenta = Number(bank.sellRate || 1);
             
-            // Lógica de Barra
-            const totalActual = bsEnBanco + bsYaComprados;
-            const pGris = Math.min((bsEnBanco / volVentaCiclo) * 100, 100);
-            const pAmarillo = Math.min((bsYaComprados / volVentaCiclo) * 100, 100);
-            const pVerde = totalActual > volVentaCiclo ? ((totalActual - volVentaCiclo) / totalActual) * 100 : 0;
-
-            // Render del "Bombillo" de estado
-            const statusLight = bank.estaEnProgreso 
-                ? `<span class="relative flex h-2 w-2">
-                    <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                    <span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-                   </span>`
-                : `<span class="h-2 w-2 rounded-full bg-gray-700"></span>`;
-
-            const statusText = bank.estaEnProgreso ? 'TRABAJANDO' : 'CICLO CERRADO';
+            // Meta visual: cuanto FIAT representa el capital de trabajo
+            const metaFiat = bank.CAPITAL_TRABAJO * tasaVenta;
+            
+            // LÓGICA DE BARRA BINANCE:
+            // pGris: Lo que queda en el banco (saldo actual)
+            // pAmarillo: Lo que ya se "gastó" o recompró (Capital Total - Saldo Actual)
+            const pGris = Math.min((bank.fiatBalance / metaFiat) * 100, 100);
+            const pAmarillo = Math.max(0, 100 - pGris);
 
             return `
-            <div class="group/item border-b border-white/[0.03] pb-4 last:border-0">
+            <div class="group/item border-b border-white/[0.03] py-4 last:border-0 px-1 hover:bg-white/[0.01] transition-colors">
                 <div class="flex justify-between items-start mb-3">
                     <div class="flex items-center gap-3">
-                        <div class="flex flex-col items-center justify-center min-w-[35px] h-10 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
-                            <span class="text-[13px] font-black text-emerald-400 leading-none">${bank.ciclosCompletados}</span>
-                            <span class="text-[7px] text-emerald-500/60 font-bold uppercase">C-TOT</span>
+                        <div class="flex flex-col items-center justify-center min-w-[40px] h-10 rounded-lg bg-emerald-500/10 border border-emerald-500/20 shadow-lg">
+                            <span class="text-[14px] font-black text-emerald-400 leading-none">${bank.ciclosCompletados}</span>
+                            <span class="text-[6px] text-emerald-500/60 font-black uppercase tracking-tight">VUELTAS</span>
                         </div>
                         <div>
-                            <div class="flex items-center gap-1.5">
-                                ${statusLight}
-                                <span class="text-[11px] font-black text-gray-100 uppercase block leading-none">${bank.bank}</span>
+                            <div class="flex items-center gap-2">
+                                <span class="relative flex h-2 w-2">
+                                    ${bank.estaRecomprando ? '<span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>' : ''}
+                                    <span class="relative inline-flex rounded-full h-2 w-2 ${bank.estaRecomprando ? 'bg-emerald-500' : 'bg-gray-700'}"></span>
+                                </span>
+                                <span class="text-[12px] font-black text-gray-100 uppercase tracking-tight">${bank.bank}</span>
                             </div>
-                            <span class="text-[8px] ${bank.estaEnProgreso ? 'text-emerald-500/70' : 'text-gray-500'} font-bold uppercase tracking-wider">${statusText}</span>
+                            <p class="text-[8px] text-gray-500 font-bold uppercase mt-1 italic tracking-tighter">
+                                ${bank.estaRecomprando ? 'Consumiendo FIAT...' : 'Ciclo Completado'}
+                            </p>
                         </div>
                     </div>
                     <div class="text-right">
-                        <p class="text-[11px] font-mono font-bold text-emerald-400 leading-none">+${fUSDT(bank.netProfitRealizado)}</p>
-                        <p class="text-[7px] text-gray-600 uppercase font-black mt-1 italic">Profit Acumulado</p>
+                        <p class="text-[12px] font-mono font-black text-emerald-400 leading-none">+${fUSDT(bank.netProfit)}</p>
+                        <p class="text-[7px] text-gray-600 uppercase font-black mt-1 italic tracking-tighter">Profit Acumulado</p>
                     </div>
                 </div>
                 
                 <div class="space-y-1.5">
-                    <div class="h-1.5 bg-black/40 rounded-full overflow-hidden flex border border-white/5">
-                        <div class="h-full bg-gray-600/40 transition-all duration-1000" style="width: ${pGris}%"></div>
-                        <div class="h-full bg-[#F3BA2F] transition-all duration-1000" style="width: ${pAmarillo}%"></div>
-                        <div class="h-full bg-emerald-500 transition-all duration-1000" style="width: ${pVerde}%"></div>
+                    <div class="h-1.5 bg-black/40 rounded-full overflow-hidden flex border border-white/5 shadow-inner">
+                        <div class="h-full bg-[#F3BA2F] transition-all duration-1000 shadow-[0_0_8px_rgba(243,186,47,0.4)]" 
+                             style="width: ${pAmarillo}%"></div>
+                        <div class="h-full bg-gray-600/30 transition-all duration-1000" 
+                             style="width: ${pGris}%"></div>
                     </div>
-                    <div class="flex justify-between text-[7px] font-bold uppercase text-gray-500">
-                        <span>Faltan: ${fVES(bsEnBanco)}</span>
-                        <span>Ritmo: ${fUSDT(profitPorCicloPromedio)} / Ciclo</span>
+                    <div class="flex justify-between text-[7px] font-bold uppercase tracking-tighter">
+                        <span class="${pAmarillo > 90 ? 'text-[#F3BA2F]' : 'text-gray-500'}">
+                            Recomprado: ${Math.round(pAmarillo)}%
+                        </span>
+                        <span class="text-gray-500 italic">
+                            Saldo en Banco: ${fVES(bank.fiatBalance)}
+                        </span>
                     </div>
                 </div>
             </div>

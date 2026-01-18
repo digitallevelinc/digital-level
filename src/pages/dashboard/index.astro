@@ -1,9 +1,7 @@
 ---
-// src/pages/dashboard/index.astro
+// Importaciones se mantienen intactas
 import DashboardLayout from '../../layouts/DashboardLayout.astro';
 import StatCard from '../../components/dashboard/StatCard.astro';
-
-// Importación de componentes modulares
 import Operaciones from '../../components/dashboard/operaciones.astro';
 import Comisiones from '../../components/dashboard/comisiones.astro';
 import P2P from '../../components/dashboard/p2p.astro';
@@ -20,89 +18,120 @@ import ProyeccionGanancias from '../../components/dashboard/ProyeccionGanancias.
 ---
 
 <DashboardLayout>
-  <div class="flex justify-between items-center mb-6 px-2">
+  <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 px-2 gap-4">
     <div>
-      <h1 class="text-white font-black text-xl uppercase tracking-tighter">
+      <h1 class="text-white font-black text-2xl md:text-3xl uppercase tracking-tighter">
         Bienvenido, <span id="operator-alias" class="text-[#F3BA2F]">Cargando...</span>
       </h1>
-      <p id="last-update" class="text-[9px] text-gray-500 uppercase font-bold tracking-widest mt-1 italic">Sincronizando con Sentinel...</p>
-      <p id="kpi-filter-label" class="text-[9px] text-gray-500 uppercase font-bold tracking-widest mt-1">Rango activo: Hoy</p>
+      <div class="flex flex-col gap-1 mt-2">
+        <p id="last-update" class="text-[10px] text-gray-500 uppercase font-black tracking-[0.2em] italic">
+          Sincronizando con Sentinel...
+        </p>
+        <p id="kpi-filter-label" class="text-[10px] text-emerald-500/80 uppercase font-black tracking-widest">
+          Rango activo: Hoy
+        </p>
+      </div>
     </div>
-    <button id="logout-btn" class="bg-red-500/10 hover:bg-red-500/20 text-red-500 text-[10px] font-black py-2 px-4 rounded-xl border border-red-500/20 transition-all uppercase tracking-widest">
-      Cerrar Sesión
-    </button>
+
+    <div class="flex items-center gap-3 w-full md:w-auto">
+      <a 
+        id="link-p2p-sheet" 
+        href="#" 
+        target="_blank" 
+        class="flex items-center justify-center bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-500 p-3 rounded-xl border border-emerald-500/20 transition-all group"
+        title="Abrir Google Sheet P2P"
+      >
+        <svg class="w-6 h-6 transition-transform group-hover:scale-110" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2zM19 20H5V4h8v4h6v12zM7 18h10v-2H7v2zm0-4h10v-2H7v2zm0-4h10V8H7v2z" />
+        </svg>
+      </a>
+
+      <button id="logout-btn" class="flex-1 md:flex-none bg-red-500/10 hover:bg-red-500/20 text-red-500 text-[11px] font-black py-3.5 px-8 rounded-xl border border-red-500/20 transition-all uppercase tracking-widest">
+        Cerrar Sesión
+      </button>
+    </div>
   </div>
 
-  <section class="mb-8 bg-gradient-to-br from-[#0f1216] to-[#0b0d11] border border-gray-800 rounded-2xl p-4 shadow-lg shadow-black/20">
-    <div class="flex items-center justify-between flex-wrap gap-2 mb-3">
-      <div class="flex items-center gap-2">
-        <span class="w-1 h-4 bg-[#F3BA2F]"></span>
-        <p class="text-[10px] font-black uppercase tracking-[0.25em] text-gray-400">Filtro temporal KPI</p>
-      </div>
+  <section class="mb-10 bg-gradient-to-br from-[#0f1216] to-[#0b0d11] border border-gray-800 rounded-2xl p-6 shadow-xl shadow-black/40">
+    <div class="flex items-center gap-3 mb-5">
+      <span class="w-1.5 h-5 bg-[#F3BA2F]"></span>
+      <p class="text-[11px] font-black uppercase tracking-[0.3em] text-gray-300">Filtro temporal KPI</p>
     </div>
 
-    <div class="flex flex-wrap gap-2 mb-4" id="kpi-preset-group">
-      <button class="kpi-preset-btn px-3 py-2 rounded-xl text-xs font-bold uppercase tracking-wide border border-gray-800 bg-white/5 hover:border-[#F3BA2F]/60" data-preset="today">Hoy</button>
-      <button class="kpi-preset-btn px-3 py-2 rounded-xl text-xs font-bold uppercase tracking-wide border border-gray-800 bg-white/5 hover:border-[#F3BA2F]/60" data-preset="this_week">Esta semana</button>
-      <button class="kpi-preset-btn px-3 py-2 rounded-xl text-xs font-bold uppercase tracking-wide border border-gray-800 bg-white/5 hover:border-[#F3BA2F]/60" data-preset="last_7">Últimos 7 días</button>
-      <button class="kpi-preset-btn px-3 py-2 rounded-xl text-xs font-bold uppercase tracking-wide border border-gray-800 bg-white/5 hover:border-[#F3BA2F]/60" data-preset="this_month">Mes actual</button>
-      <button class="kpi-preset-btn px-3 py-2 rounded-xl text-xs font-bold uppercase tracking-wide border border-gray-800 bg-white/5 hover:border-[#F3BA2F]/60" data-preset="last_30">Últimos 30 días</button>
-      <button class="kpi-preset-btn px-3 py-2 rounded-xl text-xs font-bold uppercase tracking-wide border border-gray-800 bg-white/5 hover:border-[#F3BA2F]/60" data-preset="all">Todo</button>
+    <div class="flex overflow-x-auto pb-4 gap-3 mb-8 scrollbar-hide" id="kpi-preset-group">
+      {['today', 'this_week', 'last_7', 'this_month', 'last_30', 'all'].map((preset) => (
+        <button 
+          class="kpi-preset-btn whitespace-nowrap px-6 py-3 rounded-xl text-[11px] font-black uppercase border border-gray-800 bg-white/5 hover:border-[#F3BA2F]/60 hover:text-[#F3BA2F] transition-all shadow-md" 
+          data-preset={preset}
+        >
+          {preset === 'today' ? 'Hoy' : 
+           preset === 'this_week' ? 'Esta semana' : 
+           preset === 'last_7' ? 'Últimos 7 días' : 
+           preset === 'this_month' ? 'Mes actual' : 
+           preset === 'last_30' ? 'Últimos 30 días' : 'Todo'}
+        </button>
+      ))}
     </div>
 
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
-      <div>
-        <label class="text-[9px] font-black text-gray-500 uppercase mb-1 block">Desde</label>
-        <input id="kpi-date-from" type="date" class="bg-black text-white text-xs border border-gray-700 p-3 rounded-xl w-full outline-none focus:border-[#F3BA2F]/70" />
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div class="space-y-2">
+        <label class="sentinel-label px-1">Desde</label>
+        <input id="kpi-date-from" type="date" class="bg-black text-white text-sm border border-gray-700 p-4 rounded-xl w-full outline-none focus:border-[#F3BA2F]/70 transition-colors shadow-inner" />
       </div>
-      <div>
-        <label class="text-[9px] font-black text-gray-500 uppercase mb-1 block">Hasta</label>
-        <input id="kpi-date-to" type="date" class="bg-black text-white text-xs border border-gray-700 p-3 rounded-xl w-full outline-none focus:border-[#F3BA2F]/70" />
+      <div class="space-y-2">
+        <label class="sentinel-label px-1">Hasta</label>
+        <input id="kpi-date-to" type="date" class="bg-black text-white text-sm border border-gray-700 p-4 rounded-xl w-full outline-none focus:border-[#F3BA2F]/70 transition-colors shadow-inner" />
       </div>
-      <div class="flex items-end gap-2">
-        <button id="kpi-apply-range" class="bg-[#F3BA2F] text-black text-[11px] font-black py-3 px-4 rounded-xl w-full uppercase tracking-wide hover:bg-[#d9a927] transition-all">Aplicar filtro</button>
+      <div class="flex items-end">
+        <button id="kpi-apply-range" class="bg-[#F3BA2F] text-black text-[12px] font-black py-4.5 px-4 rounded-xl w-full uppercase tracking-widest hover:bg-[#d9a927] transition-all shadow-lg shadow-[#F3BA2F]/20 active:scale-[0.98]">
+          Actualizar Reporte
+        </button>
       </div>
     </div>
   </section>
 
-  <section class="mb-8">
-    <h2 class="text-[#F3BA2F] text-[10px] font-black uppercase tracking-[0.2em] mb-4 italic flex items-center gap-2">
-      <span class="w-1 h-3 bg-[#F3BA2F]"></span> 1. MÉTRICAS DE RENDIMIENTO CRÍTICO
+  <section class="mb-12">
+    <h2 class="text-[#F3BA2F] text-[12px] font-black uppercase tracking-[0.3em] mb-6 italic flex items-center gap-3 px-2">
+      <span class="w-1.5 h-4 bg-[#F3BA2F]"></span> 1. RENDIMIENTO DE OPERACIONES CRÍTICAS
     </h2>
-    <div class="grid grid-cols-1 lg:grid-cols-12 gap-4">
-      <div class="lg:col-span-7">
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+      <div class="lg:col-span-7 w-full">
         <Profit />
       </div>
-      <div class="lg:col-span-5 flex flex-col gap-4">
+      <div class="lg:col-span-5 flex flex-col gap-6 w-full">
         <Tasa />
         <Ciclos />
       </div>
     </div>
   </section>
 
-  <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-12 mb-12">
     <section>
-      <h2 class="text-gray-500 text-[10px] font-black uppercase tracking-[0.2em] mb-4 italic font-bold">2. CONTROL DE OPERACIONES Y VOLUMEN</h2>
-      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+      <h2 class="sentinel-label mb-6 italic px-2 flex items-center gap-2">
+        <span class="w-1 h-3 bg-gray-700"></span> 2. CONTROL DE OPERACIONES Y VOLUMEN
+      </h2>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
         <Operaciones />
         <Comisiones />
       </div>
     </section>
 
     <section>
-      <h2 class="text-gray-500 text-[10px] font-black uppercase tracking-[0.2em] mb-4 italic font-bold">4. PROYECCIONES E INSIGHTS</h2>
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+      <h2 class="sentinel-label mb-6 italic px-2 flex items-center gap-2">
+        <span class="w-1 h-3 bg-gray-700"></span> 4. PROYECCIONES E INSIGHTS
+      </h2>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
         <ProyeccionGanancias />
-        <div class="flex flex-col gap-3">
-            <ComisionOperador />
-        </div>
+        <ComisionOperador />
       </div>
     </section>
   </div>
 
-  <section class="mb-8">
-    <h2 class="text-gray-500 text-[10px] font-black uppercase tracking-[0.2em] mb-4 italic font-bold">3. LOGÍSTICA DE CARTERAS (BALANCES INTERNOS)</h2>
-    <div class="grid grid-cols-2 md:grid-cols-5 gap-3">
+  <section class="mb-12">
+    <h2 class="sentinel-label mb-6 italic px-2 flex items-center gap-2">
+       <span class="w-1 h-3 bg-gray-700"></span> 3. LOGÍSTICA DE CARTERAS (BALANCES INTERNOS)
+    </h2>
+    <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-5">
       <P2P />
       <Pay />
       <Red />
@@ -111,9 +140,13 @@ import ProyeccionGanancias from '../../components/dashboard/ProyeccionGanancias.
     </div>
   </section>
 
-  <section class="pb-20">
-    <h2 class="text-gray-500 text-[10px] font-black uppercase tracking-[0.2em] mb-4 italic font-bold">5. PANEL DE BANCOS (CONTROL DE VOLUMEN)</h2>
-    <Bancos />
+  <section class="pb-28">
+    <h2 class="sentinel-label mb-6 italic px-2 flex items-center gap-2">
+       <span class="w-1 h-3 bg-gray-700"></span> 5. PANEL DE BANCOS (CONTROL DE VOLUMEN)
+    </h2>
+    <div class="w-full">
+        <Bancos />
+    </div>
   </section>
 
   <script>
@@ -121,3 +154,13 @@ import ProyeccionGanancias from '../../components/dashboard/ProyeccionGanancias.
     initDashboard();
   </script>
 </DashboardLayout>
+
+<style>
+  .scrollbar-hide::-webkit-scrollbar { display: none; }
+  .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+  
+  /* Ajuste para el alto del botón de aplicar */
+  #kpi-apply-range {
+    height: 58px;
+  }
+</style>
