@@ -17,7 +17,6 @@ export function updateFiatSection(kpis = {}, bankInsights = []) {
     };
 
     // 1. Inicializamos acumuladores
-    let totalBalanceFiat = 0;
     let totalVendidoVES = 0;
     let totalCompradoVES = 0;
     let totalCountVendido = 0;
@@ -26,38 +25,38 @@ export function updateFiatSection(kpis = {}, bankInsights = []) {
     // 2. Sumarizamos la data de todos los bancos detectados
     if (bankInsights && bankInsights.length > 0) {
         bankInsights.forEach(bank => {
-            // Balances
-            totalBalanceFiat += (bank.fiatBalance || 0);
-
-            // Volúmenes (Usando la lógica de bancos.js)
-            // Vendido: Salida de VES (Generalmente asociado a Buys de Cripto en tu flujo)
-            // Comprado: Entrada de VES (Generalmente asociado a Sells de Cripto)
-            
+            // Volúmenes (Mantenemos tu lógica de cálculo de volumen)
             totalVendidoVES += (bank.volumeSellFiat || (bank.volumeSell * bank.sellRate) || 0);
             totalCompradoVES += (bank.volumeBuyFiat || (bank.volumeBuy * bank.buyRate) || 0);
             
-            // Operaciones (si tu API las entrega por banco, si no, se mantiene el global)
+            // Operaciones
             totalCountVendido += (bank.countSell || 0);
             totalCountComprado += (bank.countBuy || 0);
         });
     } else {
-        // Fallback: Si no hay array de bancos, intentar usar el objeto wallets general
-        totalBalanceFiat = kpis.wallets?.balanceFiat || 0;
-        // Aquí podrías usar ops.sells / ops.buys como respaldo
+        // Fallback: Si no hay array de bancos, usar el objeto kpis
         totalVendidoVES = kpis.operations?.sells?.totalFiat || 0;
         totalCompradoVES = kpis.operations?.buys?.totalFiat || 0;
     }
 
+    // --- CÁLCULO DE BALANCE NETO ---
+    // Si Comprado (Entradas) es mayor a Vendido (Salidas), el resultado es positivo (Ganancia/Flujo positivo)
+    const totalBalanceFiat = totalCompradoVES - totalVendidoVES;
+
     // 3. Inyección en UI
     
-    // Balance Total Sumarizado
-    if (ui.amount) ui.amount.textContent = fVES(totalBalanceFiat);
+    // Balance Total Sumarizado (Calculado como Neto)
+    if (ui.amount) {
+        ui.amount.textContent = fVES(totalBalanceFiat);
+        // Feedback visual: verde si es positivo o cero, rojo si es negativo
+        ui.amount.style.color = totalBalanceFiat >= 0 ? "#28a745" : "#dc3545";
+    }
 
-    // ROJO: Salidas/Vendido (Suma de todos los bancos)
+    // ROJO: Salidas/Vendido
     if (ui.withdrawalCount) ui.withdrawalCount.textContent = (totalCountVendido || kpis.operations?.sells?.count || 0).toString();
     if (ui.withdrawalVol) ui.withdrawalVol.textContent = fVES(totalVendidoVES);
 
-    // VERDE: Entradas/Comprado (Suma de todos los bancos)
+    // VERDE: Entradas/Comprado
     if (ui.depoCount) ui.depoCount.textContent = (totalCountComprado || kpis.operations?.buys?.count || 0).toString();
     if (ui.depoVol) ui.depoVol.textContent = fVES(totalCompradoVES);
 
