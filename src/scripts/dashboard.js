@@ -6,7 +6,6 @@ import { updateSwitchSection } from './dashboard/switch.js';
 import { updateP2PSection } from './dashboard/p2p.js';
 import { updateFiatSection } from './dashboard/fiat.js';
 import { updateCiclosUI } from './dashboard/ciclos.js';
-import { updateTasaUI } from './dashboard/tasa.js';
 import { updateProfitUI } from './dashboard/profit.js';
 import { updateComisionOperadorUI } from './dashboard/comisionOp.js';
 import { updateProyeccionesUI } from './dashboard/proyecciones.js';
@@ -87,8 +86,7 @@ export async function updateDashboard(API_BASE, token, alias, range = {}) {
             updateCiclosUI(kpis, bankInsights); 
         }
 
-        // --- MÓDULOS DE ANÁLISIS AVANZADO ---
-        updateTasaUI(kpis);             
+                    
         
         // Sincronizamos el Profit con el cálculo manual de bancos
         updateProfitUI(kpis, bankInsights);           
