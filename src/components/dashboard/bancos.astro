@@ -3,7 +3,7 @@ const banks = [
   { name: 'Mercantil', color: 'border-l-blue-600', id: 'mercantil' },
   { name: 'Banesco', color: 'border-l-green-600', id: 'banesco' },
   { name: 'BNC', color: 'border-l-orange-500', id: 'bnc' },
-  { name: 'Provincial', color: 'border-l-blue-900', id: 'provincial' },
+  { name: 'BBVA/Provincial', color: 'border-l-blue-900', id: 'provincial' },
   { name: 'Pago Movil', color: 'border-l-yellow-500', id: 'pagomovil' },
   { name: 'Bancamiga', color: 'border-l-green-800', id: 'bancamiga' },
   { name: 'BANK', color: 'border-l-yellow-500', id: 'bank' },
@@ -13,15 +13,28 @@ const banks = [
 
 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
   {banks.map(b => (
-    <div class={`bg-[#161a1e] border border-gray-800 rounded-2xl overflow-hidden border-l-[6px] ${b.color} shadow-xl flex flex-col transition-all hover:border-emerald-500/30 group`}>
+    <div id={`card-${b.id}`} class={`bg-[#161a1e] border border-gray-800 rounded-2xl overflow-hidden border-l-[6px] ${b.color} shadow-xl flex flex-col transition-all hover:border-emerald-500/30 group`}>
       
+      {/* 1. HEADER & PROFIT (CON ESTRELLA) */}
       <div class="p-4 border-b border-white/5 flex justify-between items-center bg-black/20">
-        <h3 class="sentinel-title">{b.name}</h3>
+        <div class="flex items-center gap-3">
+          <button 
+            onclick={`toggleFavorite('${b.id}')`}
+            id={`fav-${b.id}`}
+            class="text-gray-600 hover:text-yellow-400 transition-colors focus:outline-none"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 fill-current" viewBox="0 0 24 24">
+              <path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/>
+            </svg>
+          </button>
+          <h3 class="sentinel-title">{b.name}</h3>
+        </div>
         <span id={`bank-profit-${b.id}`} class="text-[#F3BA2F] font-mono text-[14px] font-bold italic tracking-tighter">0.00 USDT ≈ Profit</span>
       </div>
 
-      <div class="p-5 space-y-5">
+      <div class="p-5 space-y-5 flex-grow">
         
+        {/* 2. BALANCES & BREAKEVEN (IGUAL) */}
         <div class="grid grid-cols-2 gap-4">
           <div class="space-y-3">
             <div class="bg-white/[0.02] p-3 rounded-xl border border-white/5 shadow-inner">
@@ -33,7 +46,6 @@ const banks = [
               <p id={`bank-usdt-${b.id}`} class="sentinel-value-lg !text-[16px] text-emerald-400">0.00</p>
             </div>
           </div>
-
           <div class="bg-black/40 border border-white/5 rounded-xl p-3 flex flex-col justify-between relative overflow-hidden min-h-[110px]">
             <div class="text-center pb-1.5 border-b border-white/5">
                 <p class="text-[7px] text-rose-400 font-black uppercase tracking-widest mb-1 opacity-80 text-left px-1">Techo (-0.5%)</p>
@@ -49,6 +61,7 @@ const banks = [
           </div>
         </div>
 
+        {/* 3. RECOMPRA & BUYING POWER (IGUAL) */}
         <div class="bg-black/20 p-4 rounded-xl border border-white/5">
           <div class="flex justify-between text-[10px] uppercase font-black mb-2.5">
             <span class="text-gray-400 italic tracking-widest">Estado de Recompra</span>
@@ -71,10 +84,19 @@ const banks = [
           </div>
         </div>
 
+        {/* 4. BLOQUE TRF (TRANSFERENCIAS) */}
+        <div class="bg-yellow-500/[0.03] border border-yellow-500/10 rounded-xl overflow-hidden shadow-inner">
+          <div class="bg-yellow-500/10 px-3 py-1.5 flex justify-between items-center border-b border-yellow-500/10">
+              <div class="flex items-center gap-1.5">
+                <div class="w-1.5 h-1.5 bg-[#F3BA2F] rounded-full animate-pulse shadow-[0_0_5px_rgba(243,186,47,0.5)]"></div>
+                <span class="text-[8px] font-black text-[#F3BA2F] uppercase tracking-[0.15em]">Transferencias</span>
+              </div>
+              <span id={`bank-tr-ops-${b.id}`} class="text-[9px] font-mono font-bold text-[#F3BA2F]">0 OPS</span>
+          </div>
         <div class="grid grid-cols-2 gap-4 bg-black/10 p-3 rounded-xl border border-white/[0.03]">
           <div class="space-y-3 border-r border-white/10 pr-3">
             <div class="flex justify-between items-center">
-              <span class="text-rose-500 font-black uppercase italic text-[9px]">Tasa Venta</span>
+              <span class="text-rose-500 font-black uppercase italic text-[9px]">Venta TRF</span>
               <span id={`bank-sell-${b.id}`} class="text-white font-mono font-bold text-[13px]">0.00</span>
             </div>
             <div class="flex flex-col bg-black/30 p-2.5 rounded-lg border border-white/5 relative">
@@ -86,10 +108,9 @@ const banks = [
               </div>
             </div>
           </div>
-
           <div class="space-y-3 pl-3">
             <div class="flex justify-between items-center">
-              <span class="text-emerald-500 font-black uppercase italic text-[9px]">Tasa Compra</span>
+              <span class="text-emerald-500 font-black uppercase italic text-[9px]">Compra TRF</span>
               <span id={`bank-buy-${b.id}`} class="text-white font-mono font-bold text-[13px]">0.00</span>
             </div>
             <div class="flex flex-col bg-black/30 p-2.5 rounded-lg border border-white/5 relative">
@@ -102,7 +123,54 @@ const banks = [
             </div>
           </div>
         </div>
+        </div>
 
+        {/* 5. BLOQUE PAGO MOVIL (EXTENDIDO) */}
+        <div class="bg-yellow-500/[0.03] border border-yellow-500/10 rounded-xl overflow-hidden shadow-inner">
+           <div class="bg-yellow-500/10 px-3 py-1.5 flex justify-between items-center border-b border-yellow-500/10">
+              <div class="flex items-center gap-1.5">
+                <div class="w-1.5 h-1.5 bg-[#F3BA2F] rounded-full animate-pulse shadow-[0_0_5px_rgba(243,186,47,0.5)]"></div>
+                <span class="text-[8px] font-black text-[#F3BA2F] uppercase tracking-[0.15em]">Pago Móvil</span>
+              </div>
+              <span id={`bank-pm-ops-${b.id}`} class="text-[9px] font-mono font-bold text-[#F3BA2F]">0 OPS</span>
+           </div>
+           
+           <div class="p-3 grid grid-cols-2 gap-4">
+              {/* Venta PM */}
+              <div class="space-y-2 border-r border-white/10 pr-2">
+                <div class="flex justify-between items-center">
+                  <span class="text-rose-400 font-bold text-[8px] uppercase">Venta PM</span>
+                  <span id={`bank-sell-pm-${b.id}`} class="text-white font-mono text-[11px] font-bold">0.00</span>
+                </div>
+                <div class="bg-black/30 p-2 rounded-lg border border-white/5">
+                  <p id={`bank-vol-sell-pm-${b.id}`} class="text-white font-mono text-[9px] truncate">0.00 VES</p>
+                  <div class="flex justify-between mt-1 border-t border-white/5 pt-1">
+                    <span class="text-[6px] text-rose-400 font-bold">FEE:</span>
+                    <span id={`bank-fee-sell-pm-${b.id}`} class="text-[8px] text-rose-400 font-mono">0.00</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Compra PM */}
+              <div class="space-y-2 pl-2">
+                <div class="flex justify-between items-center">
+                  <span class="text-emerald-400 font-bold text-[8px] uppercase">Compra PM</span>
+                  <span id={`bank-buy-pm-${b.id}`} class="text-white font-mono text-[11px] font-bold">0.00</span>
+                </div>
+                <div class="bg-black/30 p-2 rounded-lg border border-white/5">
+                  <p id={`bank-vol-buy-pm-${b.id}`} class="text-white font-mono text-[9px] truncate">0.00 VES</p>
+                  <div class="flex justify-between mt-1 border-t border-white/5 pt-1">
+                    <span class="text-[6px] text-emerald-400 font-bold">FEE:</span>
+                    <span id={`bank-fee-buy-pm-${b.id}`} class="text-[8px] text-emerald-400 font-mono">0.00</span>
+                  </div>
+                </div>
+              </div>
+           </div>
+           {/* Resumen USDT PM */}
+           
+        </div>
+
+        {/* 6. FOOTER: VUELTAS & MARGEN (IGUAL) */}
         <div class="pt-4 border-t border-white/10 flex justify-between items-center mt-auto">
           <div id={`bank-ctot-container-${b.id}`} class="flex items-center gap-2 bg-emerald-500/10 px-3 py-1.5 rounded-xl border border-emerald-500/20 shadow-lg">
              <span class="text-[15px] font-black text-emerald-400 leading-none" id={`bank-ctot-${b.id}`}>0</span>
@@ -116,3 +184,27 @@ const banks = [
     </div>
   ))}
 </div>
+
+<script is:inline>
+  function toggleFavorite(id) {
+    const btn = document.getElementById(`fav-${id}`);
+    const isFav = btn.classList.contains('text-yellow-400');
+    
+    if (isFav) {
+      btn.classList.remove('text-yellow-400');
+      btn.classList.add('text-gray-600');
+    } else {
+      btn.classList.add('text-yellow-400');
+      btn.classList.remove('text-gray-600');
+    }
+    // Opcional: Guardar en localStorage
+    const favorites = JSON.parse(localStorage.getItem('favBanks') || '[]');
+    if (isFav) {
+      const index = favorites.indexOf(id);
+      if (index > -1) favorites.splice(index, 1);
+    } else {
+      favorites.push(id);
+    }
+    localStorage.setItem('favBanks', JSON.stringify(favorites));
+  }
+</script>
