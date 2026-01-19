@@ -34,21 +34,17 @@ const banks = [
             </div>
           </div>
 
-          <div class="bg-black/40 border border-white/5 rounded-xl p-3 flex flex-col justify-between relative overflow-hidden group/be min-h-[110px]">
+          <div class="bg-black/40 border border-white/5 rounded-xl p-3 flex flex-col justify-between relative overflow-hidden min-h-[110px]">
             <div class="text-center pb-1.5 border-b border-white/5">
                 <p class="text-[7px] text-rose-400 font-black uppercase tracking-widest mb-1 opacity-80 text-left px-1">Techo (-0.5%)</p>
                 <p id={`bank-breakeven-${b.id}`} class="text-[17px] font-black text-white leading-none tracking-tighter">0.00</p>
             </div>
-
             <div class="text-center pt-1.5">
                 <p class="text-[7px] text-emerald-400 font-black uppercase tracking-widest mb-1 opacity-80 text-left px-1">Ideal (-1.0%)</p>
                 <p id={`bank-ideal-${b.id}`} class="text-[17px] font-black text-white leading-none tracking-tighter">0.00</p>
             </div>
-
             <div class="mt-2 text-center">
-                <span id={`bank-be-info-${b.id}`} class="text-[7px] px-2 py-0.5 rounded-full bg-white/5 text-gray-500 font-bold uppercase tracking-tighter">
-                    Esperando...
-                </span>
+                <span id={`bank-be-info-${b.id}`} class="text-[7px] px-2 py-0.5 rounded-full bg-white/5 text-gray-500 font-bold uppercase tracking-tighter">Esperando...</span>
             </div>
           </div>
         </div>
@@ -81,9 +77,13 @@ const banks = [
               <span class="text-rose-500 font-black uppercase italic text-[9px]">Tasa Venta</span>
               <span id={`bank-sell-${b.id}`} class="text-white font-mono font-bold text-[13px]">0.00</span>
             </div>
-            <div class="flex flex-col bg-black/30 p-2.5 rounded-lg border border-white/5">
-              <span class="sentinel-label !text-[8px] mb-1 opacity-60">Vol. Vendido</span>
+            <div class="flex flex-col bg-black/30 p-2.5 rounded-lg border border-white/5 relative">
+              <span class="sentinel-label !text-[8px] mb-1 opacity-60 uppercase">Vendido</span>
               <span id={`bank-vol-sell-${b.id}`} class="text-white font-mono text-[10px] font-bold truncate">0.00 VES</span>
+              <div class="flex justify-between items-center mt-1 border-t border-white/5 pt-1">
+                <span class="text-[7px] text-rose-400 font-bold uppercase">Fee:</span>
+                <span id={`bank-fee-sell-${b.id}`} class="text-[9px] text-rose-400 font-mono font-bold">0.00</span>
+              </div>
             </div>
           </div>
 
@@ -92,9 +92,13 @@ const banks = [
               <span class="text-emerald-500 font-black uppercase italic text-[9px]">Tasa Compra</span>
               <span id={`bank-buy-${b.id}`} class="text-white font-mono font-bold text-[13px]">0.00</span>
             </div>
-            <div class="flex flex-col bg-black/30 p-2.5 rounded-lg border border-white/5">
-              <span class="sentinel-label !text-[8px] mb-1 opacity-60">Vol. Comprado</span>
+            <div class="flex flex-col bg-black/30 p-2.5 rounded-lg border border-white/5 relative">
+              <span class="sentinel-label !text-[8px] mb-1 opacity-60 uppercase">Comprado</span>
               <span id={`bank-vol-buy-${b.id}`} class="text-white font-mono text-[10px] font-bold truncate">0.00 VES</span>
+              <div class="flex justify-between items-center mt-1 border-t border-white/5 pt-1">
+                <span class="text-[7px] text-emerald-400 font-bold uppercase">Fee:</span>
+                <span id={`bank-fee-buy-${b.id}`} class="text-[9px] text-emerald-400 font-mono font-bold">0.00</span>
+              </div>
             </div>
           </div>
         </div>
@@ -108,7 +112,6 @@ const banks = [
             0.00%
           </div>
         </div>
-
       </div>
     </div>
   ))}

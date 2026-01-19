@@ -1,4 +1,4 @@
-// 1. IMPORTACIONES (Preservadas todas tus rutas originales)
+// 1. IMPORTACIONES (Preservadas todas tus rutas originales + Sidebar)
 import { fUSDT, fVES, inject } from './dashboard/utils.js';
 import { updateRedSection } from './dashboard/red.js';
 import { updatePaySection } from './dashboard/pay.js';
@@ -12,6 +12,7 @@ import { updateProyeccionesUI } from './dashboard/proyecciones.js';
 import { updateComisionesUI } from './dashboard/comisiones.js';
 import { updateOperacionesUI } from './dashboard/operaciones.js';
 import { updateBancosUI } from './dashboard/bancos.js';
+import { updateSidebarMonitor } from './dashboard/SidebarMonitor.js';
 
 /**
  * 2. FUNCIÓN DE INICIALIZACIÓN
@@ -75,10 +76,24 @@ export async function updateDashboard(API_BASE, token, alias, range = {}) {
         const cumulativeProfit = bankInsights.reduce((acc, bank) => acc + (bank.profit || 0), 0);
 
         // --- ACTUALIZACIÓN DE MÉTRICAS BASE (Mantenemos integridad de IDs) ---
-        updateMainKpis(kpis, cumulativeProfit); // Sincronizamos la card principal
+        updateMainKpis(kpis, cumulativeProfit); 
         updateRatesCard(kpis);
-        updateComisionesUI(kpis.operations);
+        updateComisionesUI(kpis); 
         updateOperacionesUI(kpis);
+
+        // --- MONITOR LATERAL (CONEXIÓN CRÍTICA SINCRONIZADA) ---
+        if (kpis) {
+            // Aseguramos que el Sidebar reciba el profit calculado manualmente para que coincida con el Body
+            // Detectamos dinámicamente dónde inyectar el valor según la estructura de la API
+            const summaryKey = kpis.metrics ? 'metrics' : (kpis.summary ? 'summary' : 'kpis');
+            if (!kpis[summaryKey]) kpis[summaryKey] = {};
+            
+            // Sincronización de valor Profit
+            kpis[summaryKey].totalProfit = cumulativeProfit; 
+            
+            // Actualización del monitor
+            updateSidebarMonitor(kpis, bankInsights);
+        }
 
         // --- PANEL DE BANCOS E INSIGHTS ---
         if (bankInsights.length > 0) {
@@ -86,8 +101,6 @@ export async function updateDashboard(API_BASE, token, alias, range = {}) {
             updateCiclosUI(kpis, bankInsights); 
         }
 
-                    
-        
         // Sincronizamos el Profit con el cálculo manual de bancos
         updateProfitUI(kpis, bankInsights);           
         
@@ -96,7 +109,7 @@ export async function updateDashboard(API_BASE, token, alias, range = {}) {
         
         updateProyeccionesUI(kpis);    
 
-        // --- SECCIONES DE CARTERAS (LOGÍSTICA - No se toca ni un ID) ---
+        // --- SECCIONES DE CARTERAS (LOGÍSTICA) ---
         updateRedSection(kpis);
         updatePaySection(kpis);
         updateSwitchSection(kpis);
@@ -117,7 +130,9 @@ export async function updateDashboard(API_BASE, token, alias, range = {}) {
     }
 }
 
-// --- FUNCIONES AUXILIARES (Preservadas intactas) ---
+/**
+ * 4. FUNCIONES AUXILIARES
+ */
 function pad(n) { return String(n).padStart(2, '0'); }
 function toYmd(date) { return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`; }
 
@@ -201,23 +216,14 @@ function pct(value) {
     return `${num.toFixed(2)}%`;
 }
 
-/**
- * MODIFICACIÓN SEGURA: Sincronización de Profit
- */
 function updateMainKpis(kpis = {}, manualProfit = null) {
     const summary = kpis.metrics || kpis.kpis || kpis.summary || {};
-    
-    // Mantenemos tus inyecciones originales sin cambiar IDs
     inject('kpi-balance', fUSDT(summary.totalBalance ?? summary.balance ?? 0));
-    
     const beValue = summary.minBuyRate || summary.breakEven;
     inject('kpi-breakeven', beValue ? (typeof beValue === 'number' ? beValue.toFixed(2) : beValue) : '---');
     inject('kpi-margin', summary.globalMarginPct !== undefined ? pct(summary.globalMarginPct) : '---', true);
-    
-    // Aquí usamos el profit calculado de los bancos para que la card principal coincida con la auditoría
     const profitToDisplay = (manualProfit !== null) ? manualProfit : (summary.totalProfit ?? summary.profit ?? 0);
     inject('kpi-profit', fUSDT(profitToDisplay), true);
-    
     inject('kpi-cycle', fUSDT(summary.cycleProfit ?? summary.cycleGain ?? 0), true);
 }
 
