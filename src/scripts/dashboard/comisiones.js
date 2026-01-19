@@ -1,56 +1,64 @@
-// src/scripts/dashboard/comisiones.js
 import { fUSDT } from './utils.js';
 
 /**
- * Procesa y actualiza la sección de Comisiones
- * @param {Object} operations - Objeto operations del backend
+ * Procesa y actualiza la sección de Comisiones sumando los datos de los bancos
+ * @param {Object} data - El objeto completo (contiene bankInsights)
  */
-export function updateComisionesUI(operations = {}) {
-    // Intentamos obtener el objeto de comisiones, fallback a objeto vacío si no existe
-    const commissions = operations.commissions || {};
+export function updateComisionesUI(data = {}) {
+    // 1. OBTENCIÓN DE DATOS (Buscamos bankInsights que es lo que inyecta updateDashboard)
+    const insights = data.bankInsights || data.insights || [];
 
-    // Mapeo de IDs del DOM (incluyendo los nuevos campos de montos)
+    // Mapeo de IDs del DOM
     const ui = {
         balance: document.getElementById('fee-balance-total'),
+        salesAmount: document.getElementById('fee-sales-amount'),
+        buysAmount: document.getElementById('fee-buys-amount'),
         totalOps: document.getElementById('fee-ops-count'),
         salesOps: document.getElementById('fee-sales-count'),
-        buysOps: document.getElementById('fee-buys-count'),
-        salesAmount: document.getElementById('fee-sales-amount'),
-        buysAmount: document.getElementById('fee-buys-amount')
+        buysOps: document.getElementById('fee-buys-count')
     };
 
-    // Si el elemento principal no existe, abortamos
     if (!ui.balance) return;
 
-    // 1. CÁLCULO Y NORMALIZACIÓN DE DATOS
-    // Montos (Dinero)
-    const totalFeeMoney = Number(commissions.total || 0);
-    const amountSales = Number(commissions.totalSells || commissions.amountSales || 0);
-    const amountBuys = Number(commissions.totalBuys || commissions.amountBuys || 0);
+    // 2. ACUMULADORES MANUALES
+    let totalFeesVentas = 0;
+    let totalFeesCompras = 0;
+    let totalOpsVentas = 0;
+    let totalOpsCompras = 0;
 
-    // Conteos (Cantidad de Ops)
-    const countTotal = commissions.operationsWithCommission || 0;
-    const countSales = commissions.sellsWithCommission || 0;
-    const countBuys = commissions.buysWithCommission || 0;
+    // 3. SUMA DETALLADA BANCO POR BANCO
+    insights.forEach(b => {
+        // Sumamos Montos (Fees en USDT)
+        // Probamos varias combinaciones de nombres por si la API cambia
+        totalFeesVentas += Number(b.feeSell || b.totalFeeSell || 0);
+        totalFeesCompras += Number(b.feeBuy || b.totalFeeBuy || 0);
 
-    // 2. INYECCIÓN EN LA INTERFAZ CON CLASES DE SEGURIDAD
-    // Balance principal
-    ui.balance.textContent = fUSDT(totalFeeMoney);
+        // Sumamos Cantidad de Operaciones
+        totalOpsVentas += Number(b.countSell || b.sellCount || 0);
+        totalOpsCompras += Number(b.countBuy || b.buyCount || 0);
+    });
 
-    // Montos detallados (Los bloques de colores)
-    if (ui.salesAmount) ui.salesAmount.textContent = fUSDT(amountSales).replace('USDT', '');
-    if (ui.buysAmount) ui.buysAmount.textContent = fUSDT(amountBuys).replace('USDT', '');
+    const totalGlobal = totalFeesVentas + totalFeesCompras;
+    const totalOpsGlobal = totalOpsVentas + totalOpsCompras;
 
-    // Conteos de operaciones
-    if (ui.totalOps) ui.totalOps.textContent = countTotal.toLocaleString();
-    if (ui.salesOps) ui.salesOps.textContent = countSales.toLocaleString();
-    if (ui.buysOps) ui.buysOps.textContent = countBuys.toLocaleString();
+    // 4. INYECCIÓN EN LA INTERFAZ
+    // Total Global
+    ui.balance.textContent = fUSDT(totalGlobal);
 
-    // 3. EFECTO VISUAL DINÁMICO
-    // Si el balance es muy alto (ej. > 100), podemos resaltar el texto
-    if (totalFeeMoney > 0) {
-        ui.balance.classList.add('text-white');
-    } else {
-        ui.balance.classList.add('text-gray-600');
+    // Desglose de Ventas
+    if (ui.salesAmount) ui.salesAmount.textContent = totalFeesVentas.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    if (ui.salesOps) ui.salesOps.textContent = totalOpsVentas.toLocaleString();
+
+    // Desglose de Compras
+    if (ui.buysAmount) ui.buysAmount.textContent = totalFeesCompras.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    if (ui.buysOps) ui.buysOps.textContent = totalOpsCompras.toLocaleString();
+
+    // Contador Total Arriba
+    if (ui.totalOps) ui.totalOps.textContent = totalOpsGlobal.toLocaleString();
+
+    // 5. ESTILO VISUAL
+    if (totalGlobal > 0) {
+        ui.balance.classList.add('text-[#F3BA2F]'); 
+        ui.balance.classList.remove('text-white');
     }
 }

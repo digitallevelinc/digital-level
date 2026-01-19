@@ -1,9 +1,14 @@
 import { fUSDT, fVES } from './utils.js';
 
+/**
+ * Actualiza la UI de los Bancos con lógica de Arbitraje, Break Even y Comisiones Reintegradas.
+ * @param {Array} insights - Data procesada desde el backend
+ */
 export function updateBancosUI(insights = []) {
     if (!insights || insights.length === 0) return;
 
     insights.forEach(b => {
+        // Normalización de ID para conectar con el DOM
         const id = b.id || b.bank?.toLowerCase().replace(/\s+/g, '-') || 'unknown';
 
         const ui = {
@@ -16,6 +21,9 @@ export function updateBancosUI(insights = []) {
             buy: document.getElementById(`bank-buy-${id}`),
             volSell: document.getElementById(`bank-vol-sell-${id}`),
             volBuy: document.getElementById(`bank-vol-buy-${id}`),
+            // SELECTORES DE COMISIONES (Reintegrados)
+            feeSell: document.getElementById(`bank-fee-sell-${id}`),
+            feeBuy: document.getElementById(`bank-fee-buy-${id}`),
             profit: document.getElementById(`bank-profit-${id}`),
             margin: document.getElementById(`bank-margin-${id}`),
             barRecompra: document.getElementById(`bank-bar-recompra-${id}`),
@@ -28,17 +36,19 @@ export function updateBancosUI(insights = []) {
             ctotContainer: document.getElementById(`bank-ctot-container-${id}`)
         };
 
-        // --- EXTRACCIÓN DE TASAS PONDERADAS ---
+        // --- EXTRACCIÓN DE DATOS ---
         const sellRate = Number(b.sellRate || 0); 
-        const buyRate = Number(b.buyRate || 0); // Costo real ponderado
+        const buyRate = Number(b.buyRate || 0); 
         const fiatBalance = Number(b.fiatBalance || 0);
         const usdtBalance = Number(b.usdtBalance || 0);
         const nVentas = Number(b.countSell || b.sellCount || 0);
         const nCompras = Number(b.countBuy || b.buyCount || 0);
+        const commissionSell = Number(b.feeSell || 0);
+        const commissionBuy = Number(b.feeBuy || 0);
 
-        // --- LÓGICA DE RANGO DE ARBITRAJE ---
-        const tasaTecho = sellRate * 0.995; // Techo Crítico (-0.5%)
-        const tasaIdeal = sellRate * 0.990; // Zona de Profit (-1.0%)
+        // --- 1. LÓGICA DE RANGO DE ARBITRAJE (Techo vs Ideal) ---
+        const tasaTecho = sellRate * 0.995; // Límite crítico (-0.5%)
+        const tasaIdeal = sellRate * 0.990; // Punto óptimo (-1.0%)
 
         if (ui.breakeven) {
             ui.breakeven.textContent = tasaTecho.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -47,7 +57,7 @@ export function updateBancosUI(insights = []) {
             ui.ideal.textContent = tasaIdeal.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
         }
 
-        // --- SEMÁFORO DE ESTADO ---
+        // --- 2. SEMÁFORO DE ESTADO ---
         if (ui.beInfo) {
             if (buyRate > tasaTecho && buyRate > 0) {
                 ui.beInfo.textContent = "⚠️ PERDIDA";
@@ -67,27 +77,34 @@ export function updateBancosUI(insights = []) {
             }
         }
 
-        // --- BALANCES ---
+        // --- 3. ACTUALIZACIÓN DE BALANCES ---
         if (ui.fiat) ui.fiat.textContent = fVES(fiatBalance);
         if (ui.usdt) ui.usdt.textContent = fUSDT(usdtBalance).replace('USDT', '');
 
-        // --- TASAS Y VOLÚMENES ---
+        // --- 4. TASAS, VOLÚMENES Y COMISIONES ---
         if (ui.sell) ui.sell.textContent = sellRate.toFixed(2);
         if (ui.buy) ui.buy.textContent = buyRate.toFixed(2);
+        
         const vSellFiat = Number(b.volumeSellFiat || (nVentas > 0 ? (b.volumeSell * sellRate) : 0));
         const vBuyFiat = Number(b.volumeBuyFiat || (nCompras > 0 ? (b.volumeBuy * buyRate) : 0));
+        
         if (ui.volSell) ui.volSell.textContent = fVES(vSellFiat);
         if (ui.volBuy) ui.volBuy.textContent = fVES(vBuyFiat);
 
-        // --- PROFIT NETO ---
-        const totalFees = Number(b.feeBuy || 0) + Number(b.feeSell || 0);
+        // Inyección de comisiones por card
+        if (ui.feeSell) ui.feeSell.textContent = fUSDT(commissionSell).replace('USDT', '');
+        if (ui.feeBuy) ui.feeBuy.textContent = fUSDT(commissionBuy).replace('USDT', '');
+
+        // --- 5. PROFIT NETO (Deduciendo comisiones reales) ---
+        const totalFees = commissionSell + commissionBuy;
         const netProfit = Number(b.profit || 0) - totalFees;
+        
         if (ui.profit) {
             ui.profit.textContent = `${fUSDT(netProfit)} ≈ Profit`;
             ui.profit.className = `font-mono text-[14px] font-bold italic ${netProfit >= 0 ? 'text-[#F3BA2F]' : 'text-rose-500'}`;
         }
 
-        // --- BARRA DE CICLO ---
+        // --- 6. BARRA DE CICLO ---
         if (ui.barRecompra && ui.barComprado && ui.barProfit) {
             const fiatInUsdt = sellRate > 0 ? (fiatBalance / sellRate) : 0;
             const profitActual = netProfit > 0 ? netProfit : 0; 
@@ -97,25 +114,30 @@ export function updateBancosUI(insights = []) {
                 ui.barRecompra.style.width = `${(fiatInUsdt / totalCycle) * 100}%`;
                 ui.barComprado.style.width = `${(usdtBalance / totalCycle) * 100}%`;
                 ui.barProfit.style.width = `${(profitActual / totalCycle) * 100}%`;
+                
                 if (ui.cycleText) {
                     const progress = Math.round(((usdtBalance + profitActual) / totalCycle) * 100);
                     const isClosed = fiatBalance < 50 && nVentas > 0;
                     ui.cycleText.textContent = isClosed ? "Completado" : `${progress}%`;
+                    ui.cycleText.className = isClosed ? "text-emerald-400 font-bold italic" : "text-[#F3BA2F]";
                 }
             }
         }
 
-        // --- OPERACIONES Y PODER RECOMPRA ---
+        // --- 7. MÁRGENES Y PODER DE RECOMPRA ---
         if (ui.margin) ui.margin.textContent = `${Number(b.margin || 0).toFixed(2)}%`;
+        
         if (ui.opsCount) {
             const totalOps = nVentas + nCompras;
             ui.opsCount.textContent = `${totalOps} / 1k`;
             ui.opsCount.className = `font-mono text-[12px] font-bold ${totalOps >= 800 ? 'text-rose-500 animate-pulse' : totalOps >= 500 ? 'text-orange-400' : 'text-emerald-400'}`;
         }
+
         if (ui.buyingPower) {
             const power = buyRate > 0 ? (fiatBalance / buyRate) : 0;
             ui.buyingPower.textContent = `≈ ${fUSDT(power)}`;
         }
+
         if (ui.ctot) ui.ctot.textContent = nVentas;
     });
 }

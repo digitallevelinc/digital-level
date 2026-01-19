@@ -1,5 +1,6 @@
 ---
 import '../styles/global.css';
+import SidebarMonitor from '../components/dashboard/SidebarMonitor.astro';
 ---
 <!doctype html>
 <html lang="es">
@@ -13,7 +14,7 @@ import '../styles/global.css';
     <body class="bg-[#0b0e11] text-white min-h-screen font-sans selection:bg-[#F3BA2F]/30 overflow-x-hidden">
         
         <header class="sticky top-0 z-50 bg-[#0b0e11]/80 backdrop-blur-md border-b border-gray-800/50 px-4 py-3 md:px-8 md:py-4">
-            <div class="max-w-[1600px] mx-auto flex items-center justify-between">
+            <div class="w-full mx-auto flex items-center justify-between">
                 <div class="flex items-center gap-3">
                     <img src="/img/logo.png" class="w-8 h-8 md:w-10 md:h-10 object-contain" alt="Logo" />
                     <div class="flex flex-col">
@@ -34,11 +35,13 @@ import '../styles/global.css';
             </div>
         </header>
 
-        <main class="p-4 md:p-8 lg:p-10 max-w-[1600px] mx-auto">
+        <SidebarMonitor />
+
+        <main class="p-4 md:p-8 lg:p-10 w-full transition-all duration-500">
             <slot />
         </main>
 
-        <footer class="p-8 text-center border-t border-gray-900">
+        <footer class="p-8 text-center border-t border-gray-900 w-full">
             <p class="text-[9px] text-gray-600 font-black uppercase tracking-[0.3em]">
                 &copy; 2026 DIGITAL LEVEL Sentinel System
             </p>
@@ -47,41 +50,21 @@ import '../styles/global.css';
 </html>
 
 <style is:global>
-    /* --- SISTEMA DE TIPOGRAFÍA CENTRALIZADO --- */
-    
-    /* 1. Títulos de Tarjetas (Bancos, Ciclos) */
-    .sentinel-title {
-        @apply text-[14px] font-black uppercase italic tracking-widest text-white;
-    }
+    /* Tu sistema de tipografía se mantiene igual */
+    .sentinel-title { @apply text-[14px] font-black uppercase italic tracking-widest text-white; }
+    .sentinel-label { @apply text-[11px] text-gray-500 uppercase font-black tracking-widest; }
+    .sentinel-value-md { @apply text-[13px] font-mono font-bold text-white tracking-tighter; }
+    .sentinel-value-lg { @apply text-[17px] font-mono font-bold text-white tracking-tighter; }
+    .sentinel-kpi-huge { @apply text-5xl font-black text-emerald-400 tracking-tighter; }
 
-    /* 2. Etiquetas de datos (Label: FIAT, USDT, Tasa) */
-    .sentinel-label {
-        @apply text-[11px] text-gray-500 uppercase font-black tracking-widest;
-    }
-
-    /* 3. Valores Numéricos Estándar (Tasas, Vueltas) */
-    .sentinel-value-md {
-        @apply text-[13px] font-mono font-bold text-white tracking-tighter;
-    }
-
-    /* 4. Valores Principales (Balances, Profits) */
-    .sentinel-value-lg {
-        @apply text-[17px] font-mono font-bold text-white tracking-tighter;
-    }
-
-    /* 5. KPI Gigante (Profit Central) */
-    .sentinel-kpi-huge {
-        @apply text-5xl font-black text-emerald-400 tracking-tighter;
-    }
-
-    /* --- RESET & UTILS --- */
     ::-webkit-scrollbar { width: 6px; height: 6px; }
     ::-webkit-scrollbar-track { background: #0b0e11; }
     ::-webkit-scrollbar-thumb { background: #1f2937; border-radius: 10px; }
     ::-webkit-scrollbar-thumb:hover { background: #F3BA2F; }
 
     html, body {
-        max-width: 100vw;
+        width: 100%;
+        max-width: 100%;
         overflow-x: hidden;
     }
 </style>
