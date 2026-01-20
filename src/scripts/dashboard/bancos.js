@@ -1,143 +1,113 @@
+// src/scripts/dashboard/bancos.js
 import { fUSDT, fVES } from './utils.js';
 
-/**
- * Actualiza la UI de los Bancos con lógica de Arbitraje, Break Even y Comisiones Reintegradas.
- * @param {Array} insights - Data procesada desde el backend
- */
 export function updateBancosUI(insights = []) {
-    if (!insights || insights.length === 0) return;
+    if (!insights) return;
 
     insights.forEach(b => {
-        // Normalización de ID para conectar con el DOM
-        const id = b.id || b.bank?.toLowerCase().replace(/\s+/g, '-') || 'unknown';
+        // Normalización del ID para coincidir con el .astro
+        const id = b.bank.toLowerCase().split(' ')[0].replace(/\s+/g, '');
 
         const ui = {
             fiat: document.getElementById(`bank-fiat-${id}`),
             usdt: document.getElementById(`bank-usdt-${id}`),
-            breakeven: document.getElementById(`bank-breakeven-${id}`),
-            ideal: document.getElementById(`bank-ideal-${id}`),
-            beInfo: document.getElementById(`bank-be-info-${id}`),
-            sell: document.getElementById(`bank-sell-${id}`),
             buy: document.getElementById(`bank-buy-${id}`),
-            volSell: document.getElementById(`bank-vol-sell-${id}`),
+            sell: document.getElementById(`bank-sell-${id}`),
             volBuy: document.getElementById(`bank-vol-buy-${id}`),
-            // SELECTORES DE COMISIONES (Reintegrados)
-            feeSell: document.getElementById(`bank-fee-sell-${id}`),
+            volSell: document.getElementById(`bank-vol-sell-${id}`),
             feeBuy: document.getElementById(`bank-fee-buy-${id}`),
+            feeSell: document.getElementById(`bank-fee-sell-${id}`),
             profit: document.getElementById(`bank-profit-${id}`),
             margin: document.getElementById(`bank-margin-${id}`),
+            // Elementos de la nueva barra triple
             barRecompra: document.getElementById(`bank-bar-recompra-${id}`),
             barComprado: document.getElementById(`bank-bar-comprado-${id}`),
             barProfit: document.getElementById(`bank-bar-profit-${id}`),
-            cycleText: document.getElementById(`bank-cycle-text-${id}`),
-            opsCount: document.getElementById(`bank-ops-count-${id}`),
-            buyingPower: document.getElementById(`bank-buying-power-${id}`),
-            ctot: document.getElementById(`bank-ctot-${id}`),
-            ctotContainer: document.getElementById(`bank-ctot-container-${id}`)
+            cycleText: document.getElementById(`bank-cycle-text-${id}`)
         };
 
-        // --- EXTRACCIÓN DE DATOS ---
-        const sellRate = Number(b.sellRate || 0); 
-        const buyRate = Number(b.buyRate || 0); 
-        const fiatBalance = Number(b.fiatBalance || 0);
-        const usdtBalance = Number(b.usdtBalance || 0);
-        const nVentas = Number(b.countSell || b.sellCount || 0);
-        const nCompras = Number(b.countBuy || b.buyCount || 0);
-        const commissionSell = Number(b.feeSell || 0);
-        const commissionBuy = Number(b.feeBuy || 0);
+        // 1. Datos Básicos
+        // 1. Datos Básicos
+        const fiatBal = b.fiatBalance ?? b.currentCycleFiatRemaining ?? 0;
+        const usdtBal = b.usdtBalance ?? b.currentCycleRecoveredUSDT ?? 0;
+        const bankProfit = b.profit ?? b.currentCycleProfitUSDT ?? 0;
 
-        // --- 1. LÓGICA DE RANGO DE ARBITRAJE (Techo vs Ideal) ---
-        const tasaTecho = sellRate * 0.995; // Límite crítico (-0.5%)
-        const tasaIdeal = sellRate * 0.990; // Punto óptimo (-1.0%)
+        if (ui.fiat) ui.fiat.textContent = fVES(fiatBal);
+        if (ui.usdt) ui.usdt.textContent = fUSDT(usdtBal);
+        if (ui.buy) ui.buy.textContent = b.buyRate || '0.00';
+        if (ui.sell) ui.sell.textContent = b.sellRate || '0.00';
 
-        if (ui.breakeven) {
-            ui.breakeven.textContent = tasaTecho.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-        }
-        if (ui.ideal) {
-            ui.ideal.textContent = tasaIdeal.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-        }
+        // CORRECCIÓN: Usamos los campos explícitos de Fiat y Fees del backend
+        if (ui.volBuy) ui.volBuy.textContent = fVES(b.buyFiat || 0);
+        if (ui.volSell) ui.volSell.textContent = fVES(b.sellFiat || 0);
 
-        // --- 2. SEMÁFORO DE ESTADO ---
-        if (ui.beInfo) {
-            if (buyRate > tasaTecho && buyRate > 0) {
-                ui.beInfo.textContent = "⚠️ PERDIDA";
-                ui.beInfo.className = "text-[7px] px-2 py-0.5 rounded-full bg-rose-500/20 text-rose-500 font-bold animate-pulse";
-                if (ui.breakeven) ui.breakeven.className = "text-[17px] font-black text-rose-500";
-            } 
-            else if (buyRate <= tasaTecho && buyRate > tasaIdeal) {
-                ui.beInfo.textContent = "⚖️ LIMITE";
-                ui.beInfo.className = "text-[7px] px-2 py-0.5 rounded-full bg-yellow-500/20 text-yellow-500 font-bold";
-                if (ui.breakeven) ui.breakeven.className = "text-[17px] font-black text-white";
-                if (ui.ideal) ui.ideal.className = "text-[17px] font-black text-white";
-            }
-            else if (buyRate <= tasaIdeal && buyRate > 0) {
-                ui.beInfo.textContent = "💎 OPTIMO";
-                ui.beInfo.className = "text-[7px] px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-500 font-bold";
-                if (ui.ideal) ui.ideal.className = "text-[17px] font-black text-emerald-400";
-            }
-        }
+        // Fees
+        if (ui.feeBuy) ui.feeBuy.textContent = fUSDT(b.feeBuy || 0);
+        if (ui.feeSell) ui.feeSell.textContent = fUSDT(b.feeSell || 0);
 
-        // --- 3. ACTUALIZACIÓN DE BALANCES ---
-        if (ui.fiat) ui.fiat.textContent = fVES(fiatBalance);
-        if (ui.usdt) ui.usdt.textContent = fUSDT(usdtBalance).replace('USDT', '');
+        if (ui.profit) ui.profit.textContent = `${fUSDT(bankProfit)} ≈ Profit`;
 
-        // --- 4. TASAS, VOLÚMENES Y COMISIONES ---
-        if (ui.sell) ui.sell.textContent = sellRate.toFixed(2);
-        if (ui.buy) ui.buy.textContent = buyRate.toFixed(2);
-        
-        const vSellFiat = Number(b.volumeSellFiat || (nVentas > 0 ? (b.volumeSell * sellRate) : 0));
-        const vBuyFiat = Number(b.volumeBuyFiat || (nCompras > 0 ? (b.volumeBuy * buyRate) : 0));
-        
-        if (ui.volSell) ui.volSell.textContent = fVES(vSellFiat);
-        if (ui.volBuy) ui.volBuy.textContent = fVES(vBuyFiat);
-
-        // Inyección de comisiones por card
-        if (ui.feeSell) ui.feeSell.textContent = fUSDT(commissionSell).replace('USDT', '');
-        if (ui.feeBuy) ui.feeBuy.textContent = fUSDT(commissionBuy).replace('USDT', '');
-
-        // --- 5. PROFIT NETO (Deduciendo comisiones reales) ---
-        const totalFees = commissionSell + commissionBuy;
-        const netProfit = Number(b.profit || 0) - totalFees;
-        
-        if (ui.profit) {
-            ui.profit.textContent = `${fUSDT(netProfit)} ≈ Profit`;
-            ui.profit.className = `font-mono text-[14px] font-bold italic ${netProfit >= 0 ? 'text-[#F3BA2F]' : 'text-rose-500'}`;
-        }
-
-        // --- 6. BARRA DE CICLO ---
+        // 2. Lógica de la Barra de Ciclo (Tricolor)
         if (ui.barRecompra && ui.barComprado && ui.barProfit) {
-            const fiatInUsdt = sellRate > 0 ? (fiatBalance / sellRate) : 0;
-            const profitActual = netProfit > 0 ? netProfit : 0; 
-            const totalCycle = fiatInUsdt + usdtBalance + profitActual;
+            let pRecompra = 0;
+            let pComprado = 0;
+            let pProfit = 0;
+            let pctComprado = 0;
 
-            if (totalCycle > 0) {
-                ui.barRecompra.style.width = `${(fiatInUsdt / totalCycle) * 100}%`;
-                ui.barComprado.style.width = `${(usdtBalance / totalCycle) * 100}%`;
-                ui.barProfit.style.width = `${(profitActual / totalCycle) * 100}%`;
-                
-                if (ui.cycleText) {
-                    const progress = Math.round(((usdtBalance + profitActual) / totalCycle) * 100);
-                    const isClosed = fiatBalance < 50 && nVentas > 0;
-                    ui.cycleText.textContent = isClosed ? "Completado" : `${progress}%`;
-                    ui.cycleText.className = isClosed ? "text-emerald-400 font-bold italic" : "text-[#F3BA2F]";
+            // CASO A: Datos nuevos (bankBreakdown)
+            if (b.currentCycleTotalFiat !== undefined) {
+                // Usamos weightedBreakEvenRate para convertir el remanente FIAT a USDT y tener escala común
+                // Si no hay tasa, fallback a 1 (no ideal pero evita NaN)
+                const rate = b.weightedBreakEvenRate || b.sellRate || 1;
+
+                const fiatRemainingUSD = (b.currentCycleFiatRemaining || 0) / rate;
+                const recoveredUSD = b.currentCycleRecoveredUSDT || 0;
+                const profitUSD = b.currentCycleProfitUSDT || 0;
+
+                const totalCycleUSD = fiatRemainingUSD + recoveredUSD + profitUSD;
+
+                if (totalCycleUSD > 0) {
+                    pRecompra = (fiatRemainingUSD / totalCycleUSD) * 100;
+                    pComprado = (recoveredUSD / totalCycleUSD) * 100;
+                    pProfit = (profitUSD / totalCycleUSD) * 100;
                 }
+
+                // El porcentaje de "progreso" o "comprado" puede venir directo
+                pctComprado = b.currentCycleProgress || pComprado;
+
+            } else {
+                // CASO B: Datos antiguos (Legacy / insights)
+                const fiatInUsdt = b.sellRate > 0 ? (b.fiatBalance / b.sellRate) : 0;
+                const usdtActual = b.usdtBalance || 0;
+                const profitActual = b.profit || 0;
+                const totalCycle = fiatInUsdt + usdtActual + profitActual;
+
+                if (totalCycle > 0) {
+                    pRecompra = Math.max(0, (fiatInUsdt / totalCycle) * 100);
+                    pComprado = Math.max(0, (usdtActual / totalCycle) * 100);
+                    pProfit = Math.max(0, (profitActual / totalCycle) * 100);
+                }
+                pctComprado = pComprado;
+            }
+
+            ui.barRecompra.style.width = `${Math.max(0, pRecompra)}%`;
+            ui.barComprado.style.width = `${Math.max(0, pComprado)}%`;
+            ui.barProfit.style.width = `${Math.max(0, pProfit)}%`;
+
+            if (ui.cycleText) {
+                ui.cycleText.textContent = `${Math.round(pctComprado)}% Comprado`;
             }
         }
 
-        // --- 7. MÁRGENES Y PODER DE RECOMPRA ---
-        if (ui.margin) ui.margin.textContent = `${Number(b.margin || 0).toFixed(2)}%`;
-        
-        if (ui.opsCount) {
-            const totalOps = nVentas + nCompras;
-            ui.opsCount.textContent = `${totalOps} / 1k`;
-            ui.opsCount.className = `font-mono text-[12px] font-bold ${totalOps >= 800 ? 'text-rose-500 animate-pulse' : totalOps >= 500 ? 'text-orange-400' : 'text-emerald-400'}`;
+        // 3. Margen y Colores
+        if (ui.margin) {
+            ui.margin.textContent = `${b.margin || 0}%`;
+            const container = ui.margin.parentElement;
+            if (b.margin >= 0) {
+                container.className = 'text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400';
+            } else {
+                container.className = 'text-[10px] font-bold px-2 py-0.5 rounded bg-rose-500/10 text-rose-400';
+            }
         }
-
-        if (ui.buyingPower) {
-            const power = buyRate > 0 ? (fiatBalance / buyRate) : 0;
-            ui.buyingPower.textContent = `≈ ${fUSDT(power)}`;
-        }
-
-        if (ui.ctot) ui.ctot.textContent = nVentas;
     });
 }

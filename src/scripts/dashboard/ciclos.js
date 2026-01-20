@@ -3,7 +3,7 @@ import { fUSDT, fVES, inject } from './utils.js';
 export function updateCiclosUI(kpis = {}, bankInsights = []) {
     // 1. CONFIGURACIÓN INICIAL
     const CAPITAL_TRABAJO = kpis.config?.capitalTrabajo || kpis.capitalTrabajo || 500;
-    
+
     let totalCyclesAllBanks = 0;
     let totalProfitNetoAcumulado = 0;
     let countBancosOperando = 0;
@@ -12,15 +12,27 @@ export function updateCiclosUI(kpis = {}, bankInsights = []) {
 
     // 2. PROCESAMIENTO DE DATOS
     const processedBanks = bankInsights.map(b => {
-        const ciclosCompletados = Number(b.countSell || b.sellCount || 0);
-        const fees = Number(b.feeBuy || 0) + Number(b.feeSell || 0);
-        const netProfit = Number(b.profit || 0) - fees;
+        // Mapeo híbrido: soporta bankBreakdown (nuevo) y bankInsights (viejo)
+        const ciclosCompletados = Number(b.completedCycles ?? b.countSell ?? b.sellCount ?? 0);
 
-        const fiatBalance = Number(b.fiatBalance || 0);
-        // Consideramos activo si tiene vueltas o si tiene más de 100 VES por recomprar
+        // Fees: En bankBreakdown no veo fees explícitos en el ejemplo, asumimos 0 o usamos los legacy si disponibles
+        const fees = Number(b.feeBuy || 0) + Number(b.feeSell || 0);
+
+        // Profit: En bankBreakdown tenemos 'totalProfitUSDT' (acumulado) o 'currentCycleProfitUSDT'.
+        // Para "Profit Acumulado" usamos totalProfitUSDT.
+        const rawProfit = b.totalProfitUSDT ?? b.profit ?? 0;
+        const netProfit = Number(rawProfit) - fees; // Si fees ya están deducidos en backend, esto podría redundar, pero por seguridad.
+
+        // FIAT Balance
+        // En bankBreakdown: "currentCycleFiatRemaining"? O "currentCycleTotalFiat"? 
+        // Usualmente el balance real es lo que queda por gastar.
+        const fiatBalance = Number(b.currentCycleFiatRemaining ?? b.fiatBalance ?? 0);
+
+        // Estado:
+        // Si hay fiatRemaining > rango minimo (ej 100), está recomprando.
         const estaRecomprando = fiatBalance > 100;
         const tieneHistorial = ciclosCompletados > 0;
-        
+
         if (estaRecomprando || tieneHistorial) {
             countBancosOperando++;
         }
@@ -28,22 +40,29 @@ export function updateCiclosUI(kpis = {}, bankInsights = []) {
         totalCyclesAllBanks += ciclosCompletados;
         totalProfitNetoAcumulado += netProfit;
 
-        return { 
-            ...b, 
-            ciclosCompletados, 
-            netProfit, 
-            estaRecomprando, 
+        // Para la barra de progreso (Recomprado vs Saldo)
+        // Necesitamos saber cuánto es el "Total" del ciclo.
+        // En bankBreakdown tenemos: currentCycleTotalFiat = currentCycleFiatRemaining + currentCycleFiatSpent
+        // Si no, estimamos con CAPITAL_TRABAJO * tasa
+        const totalFiatCiclo = b.currentCycleTotalFiat ?? ((b.CAPITAL_TRABAJO || 500) * (b.sellRate || 1));
+
+        return {
+            ...b,
+            ciclosCompletados,
+            netProfit,
+            estaRecomprando,
             fiatBalance,
-            CAPITAL_TRABAJO 
+            totalFiatCiclo, // Dato extra para cálculo preciso de porcentaje
+            CAPITAL_TRABAJO
         };
     });
 
     // 3. CÁLCULO DE KPIS SUPERIORES
-    const profitPorCiclo = totalCyclesAllBanks > 0 
-        ? (totalProfitNetoAcumulado / totalCyclesAllBanks) 
+    const profitPorCiclo = totalCyclesAllBanks > 0
+        ? (totalProfitNetoAcumulado / totalCyclesAllBanks)
         : 0;
-    
-    inject('kpi-cycle-value', `≈ ${fUSDT(profitPorCiclo)}`); 
+
+    inject('kpi-cycle-value', `≈ ${fUSDT(profitPorCiclo)}`);
     inject('cycle-count', totalCyclesAllBanks.toString().padStart(2, '0'));
     inject('active-banks-count', countBancosOperando.toString().padStart(2, '0'));
 
@@ -51,7 +70,7 @@ export function updateCiclosUI(kpis = {}, bankInsights = []) {
     const insightsContainer = document.getElementById('cycle-banks-insights');
     if (insightsContainer) {
         const activeList = processedBanks.filter(b => b.ciclosCompletados > 0 || b.estaRecomprando);
-        
+
         if (activeList.length === 0) {
             insightsContainer.innerHTML = `
                 <div class="flex flex-col items-center justify-center py-8 opacity-30">
@@ -63,10 +82,10 @@ export function updateCiclosUI(kpis = {}, bankInsights = []) {
 
         insightsContainer.innerHTML = activeList.map(bank => {
             const tasaVenta = Number(bank.sellRate || 1);
-            
+
             // Meta visual: cuanto FIAT representa el capital de trabajo
             const metaFiat = bank.CAPITAL_TRABAJO * tasaVenta;
-            
+
             // LÓGICA DE BARRA BINANCE:
             // pGris: Lo que queda en el banco (saldo actual)
             // pAmarillo: Lo que ya se "gastó" o recompró (Capital Total - Saldo Actual)

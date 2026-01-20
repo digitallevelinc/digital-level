@@ -70,15 +70,20 @@ export async function updateDashboard(API_BASE, token, alias, range = {}) {
         const kpis = await kpiRes.json();
 
         // --- PREPARACIÓN DE DATOS ---
-        const bankInsights = kpis.bankInsights || [];
-        
+        // Priorizamos bankBreakdown (nueva estructura) sobre bankInsights
+        const bankData = kpis.bankBreakdown || kpis.bankInsights || [];
+
         // Calculamos el profit una sola vez para asegurar consistencia en todas las cards
-        const cumulativeProfit = bankInsights.reduce((acc, bank) => acc + (bank.profit || 0), 0);
+        // Nota: En bankBreakdown el campo de profit puede ser 'totalProfitUSDT' o 'currentCycleProfitUSDT'.
+        // Iteramos para sumar correctamente.
+        const cumulativeProfit = bankData.reduce((acc, bank) => {
+            return acc + (bank.totalProfitUSDT ?? bank.profit ?? 0);
+        }, 0);
 
         // --- ACTUALIZACIÓN DE MÉTRICAS BASE (Mantenemos integridad de IDs) ---
-        updateMainKpis(kpis, cumulativeProfit); 
+        updateMainKpis(kpis, cumulativeProfit);
         updateRatesCard(kpis);
-        updateComisionesUI(kpis); 
+        updateComisionesUI(kpis);
         updateOperacionesUI(kpis);
 
         // --- MONITOR LATERAL (CONEXIÓN CRÍTICA SINCRONIZADA) ---
@@ -87,34 +92,34 @@ export async function updateDashboard(API_BASE, token, alias, range = {}) {
             // Detectamos dinámicamente dónde inyectar el valor según la estructura de la API
             const summaryKey = kpis.metrics ? 'metrics' : (kpis.summary ? 'summary' : 'kpis');
             if (!kpis[summaryKey]) kpis[summaryKey] = {};
-            
+
             // Sincronización de valor Profit
-            kpis[summaryKey].totalProfit = cumulativeProfit; 
-            
+            kpis[summaryKey].totalProfit = cumulativeProfit;
+
             // Actualización del monitor
-            updateSidebarMonitor(kpis, bankInsights);
+            updateSidebarMonitor(kpis, bankData);
         }
 
         // --- PANEL DE BANCOS E INSIGHTS ---
-        if (bankInsights.length > 0) {
-            updateBancosUI(bankInsights);
-            updateCiclosUI(kpis, bankInsights); 
+        if (bankData.length > 0) {
+            updateBancosUI(bankData);
+            updateCiclosUI(kpis, bankData);
         }
 
         // Sincronizamos el Profit con el cálculo manual de bancos
-        updateProfitUI(kpis, bankInsights);           
-        
+        updateProfitUI(kpis, bankData);
+
         // Sincronizamos la comisión para que el 60% sea exacto sobre cumulativeProfit
-        updateComisionOperadorUI(kpis, bankInsights); 
-        
-        updateProyeccionesUI(kpis);    
+        updateComisionOperadorUI(kpis, bankData);
+
+        updateProyeccionesUI(kpis);
 
         // --- SECCIONES DE CARTERAS (LOGÍSTICA) ---
         updateRedSection(kpis);
         updatePaySection(kpis);
         updateSwitchSection(kpis);
         updateP2PSection(kpis);
-        updateFiatSection(kpis, bankInsights);
+        updateFiatSection(kpis, bankData);
 
         // --- UI ESTADO ---
         const aliasEl = document.getElementById('operator-alias');
