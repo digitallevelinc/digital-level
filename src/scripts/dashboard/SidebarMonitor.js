@@ -1,15 +1,34 @@
 import { fUSDT, inject } from './utils.js';
 
 export function updateSidebarMonitor(kpis = {}, bankInsights = []) {
-    // 1. Usamos exactamente la misma lógica de tu función updateMainKpis
+    // 1. Unificamos lógica con profit.js para consistencia total
     const summary = kpis.metrics || kpis.kpis || kpis.summary || {};
-    
-    // 2. Extraer valores (Espejo de lo que ya ves en el body)
-    const teorico = summary.totalBalance ?? summary.balance ?? 0;
-    const binance = kpis.binanceBalance ?? summary.binanceBalance ?? 0;
-    const profit  = summary.totalProfit ?? 0; // El cumulativeProfit que inyectamos en el orquestador
-    const avg     = summary.cycleProfit ?? summary.cycleGain ?? 0;
-    const diferencia = Number(binance) - Number(teorico);
+    const audit = kpis.audit || {};
+
+    // 2. Extraer valores (Lógica Espejo de profit.js)
+    const CAPITAL_INICIAL = kpis.initialCapital || kpis.config?.initialCapital || 5400;
+    const profit = summary.totalProfit ?? 0; // Inyectado desde el orquestador
+
+    // Cálculos Sincronizados
+    const teorico = CAPITAL_INICIAL + profit;
+    const binance = parseFloat(audit.realBalance || 0);
+    const diferencia = binance - teorico;
+
+    // Cálculo Dinámico de Promedio (Igual que ciclos.js)
+    let totalCycles = 0;
+    let totalNetProfit = 0;
+
+    bankInsights.forEach(b => {
+        const cycles = Number(b.completedCycles ?? b.countSell ?? b.sellCount ?? 0);
+        const fees = Number(b.feeBuy || 0) + Number(b.feeSell || 0);
+        const rawProfit = b.totalProfitUSDT ?? b.profit ?? 0;
+        const net = Number(rawProfit) - fees;
+
+        totalCycles += cycles;
+        totalNetProfit += net;
+    });
+
+    const avg = totalCycles > 0 ? (totalNetProfit / totalCycles) : 0;
 
     // 3. Inyectar en los IDs del Sidebar
     inject('side-teorico', fUSDT(teorico));
@@ -21,6 +40,7 @@ export function updateSidebarMonitor(kpis = {}, bankInsights = []) {
     const discEl = document.getElementById('side-discrepancia');
     if (discEl) {
         discEl.textContent = fUSDT(diferencia);
+        // Misma lógica visual: si es negativo es dinero "en la calle" (no necesariamente malo, pero rojo para alerta)
         discEl.className = `text-sm font-mono font-black tracking-tighter ${diferencia < 0 ? 'text-rose-500' : 'text-emerald-400'}`;
     }
 
