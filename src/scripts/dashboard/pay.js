@@ -4,9 +4,13 @@ export const updatePaySection = (kpis) => {
     const container = document.getElementById('wallet-pay');
     if (!container) return;
 
-    const data = kpis.wallets?.pay || kpis.wallets;
+    // Soporte para estructura anidada o plana
+    const data = kpis.wallets?.pay || kpis.wallets || {};
     const mainValue = document.getElementById('pay-balance-total');
     const sheetLink = document.getElementById('link-pay-detail');
+
+    // Debug para ver qué llega a Pay
+    // console.log("Pay Data Source:", data);
 
     const ui = {
         sentCount: document.getElementById('pay-sent-count'),
@@ -16,22 +20,30 @@ export const updatePaySection = (kpis) => {
         totalOps: document.getElementById('pay-total-ops') // Nuevo ID
     };
 
-    if (data && (data.balancePay !== undefined)) {
-        if (mainValue) mainValue.textContent = fUSDT(data.balancePay);
+    if (data) {
+        // Balance: flat `balancePay` o nested `balancePay`
+        const balance = data.balancePay !== undefined ? data.balancePay : (data.balance ?? 0);
+        if (mainValue) mainValue.textContent = fUSDT(balance);
 
         // --- Salidas (Enviado) ---
-        const sent = data.paySentCount ?? 0;
+        // Claves planas probables: paySentCount, paySentVol
+        const sent = data.paySentCount ?? data.sentCount ?? 0;
+        const sentVol = data.paySentVol ?? data.sentVol ?? 0;
+
         if (ui.sentCount) ui.sentCount.textContent = sent.toString();
-        if (ui.sentVol) ui.sentVol.textContent = fUSDT(data.paySentVol ?? 0);
+        if (ui.sentVol) ui.sentVol.textContent = fUSDT(sentVol);
 
         // --- Entradas (Recibido) ---
-        const received = data.payReceivedCount ?? 0;
+        // Claves planas probables: payReceivedCount, payReceivedVol
+        const received = data.payReceivedCount ?? data.receivedCount ?? 0;
+        const receivedVol = data.payReceivedVol ?? data.receivedVol ?? 0;
+
         if (ui.receivedCount) ui.receivedCount.textContent = received.toString();
-        if (ui.receivedVol) ui.receivedVol.textContent = fUSDT(data.payReceivedVol ?? 0);
+        if (ui.receivedVol) ui.receivedVol.textContent = fUSDT(receivedVol);
 
         // --- Total Operaciones (Suma) ---
         if (ui.totalOps) {
-            ui.totalOps.textContent = (sent + received).toString();
+            ui.totalOps.textContent = (Number(sent) + Number(received)).toString();
         }
     }
 
