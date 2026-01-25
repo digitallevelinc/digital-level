@@ -3,9 +3,9 @@ import { fUSDT, inject } from './utils.js';
 export function updateProfitUI(kpis = {}, bankInsights = []) {
     const audit = kpis.audit || {};
     const wallets = kpis.wallets || {};
-    
+
     // 1. CAPITAL INICIAL DINÁMICO (Desde la API)
-    const CAPITAL_INICIAL = kpis.initialCapital || kpis.config?.initialCapital || 5400; 
+    const CAPITAL_INICIAL = kpis.initialCapital || kpis.config?.initialCapital || 5400;
 
     // 2. PROFIT REAL ACUMULADO (Suma de los éxitos en los bancos)
     // Este número SOLO sube a menos que haya una pérdida registrada en un ciclo.
@@ -40,11 +40,15 @@ export function updateProfitUI(kpis = {}, bankInsights = []) {
 
     // D. PROFIT ACTUAL TOTAL (Tarjeta Azul): Tu ganancia neta generada
     // Aquí es donde estaba el error. Ahora inyectamos totalProfitCalculated.
-    inject('audit-total-profit-display', fUSDT(totalProfitCalculated)); 
+    inject('audit-total-profit-display', fUSDT(totalProfitCalculated));
 
     // E. CRECIMIENTO %
     const roiPercent = CAPITAL_INICIAL > 0 ? (totalProfitCalculated / CAPITAL_INICIAL) * 100 : 0;
     inject('audit-growth-percent', `${roiPercent >= 0 ? '+' : ''}${roiPercent.toFixed(2)}%`);
+
+    // F. VOLUMEN Y FEES TOTALES
+    inject('audit-total-volume', fUSDT(parseFloat(audit.totalVolume || 0)));
+    inject('audit-total-fees', fUSDT(parseFloat(audit.totalFees || 0)));
 
     // Inyectar balances de canales (tus wallets individuales)
     inject('channel-red', fUSDT(red));

@@ -26,6 +26,32 @@
                 </span>
             </div>
 
+            <!-- Operator Info Card -->
+            <div class="bg-gradient-to-br from-[#F3BA2F]/10 via-[#F3BA2F]/5 to-transparent p-4 rounded-xl border border-[#F3BA2F]/20 mb-6 shadow-[inset_0_0_20px_rgba(243,186,47,0.05)]">
+                <div class="flex items-center gap-2 mb-3">
+                    <i class="fas fa-user-tie text-[#F3BA2F] text-xs"></i>
+                    <span class="text-[10px] font-black text-[#F3BA2F] uppercase tracking-wider">Operador</span>
+                </div>
+                <div class="space-y-2">
+                    <div class="flex justify-between items-center">
+                        <span class="text-[9px] text-gray-500 uppercase font-bold">Alias:</span>
+                        <span id="side-operator-alias" class="text-xs font-black text-white italic">---</span>
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <span class="text-[9px] text-gray-500 uppercase font-bold">Capital:</span>
+                        <span id="side-initial-capital" class="text-xs font-mono font-black text-emerald-400">$0.00</span>
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <span class="text-[9px] text-gray-500 uppercase font-bold">Días:</span>
+                        <span id="side-period-days" class="text-xs font-bold text-white">0</span>
+                    </div>
+                    <div class="flex justify-between items-center pt-2 border-t border-white/10">
+                        <span class="text-[9px] text-gray-600 uppercase font-bold">Inicio:</span>
+                        <span id="side-start-date" class="text-[10px] font-mono font-bold text-gray-400 tracking-tight">---</span>
+                    </div>
+                </div>
+            </div>
+
             <div class="space-y-4 mb-8">
                 <div class="bg-white/[0.03] p-3 rounded-xl border border-white/5 relative overflow-hidden group">
                     <span class="text-[8px] text-gray-500 uppercase font-black block mb-1">Balance Teórico Sistema</span>

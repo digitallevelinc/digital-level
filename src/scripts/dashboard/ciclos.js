@@ -93,41 +93,41 @@ export function updateCiclosUI(kpis = {}, bankInsights = []) {
             const pAmarillo = Math.max(0, 100 - pGris);
 
             return `
-            <div class="group/item border-b border-white/[0.03] py-4 last:border-0 px-1 hover:bg-white/[0.01] transition-colors">
+            <div class="group/item border-b border-white/[0.03] py-4 last:border-0 px-2 hover:bg-white/[0.01] transition-colors">
                 <div class="flex justify-between items-start mb-3">
-                    <div class="flex items-center gap-3">
-                        <div class="flex flex-col items-center justify-center min-w-[40px] h-10 rounded-lg bg-emerald-500/10 border border-emerald-500/20 shadow-lg">
-                            <span class="text-[14px] font-black text-emerald-400 leading-none">${bank.ciclosCompletados}</span>
-                            <span class="text-[6px] text-emerald-500/60 font-black uppercase tracking-tight">VUELTAS</span>
+                    <div class="flex items-center gap-4">
+                        <div class="flex flex-col items-center justify-center min-w-[48px] h-12 rounded-xl bg-emerald-500/10 border border-emerald-500/20 shadow-lg backdrop-blur-sm">
+                            <span class="text-lg font-black text-emerald-400 leading-none tracking-tight">${bank.ciclosCompletados}</span>
+                            <span class="text-[9px] text-emerald-500/60 font-black uppercase tracking-wide mt-0.5">VUELTAS</span>
                         </div>
                         <div>
                             <div class="flex items-center gap-2">
-                                <span class="relative flex h-2 w-2">
+                                <span class="relative flex h-2.5 w-2.5">
                                     ${bank.estaRecomprando ? '<span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>' : ''}
-                                    <span class="relative inline-flex rounded-full h-2 w-2 ${bank.estaRecomprando ? 'bg-emerald-500' : 'bg-gray-700'}"></span>
+                                    <span class="relative inline-flex rounded-full h-2.5 w-2.5 ${bank.estaRecomprando ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]' : 'bg-gray-700'}"></span>
                                 </span>
-                                <span class="text-[12px] font-black text-gray-100 uppercase tracking-tight">${bank.bank}</span>
+                                <span class="text-sm font-black text-gray-100 uppercase tracking-wide">${bank.bank}</span>
                             </div>
-                            <p class="text-[8px] text-gray-500 font-bold uppercase mt-1 italic tracking-tighter">
+                            <p class="text-[10px] text-gray-500 font-bold uppercase mt-1 italic tracking-wide">
                                 ${bank.estaRecomprando ? 'Consumiendo FIAT...' : 'Ciclo Completado'}
                             </p>
                         </div>
                     </div>
                     <div class="text-right">
-                        <p class="text-[12px] font-mono font-black text-emerald-400 leading-none">+${fUSDT(bank.netProfit)}</p>
-                        <p class="text-[7px] text-gray-600 uppercase font-black mt-1 italic tracking-tighter">Profit Acumulado</p>
+                        <p class="text-base font-mono font-black text-emerald-400 leading-none tracking-tight">+${fUSDT(bank.netProfit)}</p>
+                        <p class="text-[9px] text-gray-600 uppercase font-black mt-1 italic tracking-wide">Profit Acumulado</p>
                     </div>
                 </div>
                 
-                <div class="space-y-1.5">
-                    <div class="h-1.5 bg-black/40 rounded-full overflow-hidden flex border border-white/5 shadow-inner">
-                        <div class="h-full bg-[#F3BA2F] transition-all duration-1000 shadow-[0_0_8px_rgba(243,186,47,0.4)]" 
+                <div class="space-y-1.5 px-1">
+                    <div class="h-2 bg-black/40 rounded-full overflow-hidden flex border border-white/5 shadow-inner">
+                        <div class="h-full bg-[#F3BA2F] transition-all duration-1000 shadow-[0_0_12px_rgba(243,186,47,0.3)]" 
                              style="width: ${pAmarillo}%"></div>
                         <div class="h-full bg-gray-600/30 transition-all duration-1000" 
                              style="width: ${pGris}%"></div>
                     </div>
-                    <div class="flex justify-between text-[7px] font-bold uppercase tracking-tighter">
-                        <span class="${pAmarillo > 90 ? 'text-[#F3BA2F]' : 'text-gray-500'}">
+                    <div class="flex justify-between text-[9px] font-bold uppercase tracking-wide">
+                        <span class="${pAmarillo > 90 ? 'text-[#F3BA2F]' : 'text-gray-500'} transition-colors">
                             Recomprado: ${Math.round(pAmarillo)}%
                         </span>
                         <span class="text-gray-500 italic">

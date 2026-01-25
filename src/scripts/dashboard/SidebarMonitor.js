@@ -36,6 +36,21 @@ export function updateSidebarMonitor(kpis = {}, bankInsights = []) {
     inject('side-profit-total', fUSDT(profit));
     inject('side-avg-ciclo', fUSDT(avg));
 
+    // 3.1 Inyectar información del operador
+    inject('side-operator-alias', audit.operatorAlias || 'N/A');
+    inject('side-initial-capital', fUSDT(parseFloat(audit.initialCapital || 0)));
+    inject('side-period-days', audit.periodDays || 0);
+
+    // Calcular fecha de inicio (hoy - periodDays)
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - (audit.periodDays || 0));
+    const formattedStartDate = startDate.toLocaleDateString('es-VE', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric'
+    });
+    inject('side-start-date', formattedStartDate);
+
     // 4. Manejo de la Discrepancia
     const discEl = document.getElementById('side-discrepancia');
     if (discEl) {
@@ -50,24 +65,30 @@ export function updateSidebarMonitor(kpis = {}, bankInsights = []) {
     listContainer.innerHTML = '';
 
     bankInsights.forEach(bank => {
-        const ops = bank.totalOps || (Number(bank.countSell || 0) + Number(bank.countBuy || 0));
+        // Fallbacks robustos tras el merge
+        const activeVerdicts = bank.activeVerdictsCount ?? 0;
+        const cycles = bank.completedCycles ?? bank.countSell ?? 0;
+        const ops = bank.transactionCount ?? bank.totalOps ?? ((bank.countSell || 0) + (bank.countBuy || 0));
+
         const progress = Math.min((ops / 1000) * 100, 100);
 
         const div = document.createElement('div');
-        div.className = 'bg-white/[0.02] p-3 rounded-xl border border-white/5 flex flex-col gap-2';
+        div.className = 'bg-white/[0.02] p-3 rounded-xl border border-white/5 flex flex-col gap-2 transition-all hover:bg-white/[0.04]';
         div.innerHTML = `
             <div class="flex justify-between items-start">
                 <div class="flex flex-col">
-                    <span class="text-[10px] font-black text-white uppercase italic">${bank.bankName}</span>
-                    <span class="text-[7px] text-[#F3BA2F] font-black uppercase mt-0.5">Vueltas: ${bank.countSell || 0}</span>
+                    <span class="text-xs font-black text-white uppercase italic tracking-wider">${bank.bankName || bank.bank}</span>
+                    <span class="text-[10px] text-[#F3BA2F] font-black uppercase mt-1 tracking-wide">
+                        ${cycles} Vueltas • ${activeVerdicts} Activas
+                    </span>
                 </div>
                 <div class="text-right">
-                    <span class="text-[11px] font-mono font-black ${ops >= 900 ? 'text-rose-500' : 'text-emerald-400'}">${ops}</span>
-                    <span class="text-[6px] text-gray-500 block font-black uppercase">Ops Mes</span>
+                    <span class="text-sm font-mono font-black ${ops >= 900 ? 'text-rose-500' : 'text-emerald-400'} tracking-tight">${ops}</span>
+                    <span class="text-[9px] text-gray-500 block font-black uppercase tracking-wider">Ops Mes</span>
                 </div>
             </div>
-            <div class="h-1 w-full bg-white/5 rounded-full overflow-hidden">
-                <div class="h-full bg-[#F3BA2F] transition-all" style="width: ${progress}%"></div>
+            <div class="h-1.5 w-full bg-white/5 rounded-full overflow-hidden mt-1">
+                <div class="h-full bg-[#F3BA2F] transition-all duration-700 ease-out" style="width: ${progress}%"></div>
             </div>
         `;
         listContainer.appendChild(div);

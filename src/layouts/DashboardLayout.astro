@@ -9,19 +9,23 @@ import SidebarMonitor from '../components/dashboard/SidebarMonitor.astro';
         <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
         <link rel="icon" type="image/png" href="/img/logo.png" />
         <title>Dashboard | Digital Level</title>
+        <!-- Google Fonts: Inter -->
+        <link rel="preconnect" href="https://fonts.googleapis.com">
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" />
     </head>
-    <body class="bg-[#0b0e11] text-white min-h-screen font-sans selection:bg-[#F3BA2F]/30 overflow-x-hidden">
+    <body class="bg-[#0b0e11] text-white min-h-screen font-sans selection:bg-[#F3BA2F]/30 overflow-x-hidden antialiased">
         
         <header class="sticky top-0 z-50 bg-[#0b0e11]/80 backdrop-blur-md border-b border-gray-800/50 px-4 py-3 md:px-8 md:py-4">
             <div class="w-full mx-auto flex items-center justify-between">
                 <div class="flex items-center gap-3">
                     <img src="/img/logo.png" class="w-8 h-8 md:w-10 md:h-10 object-contain" alt="Logo" />
                     <div class="flex flex-col">
-                        <span class="text-[#F3BA2F] font-black text-xs md:text-sm tracking-[0.2em] uppercase italic leading-none">
+                        <span class="text-[#F3BA2F] font-black text-sm md:text-base tracking-[0.2em] uppercase italic leading-none">
                             DIGITAL LEVEL
                         </span>
-                        <span class="text-[7px] text-gray-500 uppercase font-bold tracking-widest mt-1 hidden md:block">
+                        <span class="text-[10px] text-gray-500 uppercase font-bold tracking-widest mt-1 hidden md:block">
                             Sentinel Core v2.0
                         </span>
                     </div>
@@ -29,7 +33,7 @@ import SidebarMonitor from '../components/dashboard/SidebarMonitor.astro';
                 <div class="flex items-center gap-4">
                     <div id="connection-status" class="flex items-center gap-2">
                          <span class="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]"></span>
-                         <span class="text-[10px] font-black uppercase text-gray-400 hidden sm:block tracking-widest">Cloud Sync</span>
+                         <span class="text-[11px] font-black uppercase text-gray-400 hidden sm:block tracking-widest">Cloud Sync</span>
                     </div>
                 </div>
             </div>
@@ -42,7 +46,7 @@ import SidebarMonitor from '../components/dashboard/SidebarMonitor.astro';
         </main>
 
         <footer class="p-8 text-center border-t border-gray-900 w-full">
-            <p class="text-[9px] text-gray-600 font-black uppercase tracking-[0.3em]">
+            <p class="text-[11px] text-gray-600 font-black uppercase tracking-[0.3em] font-mono">
                 &copy; 2026 DIGITAL LEVEL Sentinel System
             </p>
         </footer>
@@ -50,11 +54,21 @@ import SidebarMonitor from '../components/dashboard/SidebarMonitor.astro';
 </html>
 
 <style is:global>
-    /* Tu sistema de tipografía se mantiene igual */
-    .sentinel-title { @apply text-[14px] font-black uppercase italic tracking-widest text-white; }
-    .sentinel-label { @apply text-[11px] text-gray-500 uppercase font-black tracking-widest; }
-    .sentinel-value-md { @apply text-[13px] font-mono font-bold text-white tracking-tighter; }
-    .sentinel-value-lg { @apply text-[17px] font-mono font-bold text-white tracking-tighter; }
+    :root {
+        --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+    }
+    body {
+        font-family: var(--font-sans);
+        text-rendering: optimizeLegibility;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+    }
+
+    /* Tu sistema de tipografía mejorado (HD) */
+    .sentinel-title { @apply text-[16px] font-black uppercase italic tracking-widest text-white; }
+    .sentinel-label { @apply text-[12px] text-gray-500 uppercase font-black tracking-widest; }
+    .sentinel-value-md { @apply text-[15px] font-mono font-bold text-white tracking-tighter; }
+    .sentinel-value-lg { @apply text-[19px] font-mono font-bold text-white tracking-tighter; }
     .sentinel-kpi-huge { @apply text-5xl font-black text-emerald-400 tracking-tighter; }
 
     ::-webkit-scrollbar { width: 6px; height: 6px; }

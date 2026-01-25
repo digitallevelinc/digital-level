@@ -71,7 +71,29 @@ export async function updateDashboard(API_BASE, token, alias, range = {}) {
 
         // --- PREPARACIÓN DE DATOS ---
         // Priorizamos bankBreakdown (nueva estructura) sobre bankInsights
-        const bankData = kpis.bankBreakdown || kpis.bankInsights || [];
+        // --- PREPARACIÓN DE DATOS ---
+        // Combinamos bankInsights (Balances/Ops) con judge.bankBreakdown (Ciclos/Profit)
+        const insights = kpis.bankInsights || [];
+        const breakdown = kpis.judge?.bankBreakdown || kpis.bankBreakdown || [];
+
+        // Mapa auxiliar para merge
+        const insightsMap = new Map(insights.map(i => [i.bank, i]));
+
+        const bankData = breakdown.map(b => {
+            const insight = insightsMap.get(b.bank) || {};
+            return {
+                ...insight,
+                ...b,
+                bankName: b.bank // Normalizamos nombre
+            };
+        });
+
+        // Agregamos bancos que estén en insights pero no en breakdown (si existen)
+        insights.forEach(i => {
+            if (!bankData.find(b => b.bank === i.bank)) {
+                bankData.push({ ...i, bankName: i.bank });
+            }
+        });
 
         // Calculamos el profit una sola vez para asegurar consistencia en todas las cards
         // Nota: En bankBreakdown el campo de profit puede ser 'totalProfitUSDT' o 'currentCycleProfitUSDT'.
