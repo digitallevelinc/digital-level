@@ -11,7 +11,7 @@ const banks = [
 ];
 ---
 
-<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+<div id="banks-grid" class="grid grid-cols-1 md:grid-cols-2 gap-6">
   {banks.map(b => (
     <div id={`card-${b.id}`} class={`bg-[#161a1e] border border-gray-800 rounded-2xl overflow-hidden border-l-[6px] ${b.color} shadow-xl flex flex-col transition-all hover:border-emerald-500/30 group`}>
       
