@@ -5,7 +5,7 @@ let dailyVolBase = 0;
 
 export function updateProyeccionesUI(kpis = {}) {
     const proj = kpis.projections || {};
-    
+
     // Guardamos la base diaria que viene de la API
     dailyProfitBase = proj.dailyProfit || 0;
     dailyVolBase = proj.projectedVolume || 0;
@@ -20,7 +20,7 @@ export function updateProyeccionesUI(kpis = {}) {
             // UI Update
             buttons.forEach(b => b.classList.remove('active', 'bg-blue-500', 'text-black'));
             buttons.forEach(b => b.classList.add('bg-white/5', 'text-gray-400'));
-            
+
             btn.classList.add('active', 'bg-blue-500', 'text-black');
             btn.classList.remove('bg-white/5', 'text-gray-400');
 
@@ -33,13 +33,13 @@ export function updateProyeccionesUI(kpis = {}) {
 function calculateScenario(days) {
     const totalProfit = dailyProfitBase * days;
     const totalVol = dailyVolBase * days;
-    
+
     inject('project-profit-value', fUSDT(totalProfit));
     inject('proj-vol-detail', fUSDT(totalVol));
-    
+
     const label = document.getElementById('projection-label');
     if (label) {
-        const text = days === 30 ? '1 mes' : `${days} días`;
+        const text = days === 30 ? '1 mes' : (days === 1 ? '1 día' : `${days} días`);
         label.textContent = `Estimado ${text}`;
     }
 }

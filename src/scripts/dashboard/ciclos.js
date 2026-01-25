@@ -82,23 +82,26 @@ export function updateCiclosUI(kpis = {}, bankInsights = []) {
 
         insightsContainer.innerHTML = activeList.map(bank => {
             const tasaVenta = Number(bank.sellRate || 1);
-
-            // Meta visual: cuanto FIAT representa el capital de trabajo
             const metaFiat = bank.CAPITAL_TRABAJO * tasaVenta;
-
-            // LÓGICA DE BARRA BINANCE:
-            // pGris: Lo que queda en el banco (saldo actual)
-            // pAmarillo: Lo que ya se "gastó" o recompró (Capital Total - Saldo Actual)
             const pGris = Math.min((bank.fiatBalance / metaFiat) * 100, 100);
             const pAmarillo = Math.max(0, 100 - pGris);
+
+            // Estilos dinámicos para estado de ciclos
+            const isZeroCycles = bank.ciclosCompletados === 0;
+            const cycleContainerClass = isZeroCycles
+                ? "bg-gray-500/5 border-gray-500/10 text-gray-600"
+                : "bg-emerald-500/10 border-emerald-500/20 shadow-lg text-emerald-400";
+
+            const cycleNumberClass = isZeroCycles ? "text-gray-500" : "text-emerald-400";
+            const cycleLabelClass = isZeroCycles ? "text-gray-600" : "text-emerald-500/60";
 
             return `
             <div class="group/item border-b border-white/[0.03] py-4 last:border-0 px-2 hover:bg-white/[0.01] transition-colors">
                 <div class="flex justify-between items-start mb-3">
                     <div class="flex items-center gap-4">
-                        <div class="flex flex-col items-center justify-center min-w-[48px] h-12 rounded-xl bg-emerald-500/10 border border-emerald-500/20 shadow-lg backdrop-blur-sm">
-                            <span class="text-lg font-black text-emerald-400 leading-none tracking-tight">${bank.ciclosCompletados}</span>
-                            <span class="text-[9px] text-emerald-500/60 font-black uppercase tracking-wide mt-0.5">VUELTAS</span>
+                        <div class="flex flex-col items-center justify-center min-w-[48px] h-12 rounded-xl border backdrop-blur-sm ${cycleContainerClass}">
+                            <span class="text-lg font-black leading-none tracking-tight ${cycleNumberClass}">${bank.ciclosCompletados}</span>
+                            <span class="text-[9px] font-black uppercase tracking-wide mt-0.5 ${cycleLabelClass}">VUELTAS</span>
                         </div>
                         <div>
                             <div class="flex items-center gap-2">
@@ -109,12 +112,12 @@ export function updateCiclosUI(kpis = {}, bankInsights = []) {
                                 <span class="text-sm font-black text-gray-100 uppercase tracking-wide">${bank.bank}</span>
                             </div>
                             <p class="text-[10px] text-gray-500 font-bold uppercase mt-1 italic tracking-wide">
-                                ${bank.estaRecomprando ? 'Consumiendo FIAT...' : 'Ciclo Completado'}
+                                ${bank.estaRecomprando ? 'Consumiendo FIAT...' : (isZeroCycles ? 'Esperando inicio...' : 'Ciclo Completado')}
                             </p>
                         </div>
                     </div>
                     <div class="text-right">
-                        <p class="text-base font-mono font-black text-emerald-400 leading-none tracking-tight">+${fUSDT(bank.netProfit)}</p>
+                        <p class="text-base font-mono font-black ${bank.netProfit > 0 ? 'text-emerald-400' : 'text-gray-500'} leading-none tracking-tight">+${fUSDT(bank.netProfit)}</p>
                         <p class="text-[9px] text-gray-600 uppercase font-black mt-1 italic tracking-wide">Profit Acumulado</p>
                     </div>
                 </div>
@@ -127,8 +130,8 @@ export function updateCiclosUI(kpis = {}, bankInsights = []) {
                              style="width: ${pGris}%"></div>
                     </div>
                     <div class="flex justify-between text-[9px] font-bold uppercase tracking-wide">
-                        <span class="${pAmarillo > 90 ? 'text-[#F3BA2F]' : 'text-gray-500'} transition-colors">
-                            Recomprado: ${Math.round(pAmarillo)}%
+                        <span class="${pAmarillo > 90 ? 'text-[#F3BA2F]' : (pAmarillo === 0 ? 'text-gray-600' : 'text-gray-500')} transition-colors">
+                            ${pAmarillo === 0 ? 'Sin compras P2P' : `Recomprado: ${Math.round(pAmarillo)}%`}
                         </span>
                         <span class="text-gray-500 italic">
                             Saldo en Banco: ${fVES(bank.fiatBalance)}

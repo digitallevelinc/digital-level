@@ -6,7 +6,8 @@ export function updateSidebarMonitor(kpis = {}, bankInsights = []) {
     const audit = kpis.audit || {};
 
     // 2. Extraer valores (Lógica Espejo de profit.js)
-    const CAPITAL_INICIAL = kpis.initialCapital || kpis.config?.initialCapital || 5400;
+    // Prioridad: 1. audit.initialCapital, 2. kpis.initialCapital, 3. config, 4. default
+    const CAPITAL_INICIAL = parseFloat(audit.initialCapital || kpis.initialCapital || kpis.config?.initialCapital || 5400);
     const profit = summary.totalProfit ?? 0; // Inyectado desde el orquestador
 
     // Cálculos Sincronizados
@@ -51,6 +52,14 @@ export function updateSidebarMonitor(kpis = {}, bankInsights = []) {
     });
     inject('side-start-date', formattedStartDate);
 
+    // 3.2 Integrity & Verdicts
+    const integrity = audit.integrityScore ?? 100;
+    const integrityEl = document.getElementById('side-integrity-score');
+    if (integrityEl) {
+        integrityEl.textContent = `${integrity}% Score`;
+        integrityEl.className = `text-[10px] font-black px-2 py-0.5 rounded border ${integrity < 80 ? 'text-rose-400 bg-rose-500/10 border-rose-500/20' : 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20'}`;
+    }
+
     // 4. Manejo de la Discrepancia
     const discEl = document.getElementById('side-discrepancia');
     if (discEl) {
@@ -58,6 +67,10 @@ export function updateSidebarMonitor(kpis = {}, bankInsights = []) {
         // Misma lógica visual: si es negativo es dinero "en la calle" (no necesariamente malo, pero rojo para alerta)
         discEl.className = `text-sm font-mono font-black tracking-tighter ${diferencia < 0 ? 'text-rose-500' : 'text-emerald-400'}`;
     }
+
+    // 4.1 Verdicts Count
+    const openVerdicts = kpis.judge?.openVerdictsCount ?? 0;
+    inject('side-verdicts-count', `${openVerdicts} Open`);
 
     // 5. Lista de Bancos
     const listContainer = document.getElementById('side-banks-list');

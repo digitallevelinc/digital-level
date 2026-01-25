@@ -5,7 +5,11 @@ export function updateProfitUI(kpis = {}, bankInsights = []) {
     const wallets = kpis.wallets || {};
 
     // 1. CAPITAL INICIAL DINÁMICO (Desde la API)
-    const CAPITAL_INICIAL = kpis.initialCapital || kpis.config?.initialCapital || 5400;
+    // Prioridad: 1. audit.initialCapital, 2. kpis.initialCapital, 3. config, 4. default
+    const CAPITAL_INICIAL = parseFloat(audit.initialCapital || kpis.initialCapital || kpis.config?.initialCapital || 5400);
+
+    inject('audit-initial-capital', fUSDT(CAPITAL_INICIAL));
+    inject('audit-period-days', audit.periodDays || 0);
 
     // 2. PROFIT REAL ACUMULADO (Suma de los éxitos en los bancos)
     // Este número SOLO sube a menos que haya una pérdida registrada en un ciclo.

@@ -19,11 +19,12 @@
             <div class="flex items-center justify-between mb-8">
                 <div>
                     <p class="text-[11px] font-black text-[#F3BA2F] uppercase tracking-[0.2em]">Sentinel Auditor</p>
-                    <p class="text-[7px] text-gray-500 uppercase font-bold tracking-widest mt-0.5 italic">Integrity Monitor</p>
+                    <p class="text-[9px] text-gray-500 uppercase font-bold tracking-widest mt-0.5">Integrity Monitor</p>
                 </div>
-                <span class="p-2 bg-emerald-500/10 rounded-lg shadow-[0_0_10px_rgba(16,185,129,0.2)]">
-                    <i class="fas fa-shield-check text-emerald-500 text-[10px]"></i>
-                </span>
+                <div class="flex flex-col items-end">
+                    <span id="side-integrity-score" class="text-[10px] font-black text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">100% Secure</span>
+                    <span class="text-[7px] text-gray-500 uppercase font-black tracking-widest mt-0.5">Score</span>
+                </div>
             </div>
 
             <!-- Operator Info Card -->
@@ -35,7 +36,7 @@
                 <div class="space-y-2">
                     <div class="flex justify-between items-center">
                         <span class="text-[9px] text-gray-500 uppercase font-bold">Alias:</span>
-                        <span id="side-operator-alias" class="text-xs font-black text-white italic">---</span>
+                        <span id="side-operator-alias" class="text-xs font-black text-white tracking-wide">---</span>
                     </div>
                     <div class="flex justify-between items-center">
                         <span class="text-[9px] text-gray-500 uppercase font-bold">Capital:</span>
@@ -54,17 +55,17 @@
 
             <div class="space-y-4 mb-8">
                 <div class="bg-white/[0.03] p-3 rounded-xl border border-white/5 relative overflow-hidden group">
-                    <span class="text-[8px] text-gray-500 uppercase font-black block mb-1">Balance Teórico Sistema</span>
+                    <span class="text-[10px] text-gray-500 uppercase font-black block mb-1">Balance Teórico Sistema</span>
                     <p id="side-teorico" class="text-sm font-mono font-black text-white tracking-tighter">$0.00</p>
                 </div>
 
                 <div class="bg-emerald-500/5 p-3 rounded-xl border border-emerald-500/10 border-l-2 border-emerald-500/40">
-                    <span class="text-[8px] text-emerald-500/60 uppercase font-black block mb-1">Binance Wallet (API)</span>
+                    <span class="text-[10px] text-emerald-500/60 uppercase font-black block mb-1">Binance Wallet (API)</span>
                     <p id="side-binance" class="text-sm font-mono font-black text-emerald-400 tracking-tighter">$0.00</p>
                 </div>
 
                 <div class="bg-white/[0.03] p-3 rounded-xl border border-white/5">
-                    <span class="text-[8px] text-rose-500 uppercase font-black block mb-1 italic tracking-widest">Discrepancia (A)</span>
+                    <span class="text-[9px] text-rose-500 uppercase font-black block mb-1 tracking-widest">Discrepancia (A)</span>
                     <p id="side-discrepancia" class="text-sm font-mono font-black tracking-tighter text-gray-400">$0.00</p>
                 </div>
 
@@ -74,16 +75,16 @@
                 </div>
 
                 <div class="bg-blue-500/5 p-3 rounded-xl border border-blue-500/10 flex justify-between items-center group">
-                    <span class="text-[8px] text-blue-400 uppercase font-black italic">Avg / Ciclo</span>
+                    <span class="text-[9px] text-blue-400 uppercase font-black tracking-wide">Avg / Ciclo</span>
                     <span id="side-avg-ciclo" class="text-xs font-mono font-bold text-white group-hover:text-blue-400 transition-colors">$0.00</span>
                 </div>
             </div>
 
             <div class="flex-1">
                 <div class="flex items-center justify-between mb-4 border-b border-white/10 pb-2">
-                    <p class="text-[9px] font-black text-gray-400 uppercase tracking-widest italic">Monitor Bancos</p>
-                    <div class="flex items-center gap-1">
-                        <span class="text-[7px] text-gray-600 font-bold uppercase">Meta: 1k</span>
+                    <p class="text-[10px] font-black text-gray-400 uppercase tracking-widest">Monitor Bancos</p>
+                    <div class="flex items-center gap-2">
+                        <span id="side-verdicts-count" class="text-[8px] font-black text-[#F3BA2F] bg-[#F3BA2F]/10 px-1.5 py-0.5 rounded">0 Open</span>
                     </div>
                 </div>
                 <div id="side-banks-list" class="space-y-3">
