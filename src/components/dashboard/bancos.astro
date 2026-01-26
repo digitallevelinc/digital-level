@@ -79,11 +79,7 @@ const banks = [
                     <div id={`bank-bar-comprado-${b.id}`} class="h-full bg-[#F3BA2F] transition-all duration-1000"></div>
                     <div id={`bank-bar-profit-${b.id}`} class="h-full bg-emerald-500 transition-all duration-1000"></div>
                 </div>
-                <div class="flex justify-between mt-3 px-1">
-                    <div class="text-left">
-                    <p class="sentinel-label !text-[11px] text-emerald-500 italic opacity-80">Poder Recompra:</p>
-                    <p id={`bank-buying-power-${b.id}`} class="text-emerald-400 font-mono text-[15px] font-bold mt-1 tracking-tight">≈ 0.00 USDT</p>
-                    </div>
+                <div class="flex justify-end mt-3 px-1">
                     <div class="text-right">
                     <p class="sentinel-label !text-[11px] opacity-80">Operaciones:</p>
                     <p id={`bank-ops-count-${b.id}`} class="text-white font-mono text-[15px] font-bold mt-1 tracking-tight">0 / 1k</p>

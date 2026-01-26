@@ -42,6 +42,7 @@ export function updateBancosUI(insights = []) {
             feeSell: document.getElementById(`bank-fee-sell-${id}`),
             profit: document.getElementById(`bank-profit-${id}`),
             margin: document.getElementById(`bank-margin-${id}`),
+            ctot: document.getElementById(`bank-ctot-${id}`),
             // Elementos de la nueva barra triple
             barRecompra: document.getElementById(`bank-bar-recompra-${id}`),
             barComprado: document.getElementById(`bank-bar-comprado-${id}`),
