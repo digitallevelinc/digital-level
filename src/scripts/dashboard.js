@@ -99,8 +99,8 @@ export async function updateDashboard(API_BASE, token, alias, range = {}) {
                 ...i,
                 bankName: i.bank,
                 // Propiedades raíz garantizadas
-                buyRate: i.buyRate ?? 0,
-                sellRate: i.sellRate ?? 0,
+                buyRate: i.buyRate ?? i.avgBuyRate ?? 0,
+                sellRate: i.sellRate ?? i.avgSellRate ?? 0,
                 // Sumas si no vienen pre-calculadas
                 buyFiat: i.buyFiat ?? ((trf.buyTotal || 0) + (pm.buyTotal || 0)),
                 sellFiat: i.sellFiat ?? ((trf.sellTotal || 0) + (pm.sellTotal || 0)),
