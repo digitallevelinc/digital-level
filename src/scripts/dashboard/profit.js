@@ -3,23 +3,26 @@ import { fUSDT, inject } from './utils.js';
 export function updateProfitUI(kpis = {}, bankInsights = []) {
     const audit = kpis.audit || {};
     const wallets = kpis.wallets || {};
+    const critical = kpis.critical || {};
+    const operations = kpis.operations || {};
 
     // 1. CAPITAL INICIAL DINÁMICO (Desde la API)
     // Prioridad: 1. audit.initialCapital, 2. kpis.initialCapital, 3. config, 4. default
-    const CAPITAL_INICIAL = parseFloat(audit.initialCapital || kpis.initialCapital || kpis.config?.initialCapital || 5400);
+    const CAPITAL_INICIAL = parseFloat(audit.initialCapital || kpis.capitalInicial || kpis.initialCapital || kpis.config?.initialCapital || 5400);
 
     inject('audit-initial-capital', fUSDT(CAPITAL_INICIAL));
     inject('audit-period-days', audit.periodDays || 0);
 
     // 2. PROFIT REAL ACUMULADO (Suma de los éxitos en los bancos)
     // Este número SOLO sube a menos que haya una pérdida registrada en un ciclo.
-    const totalProfitCalculated = bankInsights.reduce((acc, bank) => acc + (bank.profit || 0), 0);
+    // Usamos el de critical como fuente de verdad si existe
+    const totalProfitCalculated = critical.profitTotalUSDT ?? bankInsights.reduce((acc, bank) => acc + (bank.profit || 0), 0);
 
     // 3. DATOS DE OPERACIÓN (Lo que hay físicamente)
-    const red = wallets.red?.balanceRed || 0;
-    const switchVal = wallets.switch?.balanceSwitch || 0;
+    const red = wallets.red?.balanceRed || wallets.balanceRed || 0;
+    const switchVal = wallets.switch?.balanceSwitch || wallets.balanceSwitch || 0;
     const p2p = wallets.balanceP2P || 0;
-    const pay = wallets.pay?.balancePay || 0;
+    const pay = wallets.pay?.balancePay || wallets.balancePay || 0;
     const totalCripto = red + switchVal + p2p + pay; // Este es el balance actual de la Wallet
 
     // 4. BALANCE TEÓRICO (Lo que DEBERÍAS tener: Inversión + Ganancia generada)
@@ -28,7 +31,7 @@ export function updateProfitUI(kpis = {}, bankInsights = []) {
     // 5. DISCREPANCIA (GAP)
     // Comparamos lo que hay en Binance (Wallet) contra el Teórico.
     // Si da negativo, es exactamente el dinero que está "en la calle" (Bancos/Ordenes).
-    const realBinance = parseFloat(audit.realBalance || 0);
+    const realBinance = parseFloat(critical.balanceTotal || audit.realBalance || (kpis.currentBalance ?? 0));
     const gap = realBinance - theoreticalTotal;
 
     // --- INYECCIONES EN UI ---
@@ -51,8 +54,8 @@ export function updateProfitUI(kpis = {}, bankInsights = []) {
     inject('audit-growth-percent', `${roiPercent >= 0 ? '+' : ''}${roiPercent.toFixed(2)}%`);
 
     // F. VOLUMEN Y FEES TOTALES
-    inject('audit-total-volume', fUSDT(parseFloat(audit.totalVolume || 0)));
-    inject('audit-total-fees', fUSDT(parseFloat(audit.totalFees || 0)));
+    inject('audit-total-volume', fUSDT(parseFloat(operations.totalVolumeUSDT || audit.totalVolume || 0)));
+    inject('audit-total-fees', fUSDT(parseFloat(operations.totalFeesPaid || audit.totalFees || 0)));
 
     // Inyectar balances de canales (tus wallets individuales)
     inject('channel-red', fUSDT(red));

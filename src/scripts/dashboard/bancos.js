@@ -37,11 +37,11 @@ export function updateBancosUI(insights = []) {
         if (ui.buy) ui.buy.textContent = b.buyRate || '0.00';
         if (ui.sell) ui.sell.textContent = b.sellRate || '0.00';
 
-        // CORRECCIÓN: Usamos los campos explícitos de Fiat y Fees del backend
-        if (ui.volBuy) ui.volBuy.textContent = fVES(b.buyFiat || 0);
-        if (ui.volSell) ui.volSell.textContent = fVES(b.sellFiat || 0);
+        // CORRECCIÓN: Usamos los campos explícitos de Fiat y Fees del backend (Normalizados en dashboard.js)
+        if (ui.volBuy) ui.volBuy.textContent = fVES(b.buyFiat || b.buyVol || 0);
+        if (ui.volSell) ui.volSell.textContent = fVES(b.sellFiat || b.sellVol || 0);
 
-        // Fees
+        // Fees (Normalizados)
         if (ui.feeBuy) ui.feeBuy.textContent = fUSDT(b.feeBuy || 0);
         if (ui.feeSell) ui.feeSell.textContent = fUSDT(b.feeSell || 0);
 

@@ -6,13 +6,13 @@ export function updateSidebarMonitor(kpis = {}, bankInsights = []) {
     const audit = kpis.audit || {};
 
     // 2. Extraer valores (Lógica Espejo de profit.js)
-    // Prioridad: 1. audit.initialCapital, 2. kpis.initialCapital, 3. config, 4. default
-    const CAPITAL_INICIAL = parseFloat(audit.initialCapital || kpis.initialCapital || kpis.config?.initialCapital || 5400);
+    // Prioridad: 1. audit.initialCapital, 2. kpis.capitalInicial (API root), 3. kpis.initialCapital, 4. config, 5. default
+    const CAPITAL_INICIAL = parseFloat(audit.initialCapital || kpis.capitalInicial || kpis.initialCapital || kpis.config?.initialCapital || 5400);
     const profit = summary.totalProfit ?? 0; // Inyectado desde el orquestador
 
     // Cálculos Sincronizados
     const teorico = CAPITAL_INICIAL + profit;
-    const binance = parseFloat(audit.realBalance || 0);
+    const binance = parseFloat(audit.realBalance || kpis.critical?.balanceTotal || 0);
     const diferencia = binance - teorico;
 
     // Cálculo Dinámico de Promedio (Igual que ciclos.js)
@@ -38,18 +38,44 @@ export function updateSidebarMonitor(kpis = {}, bankInsights = []) {
     inject('side-avg-ciclo', fUSDT(avg));
 
     // 3.1 Inyectar información del operador
-    inject('side-operator-alias', audit.operatorAlias || 'N/A');
-    inject('side-initial-capital', fUSDT(parseFloat(audit.initialCapital || 0)));
-    inject('side-period-days', audit.periodDays || 0);
+    const alias = audit.operatorAlias || kpis.operatorAlias || 'N/A';
+    inject('side-operator-alias', alias);
+    inject('side-initial-capital', fUSDT(CAPITAL_INICIAL));
 
-    // Calcular fecha de inicio (hoy - periodDays)
-    const startDate = new Date();
-    startDate.setDate(startDate.getDate() - (audit.periodDays || 0));
-    const formattedStartDate = startDate.toLocaleDateString('es-VE', {
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric'
-    });
+    // Calcular días y fecha inicio
+    let days = audit.periodDays || 0;
+    let startDateStr = audit.startDate || kpis.fechaInicio;
+
+    if (startDateStr) {
+        // Si tenemos fecha de inicio, calculamos días
+        const start = new Date(startDateStr);
+        const now = new Date();
+        const diffTime = Math.abs(now - start);
+        days = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    }
+
+    inject('side-period-days', days);
+
+    // Formatear fecha de inicio
+    let formattedStartDate = '---';
+    if (startDateStr) {
+        const d = new Date(startDateStr);
+        formattedStartDate = d.toLocaleDateString('es-VE', {
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric'
+        });
+    } else if (days > 0) {
+        // Fallback si tenemos días pero no fecha (calculado hacia atrás)
+        const d = new Date();
+        d.setDate(d.getDate() - days);
+        formattedStartDate = d.toLocaleDateString('es-VE', {
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric'
+        });
+    }
+
     inject('side-start-date', formattedStartDate);
 
     // 3.2 Integrity & Verdicts

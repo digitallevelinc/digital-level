@@ -27,11 +27,12 @@ export function updateComisionesUI(data = {}) {
     let totalOpsCompras = 0;
 
     // 3. SUMA DETALLADA BANCO POR BANCO
+    // 3. SUMA DETALLADA BANCO POR BANCO
     insights.forEach(b => {
         // Sumamos Montos (Fees en USDT)
-        // Probamos varias combinaciones de nombres por si la API cambia
-        totalFeesVentas += Number(b.feeSell || b.totalFeeSell || 0);
-        totalFeesCompras += Number(b.feeBuy || b.totalFeeBuy || 0);
+        // Usamos las propiedades normalizadas en dashboard.js
+        totalFeesVentas += Number(b.feeSell || 0);
+        totalFeesCompras += Number(b.feeBuy || 0);
 
         // Sumamos Cantidad de Operaciones
         totalOpsVentas += Number(b.countSell || b.sellCount || 0);
@@ -58,7 +59,7 @@ export function updateComisionesUI(data = {}) {
 
     // 5. ESTILO VISUAL
     if (totalGlobal > 0) {
-        ui.balance.classList.add('text-[#F3BA2F]'); 
+        ui.balance.classList.add('text-[#F3BA2F]');
         ui.balance.classList.remove('text-white');
     }
 }

@@ -5,10 +5,21 @@ let dailyVolBase = 0;
 
 export function updateProyeccionesUI(kpis = {}) {
     const proj = kpis.projections || {};
+    const audit = kpis.audit || {};
+    const operations = kpis.operations || {};
 
     // Guardamos la base diaria que viene de la API
     dailyProfitBase = proj.dailyProfit || 0;
-    dailyVolBase = proj.projectedVolume || 0;
+
+    // Si no viene projectedVolume, usamos dailyVelocity, o calculamos el promedio histórico
+    let dailyVol = proj.projectedVolume || proj.dailyVelocity || 0;
+
+    if (!dailyVol && audit.periodDays > 0) {
+        // Fallback: Total Volumen / Días Operativos
+        dailyVol = (operations.totalVolumeUSDT || 0) / audit.periodDays;
+    }
+
+    dailyVolBase = dailyVol;
 
     // Inicializamos con 1 día
     calculateScenario(1);

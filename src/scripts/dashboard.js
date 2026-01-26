@@ -81,17 +81,36 @@ export async function updateDashboard(API_BASE, token, alias, range = {}) {
 
         const bankData = breakdown.map(b => {
             const insight = insightsMap.get(b.bank) || {};
+            // Normalización de datos bancarios (API -> UI)
             return {
                 ...insight,
                 ...b,
-                bankName: b.bank // Normalizamos nombre
+                bankName: b.bank,
+                // Mapeo de tasas
+                buyRate: b.avgBuyRate ?? b.buyRate ?? 0,
+                sellRate: b.avgSellRate ?? b.sellRate ?? 0,
+                // Mapeo de fees (aplanar estructura pm)
+                feeBuy: b.pm?.buyFee ?? b.feeBuy ?? 0,
+                feeSell: b.pm?.sellFee ?? b.feeSell ?? 0,
+                // Mapeo de volumen (aplanar estructura pm)
+                buyFiat: b.pm?.buyVol ?? b.buyFiat ?? 0,
+                sellFiat: b.pm?.sellVol ?? b.sellFiat ?? 0
             };
         });
 
         // Agregamos bancos que estén en insights pero no en breakdown (si existen)
         insights.forEach(i => {
             if (!bankData.find(b => b.bank === i.bank)) {
-                bankData.push({ ...i, bankName: i.bank });
+                bankData.push({
+                    ...i,
+                    bankName: i.bank,
+                    buyRate: i.avgBuyRate ?? i.buyRate ?? 0,
+                    sellRate: i.avgSellRate ?? i.sellRate ?? 0,
+                    feeBuy: i.pm?.buyFee ?? i.feeBuy ?? 0,
+                    feeSell: i.pm?.sellFee ?? i.feeSell ?? 0,
+                    buyFiat: i.pm?.buyVol ?? i.buyFiat ?? 0,
+                    sellFiat: i.pm?.sellVol ?? i.sellFiat ?? 0
+                });
             }
         });
 
@@ -99,13 +118,18 @@ export async function updateDashboard(API_BASE, token, alias, range = {}) {
         // Nota: En bankBreakdown el campo de profit puede ser 'totalProfitUSDT' o 'currentCycleProfitUSDT'.
         // Iteramos para sumar correctamente.
         const cumulativeProfit = bankData.reduce((acc, bank) => {
-            return acc + (bank.totalProfitUSDT ?? bank.profit ?? 0);
+            // Prioridad: profitTotalUSDT (acumulado) > profit (legacy)
+            return acc + (bank.profit ?? 0);
         }, 0);
 
         // --- ACTUALIZACIÓN DE MÉTRICAS BASE (Mantenemos integridad de IDs) ---
         updateMainKpis(kpis, cumulativeProfit);
         updateRatesCard(kpis);
-        updateComisionesUI(kpis);
+        updateComisionesUI(kpis); // Pasar kpis completo ahora que bankInsights está embebido si es necesario o pasar bankData
+        // Nota: updateComisionesUI usa 'bankInsights' dentro de kpis o arguments. 
+        // Para asegurar que use nuestros datos normalizados, extendemos kpis:
+        const kpisWithNormalizedBanks = { ...kpis, bankInsights: bankData };
+        updateComisionesUI(kpisWithNormalizedBanks);
         updateOperacionesUI(kpis);
 
         // --- MONITOR LATERAL (CONEXIÓN CRÍTICA SINCRONIZADA) ---
@@ -116,7 +140,8 @@ export async function updateDashboard(API_BASE, token, alias, range = {}) {
             if (!kpis[summaryKey]) kpis[summaryKey] = {};
 
             // Sincronización de valor Profit
-            kpis[summaryKey].totalProfit = cumulativeProfit;
+            // Usamos profitTotalUSDT de critical si existe, sino el calculado
+            kpis[summaryKey].totalProfit = kpis.critical?.profitTotalUSDT ?? cumulativeProfit;
 
             // Actualización del monitor
             updateSidebarMonitor(kpis, bankData);
@@ -244,20 +269,31 @@ function pct(value) {
 }
 
 function updateMainKpis(kpis = {}, manualProfit = null) {
+    const critical = kpis.critical || {};
+    // Fallback legacy
     const summary = kpis.metrics || kpis.kpis || kpis.summary || {};
-    inject('kpi-balance', fUSDT(summary.totalBalance ?? summary.balance ?? 0));
-    const beValue = summary.minBuyRate || summary.breakEven;
+
+    inject('kpi-balance', fUSDT(critical.balanceTotal ?? summary.totalBalance ?? summary.balance ?? 0));
+
+    const beValue = critical.breakEvenRate ?? summary.minBuyRate ?? summary.breakEven;
     inject('kpi-breakeven', beValue ? (typeof beValue === 'number' ? beValue.toFixed(2) : beValue) : '---');
-    inject('kpi-margin', summary.globalMarginPct !== undefined ? pct(summary.globalMarginPct) : '---', true);
-    const profitToDisplay = (manualProfit !== null) ? manualProfit : (summary.totalProfit ?? summary.profit ?? 0);
+
+    inject('kpi-margin', pct(critical.globalMarginPercent ?? summary.globalMarginPct), true);
+
+    const profitToDisplay = critical.profitTotalUSDT ?? (manualProfit !== null ? manualProfit : (summary.totalProfit ?? summary.profit ?? 0));
     inject('kpi-profit', fUSDT(profitToDisplay), true);
-    inject('kpi-cycle', fUSDT(summary.cycleProfit ?? summary.cycleGain ?? 0), true);
+
+    inject('kpi-cycle', fUSDT(critical.currentCycleProfit ?? summary.cycleProfit ?? summary.cycleGain ?? 0), true);
 }
 
 function updateRatesCard(kpis = {}) {
+    const ops = kpis.operations || {};
     const rates = kpis.rates || kpis.market || {};
-    const buy = rates.buyRate ?? rates.buy ?? null;
-    const sell = rates.sellRate ?? rates.sell ?? null;
-    const label = (buy || sell) ? `${buy ?? '---'} / ${sell ?? '---'}` : '---';
+
+    // Prioridad: weightedAvg desde operations > rates object
+    const buy = ops.weightedAvgBuyRate ?? rates.buyRate ?? rates.buy ?? null;
+    const sell = ops.weightedAvgSellRate ?? rates.sellRate ?? rates.sell ?? null;
+
+    const label = (buy || sell) ? `${buy ? buy.toFixed(2) : '---'} / ${sell ? sell.toFixed(2) : '---'}` : '---';
     inject('ops-rates', label);
 }
