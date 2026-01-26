@@ -224,9 +224,9 @@ export function updateBancosUI(insights = []) {
 
             } else {
                 // CASO B: Datos antiguos (Legacy / insights)
-                // Usamos el beRate calculado previamente (que ya tiene fallbacks) como tasa de conversión
-                // Si todo falla, fallback a 1 para evitar división por cero (aunque el valor sea irreal, muestra algo)
-                const conversionRate = beRate > 0 ? beRate : (b.sellRate || b.buyRate || 1);
+                // Usamos el techo (antes beRate) calculado previamente como tasa de conversión
+                // Si todo falla, fallback a 1 para evitar división por cero
+                const conversionRate = techo > 0 ? techo : (b.sellRate || b.buyRate || 1);
 
                 const fiatInUsdt = conversionRate > 0 ? (fiatBal / conversionRate) : 0;
                 const usdtActual = usdtBal; // Ya tenemos usdtBal safe arriba
