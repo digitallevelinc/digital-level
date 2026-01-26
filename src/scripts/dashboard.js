@@ -85,6 +85,7 @@ export async function updateDashboard(API_BASE, token, alias, range = {}) {
             const trf = b.trf || {};
             const pm = b.pm || {};
 
+<<<<<<< Updated upstream
             // Consolidamos totales para KPIs globales (Dashboard)
             const feeBuySum = (trf.buyFee || 0) + (pm.buyFee || 0);
             const feeSellSum = (trf.sellFee || 0) + (pm.sellFee || 0);
@@ -92,6 +93,14 @@ export async function updateDashboard(API_BASE, token, alias, range = {}) {
             const sellFiatSum = (trf.sellTotal || trf.sellVol || 0) + (pm.sellTotal || pm.sellVol || 0);
             const countBuySum = (trf.buyCount || 0) + (pm.buyCount || 0);
             const countSellSum = (trf.sellCount || 0) + (pm.sellCount || 0);
+=======
+            // Prioridad: 1. Weighted de TRF, 2. Weighted Root, 3. Avg de TRF, 4. Root Avg
+            const trfFinal = {
+                ...trf,
+                buyRate: trf.weightedAvgBuyRate ?? i.weightedAvgBuyRate ?? trf.avgBuyRate ?? i.avgBuyRate ?? 0,
+                sellRate: trf.weightedAvgSellRate ?? i.weightedAvgSellRate ?? trf.avgSellRate ?? i.avgSellRate ?? 0
+            };
+>>>>>>> Stashed changes
 
             return {
                 ...insight,
