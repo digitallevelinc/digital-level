@@ -66,122 +66,93 @@ export async function updateDashboard(API_BASE, token, alias, range = {}) {
             headers: { 'Authorization': `Bearer ${token}` }
         });
 
-        if (!kpiRes.ok) throw new Error('Fallo en la respuesta de la API');
+        if (!kpiRes.ok) {
+            console.error(`API Error: ${kpiRes.status} ${kpiRes.statusText}`);
+            throw new Error('Fallo en la respuesta de la API');
+        }
         const kpis = await kpiRes.json();
 
-        // --- PREPARACIÓN DE DATOS ---
-        // Priorizamos bankBreakdown (nueva estructura) sobre bankInsights
-        // --- PREPARACIÓN DE DATOS ---
-        // Combinamos bankInsights (Balances/Ops) con judge.bankBreakdown (Ciclos/Profit)
+        // --- PREPARACIÓN DE DATOS (API V2) ---
+        // Estructura directa: metrics, bankInsights, judge
+        const metrics = kpis.metrics || {};
         const insights = kpis.bankInsights || [];
-        const breakdown = kpis.judge?.bankBreakdown || kpis.bankBreakdown || [];
+        const breakdown = kpis.judge?.bankBreakdown || []; // Legacy check just in case
 
-        // Mapa auxiliar para merge
-        const insightsMap = new Map(insights.map(i => [i.bank, i]));
+        // Fusionamos bankInsights con breakdown si es necesario, pero confiamos en bankInsights
+        // Mapa auxiliar para merge (Case Insensitive)
+        const insightsMap = new Map(insights.map(i => [i.bank.toLowerCase().trim(), i]));
 
-        const bankData = breakdown.map(b => {
-            const insight = insightsMap.get(b.bank) || {};
+        // Inicializamos bankData con lo que venga en bankInsights
+        const bankData = insights.map(i => {
             // Normalización de datos bancarios (API structure: bank, trf, pm)
-            const trf = b.trf || {};
-            const pm = b.pm || {};
+            const trf = i.trf || {};
+            const pm = i.pm || {};
 
-            // Consolidamos totales para KPIs globales (Dashboard)
-            const feeBuySum = (trf.buyFee || 0) + (pm.buyFee || 0);
-            const feeSellSum = (trf.sellFee || 0) + (pm.sellFee || 0);
-            const buyFiatSum = (trf.buyTotal || trf.buyVol || 0) + (pm.buyTotal || pm.buyVol || 0);
-            const sellFiatSum = (trf.sellTotal || trf.sellVol || 0) + (pm.sellTotal || pm.sellVol || 0);
-            const countBuySum = (trf.buyCount || 0) + (pm.buyCount || 0);
-            const countSellSum = (trf.sellCount || 0) + (pm.sellCount || 0);
+            // Prioridad: 1. Weighted de TRF, 2. Avg de TRF, 3. Root rates
+            const trfFinal = {
+                ...trf,
+                buyRate: trf.weightedAvgBuyRate ?? trf.avgBuyRate ?? i.avgBuyRate ?? 0,
+                sellRate: trf.weightedAvgSellRate ?? trf.avgSellRate ?? i.avgSellRate ?? 0
+            };
 
             return {
-                ...insight,
-                ...b,
-                bankName: b.bank,
-                // Sub-objetos preservados para detalle TRF/PM
-                trf: {
-                    ...trf,
-                    buyVol: trf.buyTotal || trf.buyVol || 0,
-                    sellVol: trf.sellTotal || trf.sellVol || 0,
-                    buyFee: trf.buyFee || 0,
-                    sellFee: trf.sellFee || 0,
-                    buyCount: trf.buyCount || 0,
-                    sellCount: trf.sellCount || 0,
-                    buyRate: trf.avgBuyRate || b.avgBuyRate || b.buyRate || 0,
-                    sellRate: trf.avgSellRate || b.avgSellRate || b.sellRate || 0
-                },
-                pm: {
-                    ...pm,
-                    buyVol: pm.buyTotal || pm.buyVol || 0,
-                    sellVol: pm.sellTotal || pm.sellVol || 0,
-                    buyFee: pm.buyFee || 0,
-                    sellFee: pm.sellFee || 0,
-                    buyCount: pm.buyCount || 0,
-                    sellCount: pm.sellCount || 0,
-                    buyRate: pm.avgBuyRate || 0,
-                    sellRate: pm.avgSellRate || 0
-                },
-                // Propiedades raíz normalizadas para compatibilidad legacy/global
-                buyRate: b.avgBuyRate ?? b.buyRate ?? trf.avgBuyRate ?? pm.avgBuyRate ?? 0,
-                sellRate: b.avgSellRate ?? b.sellRate ?? trf.avgSellRate ?? pm.avgSellRate ?? 0,
-                feeBuy: feeBuySum || b.feeBuy || 0,
-                feeSell: feeSellSum || b.feeSell || 0,
-                buyFiat: buyFiatSum || b.buyFiat || 0,
-                sellFiat: sellFiatSum || b.sellFiat || 0,
-                countBuy: countBuySum || b.countBuy || 0,
-                countSell: countSellSum || b.countSell || 0
+                ...i,
+                bankName: i.bank,
+                // Propiedades raíz garantizadas
+                buyRate: i.buyRate ?? 0,
+                sellRate: i.sellRate ?? 0,
+                // Sumas si no vienen pre-calculadas
+                buyFiat: i.buyFiat ?? ((trf.buyTotal || 0) + (pm.buyTotal || 0)),
+                sellFiat: i.sellFiat ?? ((trf.sellTotal || 0) + (pm.sellTotal || 0)),
+                trf: trfFinal,
+                pm
             };
         });
 
-        // Agregamos bancos que estén en insights pero no en breakdown (si existen)
-        insights.forEach(i => {
-            if (!bankData.find(b => b.bank === i.bank)) {
-                const trf = i.trf || {};
-                const pm = i.pm || {};
+        // --- FALLBACK VISUAL: Asegurar que todos los bancos del DOM tengan datos (aunque sean ceros) ---
+        // Lista hardcodeada que debe coincidir con bancos.astro
+        const defaultBanks = ['Mercantil', 'Banesco', 'BNC', 'BBVA/Provincial', 'Bancamiga', 'BANK', 'BBVABank'];
+
+        defaultBanks.forEach(dbParams => {
+            // Buscamos si ya existe en bankData (normalizando nombres)
+            const exists = bankData.find(b => {
+                const bId = (b.bank || '').toLowerCase().trim();
+                const dbId = dbParams.toLowerCase().trim();
+                if (bId === dbId) return true;
+                if (dbId.includes('provincial') && bId.includes('provincial')) return true;
+                return false;
+            });
+
+            if (!exists) {
+                // console.warn(`Bank '${dbParams}' missing in API data. Injecting empty placeholder.`);
                 bankData.push({
-                    ...i,
-                    bankName: i.bank,
-                    buyRate: i.avgBuyRate ?? i.buyRate ?? trf.avgBuyRate ?? pm.avgBuyRate ?? 0,
-                    sellRate: i.avgSellRate ?? i.sellRate ?? trf.avgSellRate ?? pm.avgSellRate ?? 0,
-                    feeBuy: (trf.buyFee || 0) + (pm.buyFee || 0) || i.feeBuy || 0,
-                    feeSell: (trf.sellFee || 0) + (pm.sellFee || 0) || i.feeSell || 0,
-                    buyFiat: (trf.buyVol || 0) + (pm.buyVol || 0) || i.buyFiat || i.buyVol || 0,
-                    sellFiat: (trf.sellVol || 0) + (pm.sellVol || 0) || i.sellFiat || i.sellVol || 0,
-                    countBuy: (trf.buyCount || 0) + (pm.buyCount || 0) || i.countBuy || i.buyCount || 0,
-                    countSell: (trf.sellCount || 0) + (pm.sellCount || 0) || i.countSell || i.sellCount || 0
+                    bank: dbParams,
+                    bankName: dbParams,
+                    profit: 0,
+                    buyRate: 0, sellRate: 0,
+                    countBuy: 0, countSell: 0,
+                    buyFiat: 0, sellFiat: 0,
+                    feeBuy: 0, feeSell: 0,
+                    trf: { buyCount: 0, sellCount: 0, buyVol: 0, sellVol: 0, buyFee: 0, sellFee: 0 },
+                    pm: { buyCount: 0, sellCount: 0, buyVol: 0, sellVol: 0, buyFee: 0, sellFee: 0 }
                 });
             }
         });
 
-        // Calculamos el profit una sola vez para asegurar consistencia en todas las cards
-        // Nota: En bankBreakdown el campo de profit puede ser 'totalProfitUSDT' o 'currentCycleProfitUSDT'.
-        // Iteramos para sumar correctamente.
-        const cumulativeProfit = bankData.reduce((acc, bank) => {
-            // Prioridad: profitTotalUSDT (acumulado) > profit (legacy)
-            return acc + (bank.profit ?? 0);
-        }, 0);
+        // Usamos el profit total directo de las métricas
+        const cumulativeProfit = metrics.totalProfit ?? 0;
 
-        // --- ACTUALIZACIÓN DE MÉTRICAS BASE (Mantenemos integridad de IDs) ---
+        // --- ACTUALIZACIÓN DE MÉTRICAS BASE ---
         updateMainKpis(kpis, cumulativeProfit);
         updateRatesCard(kpis);
-        updateComisionesUI(kpis); // Pasar kpis completo ahora que bankInsights está embebido si es necesario o pasar bankData
-        // Nota: updateComisionesUI usa 'bankInsights' dentro de kpis o arguments. 
-        // Para asegurar que use nuestros datos normalizados, extendemos kpis:
+
         const kpisWithNormalizedBanks = { ...kpis, bankInsights: bankData };
         updateComisionesUI(kpisWithNormalizedBanks);
-        updateOperacionesUI(kpis);
+        updateOperacionesUI(kpis); // Asegurar que use kpis.operations
 
-        // --- MONITOR LATERAL (CONEXIÓN CRÍTICA SINCRONIZADA) ---
+        // --- MONITOR LATERAL ---
         if (kpis) {
-            // Aseguramos que el Sidebar reciba el profit calculado manualmente para que coincida con el Body
-            // Detectamos dinámicamente dónde inyectar el valor según la estructura de la API
-            const summaryKey = kpis.metrics ? 'metrics' : (kpis.summary ? 'summary' : 'kpis');
-            if (!kpis[summaryKey]) kpis[summaryKey] = {};
-
-            // Sincronización de valor Profit
-            // Usamos profitTotalUSDT de critical si existe, sino el calculado
-            kpis[summaryKey].totalProfit = kpis.critical?.profitTotalUSDT ?? cumulativeProfit;
-
-            // Actualización del monitor
+            if (!kpis.metrics) kpis.metrics = metrics; // Asegurar referencia
             updateSidebarMonitor(kpis, bankData);
         }
 

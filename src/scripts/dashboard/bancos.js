@@ -1,5 +1,10 @@
-// src/scripts/dashboard/bancos.js
 import { fUSDT, fVES } from './utils.js';
+
+const safeFloat = (val) => {
+    if (!val) return 0;
+    if (typeof val === 'number') return val;
+    return Number(val.toString().replace(',', '.')) || 0;
+};
 
 export function updateBancosUI(insights = []) {
     if (!insights) return;
@@ -7,6 +12,7 @@ export function updateBancosUI(insights = []) {
     const getBankId = (name) => {
         const lower = name.toLowerCase().trim();
         if (lower.includes('pago') || lower.includes('movil')) return 'pagomovil';
+        if (lower === 'bbvabank') return 'bbvabank'; // Specific match
         if (lower.includes('bbva') || lower.includes('provincial')) return 'provincial';
         if (lower.includes('bnc')) return 'bnc';
         if (lower.includes('banesco')) return 'banesco';
@@ -24,9 +30,6 @@ export function updateBancosUI(insights = []) {
     insights.forEach(b => {
         // Normalización ROBUSTA del ID para coincidir con bancos.astro
         const id = getBankId(b.bank);
-
-        // Debug temporal para verificar
-        // console.log(`Mapping '${b.bank}' -> '${id}'`);
 
         const ui = {
             fiat: document.getElementById(`bank-fiat-${id}`),
@@ -141,8 +144,8 @@ export function updateBancosUI(insights = []) {
         }
 
         // --- MAPEO BLOQUE TRF (Transferencias) ---
-        if (ui.buy) ui.buy.textContent = b.trf.buyRate || '0.00';
-        if (ui.sell) ui.sell.textContent = b.trf.sellRate || '0.00';
+        if (ui.buy) ui.buy.textContent = safeFloat(b.trf.buyRate).toFixed(2);
+        if (ui.sell) ui.sell.textContent = safeFloat(b.trf.sellRate).toFixed(2);
 
         if (ui.volBuy) ui.volBuy.textContent = fVES(b.trf.buyVol || 0);
         if (ui.volSell) ui.volSell.textContent = fVES(b.trf.sellVol || 0);
@@ -151,11 +154,7 @@ export function updateBancosUI(insights = []) {
         if (ui.feeSell) ui.feeSell.textContent = fUSDT(b.trf.sellFee || 0);
 
 
-        const safeFloat = (val) => {
-            if (!val) return 0;
-            if (typeof val === 'number') return val;
-            return Number(val.toString().replace(',', '.')) || 0;
-        };
+
 
         // --- 4. TECHO y IDEAL (Breakeven) ---
         // Buscamos rate de breakeven (legacy o v2), con fallbacks progresivos
@@ -249,13 +248,15 @@ export function updateBancosUI(insights = []) {
         }
 
         // 3. Margen y Colores
+        // 3. Margen y Colores
         if (ui.margin) {
             ui.margin.textContent = `${b.margin || 0}%`;
-            const container = ui.margin.parentElement;
+
+            // Fix: Aplicar clases al elemento directo, no al contenedor padre
             if (b.margin >= 0) {
-                container.className = 'text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400';
+                ui.margin.className = 'bg-emerald-500/10 text-emerald-400 px-5 py-2 rounded-full border border-emerald-500/20 text-[13px] font-black shadow-lg';
             } else {
-                container.className = 'text-[10px] font-bold px-2 py-0.5 rounded bg-rose-500/10 text-rose-400';
+                ui.margin.className = 'bg-rose-500/10 text-rose-400 px-5 py-2 rounded-full border border-rose-500/20 text-[13px] font-black shadow-lg';
             }
         }
     });
