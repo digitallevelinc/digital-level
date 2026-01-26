@@ -190,6 +190,9 @@ export function updateBancosUI(insights = []) {
                 ui.beInfo.textContent = `Gap: ${diff.toFixed(2)}%`;
                 // Color coding: Verde si hay espacio (Gap >= 0), Rojo si estamos por encima (Gap < 0)
                 ui.beInfo.className = `text-[9px] px-2 py-0.5 rounded-full font-bold uppercase tracking-tighter ${diff >= 0 ? 'bg-emerald-500/20 text-emerald-400' : 'bg-rose-500/20 text-rose-400'}`;
+
+                // Tooltip explicativo
+                ui.beInfo.title = `GAP: Diferencia entre Techo y tu Compra.\n(+) Tienes espacio para subir.\n(-) Estás comprando por ENCIMA del Techo.`;
             }
         }
 
