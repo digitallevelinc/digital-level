@@ -88,11 +88,11 @@ export async function updateDashboard(API_BASE, token, alias, range = {}) {
             const trf = i.trf || {};
             const pm = i.pm || {};
 
-            // Prioridad: 1. Weighted de TRF, 2. Avg de TRF, 3. Root rates
+            // Prioridad: 1. Weighted de TRF, 2. Weighted Root, 3. Avg de TRF, 4. Root Avg
             const trfFinal = {
                 ...trf,
-                buyRate: trf.weightedAvgBuyRate ?? trf.avgBuyRate ?? i.avgBuyRate ?? 0,
-                sellRate: trf.weightedAvgSellRate ?? trf.avgSellRate ?? i.avgSellRate ?? 0
+                buyRate: trf.weightedAvgBuyRate ?? i.weightedAvgBuyRate ?? trf.avgBuyRate ?? i.avgBuyRate ?? 0,
+                sellRate: trf.weightedAvgSellRate ?? i.weightedAvgSellRate ?? trf.avgSellRate ?? i.avgSellRate ?? 0
             };
 
             return {
