@@ -81,35 +81,73 @@ export async function updateDashboard(API_BASE, token, alias, range = {}) {
 
         const bankData = breakdown.map(b => {
             const insight = insightsMap.get(b.bank) || {};
-            // Normalización de datos bancarios (API -> UI)
+            // Normalización de datos bancarios (API structure: bank, trf, pm)
+            const trf = b.trf || {};
+            const pm = b.pm || {};
+
+            // Consolidamos totales para KPIs globales (Dashboard)
+            const feeBuySum = (trf.buyFee || 0) + (pm.buyFee || 0);
+            const feeSellSum = (trf.sellFee || 0) + (pm.sellFee || 0);
+            const buyFiatSum = (trf.buyTotal || trf.buyVol || 0) + (pm.buyTotal || pm.buyVol || 0);
+            const sellFiatSum = (trf.sellTotal || trf.sellVol || 0) + (pm.sellTotal || pm.sellVol || 0);
+            const countBuySum = (trf.buyCount || 0) + (pm.buyCount || 0);
+            const countSellSum = (trf.sellCount || 0) + (pm.sellCount || 0);
+
             return {
                 ...insight,
                 ...b,
                 bankName: b.bank,
-                // Mapeo de tasas
-                buyRate: b.avgBuyRate ?? b.buyRate ?? 0,
-                sellRate: b.avgSellRate ?? b.sellRate ?? 0,
-                // Mapeo de fees (aplanar estructura pm)
-                feeBuy: b.pm?.buyFee ?? b.feeBuy ?? 0,
-                feeSell: b.pm?.sellFee ?? b.feeSell ?? 0,
-                // Mapeo de volumen (aplanar estructura pm)
-                buyFiat: b.pm?.buyVol ?? b.buyFiat ?? 0,
-                sellFiat: b.pm?.sellVol ?? b.sellFiat ?? 0
+                // Sub-objetos preservados para detalle TRF/PM
+                trf: {
+                    ...trf,
+                    buyVol: trf.buyTotal || trf.buyVol || 0,
+                    sellVol: trf.sellTotal || trf.sellVol || 0,
+                    buyFee: trf.buyFee || 0,
+                    sellFee: trf.sellFee || 0,
+                    buyCount: trf.buyCount || 0,
+                    sellCount: trf.sellCount || 0,
+                    buyRate: trf.avgBuyRate || b.avgBuyRate || b.buyRate || 0,
+                    sellRate: trf.avgSellRate || b.avgSellRate || b.sellRate || 0
+                },
+                pm: {
+                    ...pm,
+                    buyVol: pm.buyTotal || pm.buyVol || 0,
+                    sellVol: pm.sellTotal || pm.sellVol || 0,
+                    buyFee: pm.buyFee || 0,
+                    sellFee: pm.sellFee || 0,
+                    buyCount: pm.buyCount || 0,
+                    sellCount: pm.sellCount || 0,
+                    buyRate: pm.avgBuyRate || 0,
+                    sellRate: pm.avgSellRate || 0
+                },
+                // Propiedades raíz normalizadas para compatibilidad legacy/global
+                buyRate: b.avgBuyRate ?? b.buyRate ?? trf.avgBuyRate ?? pm.avgBuyRate ?? 0,
+                sellRate: b.avgSellRate ?? b.sellRate ?? trf.avgSellRate ?? pm.avgSellRate ?? 0,
+                feeBuy: feeBuySum || b.feeBuy || 0,
+                feeSell: feeSellSum || b.feeSell || 0,
+                buyFiat: buyFiatSum || b.buyFiat || 0,
+                sellFiat: sellFiatSum || b.sellFiat || 0,
+                countBuy: countBuySum || b.countBuy || 0,
+                countSell: countSellSum || b.countSell || 0
             };
         });
 
         // Agregamos bancos que estén en insights pero no en breakdown (si existen)
         insights.forEach(i => {
             if (!bankData.find(b => b.bank === i.bank)) {
+                const trf = i.trf || {};
+                const pm = i.pm || {};
                 bankData.push({
                     ...i,
                     bankName: i.bank,
-                    buyRate: i.avgBuyRate ?? i.buyRate ?? 0,
-                    sellRate: i.avgSellRate ?? i.sellRate ?? 0,
-                    feeBuy: i.pm?.buyFee ?? i.feeBuy ?? 0,
-                    feeSell: i.pm?.sellFee ?? i.feeSell ?? 0,
-                    buyFiat: i.pm?.buyVol ?? i.buyFiat ?? 0,
-                    sellFiat: i.pm?.sellVol ?? i.sellFiat ?? 0
+                    buyRate: i.avgBuyRate ?? i.buyRate ?? trf.avgBuyRate ?? pm.avgBuyRate ?? 0,
+                    sellRate: i.avgSellRate ?? i.sellRate ?? trf.avgSellRate ?? pm.avgSellRate ?? 0,
+                    feeBuy: (trf.buyFee || 0) + (pm.buyFee || 0) || i.feeBuy || 0,
+                    feeSell: (trf.sellFee || 0) + (pm.sellFee || 0) || i.feeSell || 0,
+                    buyFiat: (trf.buyVol || 0) + (pm.buyVol || 0) || i.buyFiat || i.buyVol || 0,
+                    sellFiat: (trf.sellVol || 0) + (pm.sellVol || 0) || i.sellFiat || i.sellVol || 0,
+                    countBuy: (trf.buyCount || 0) + (pm.buyCount || 0) || i.countBuy || i.buyCount || 0,
+                    countSell: (trf.sellCount || 0) + (pm.sellCount || 0) || i.countSell || i.sellCount || 0
                 });
             }
         });

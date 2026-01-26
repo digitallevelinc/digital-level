@@ -105,7 +105,7 @@ export function updateBancosUI(insights = []) {
 
         // 1. Header TRF Count (Total Transferencias)
         if (ui.trOps) {
-            ui.trOps.textContent = `${countBuy + countSell} OPS`;
+            ui.trOps.textContent = `${b.trf.buyCount + b.trf.sellCount} OPS`;
         }
 
         // Vueltas P2P (Legacy vs V2)
@@ -115,7 +115,7 @@ export function updateBancosUI(insights = []) {
         }
 
         // 2. Sección Pago Móvil (PM)
-        if (ui.pmOps) ui.pmOps.textContent = `${pm.sellCount + pm.buyCount} OPS`;
+        if (ui.pmOps) ui.pmOps.textContent = `${pm.buyCount + pm.sellCount} OPS`;
 
         // PM Ventas
         if (ui.sellPM) ui.sellPM.textContent = pm.sellCount.toString();
@@ -136,20 +136,19 @@ export function updateBancosUI(insights = []) {
         }
 
         if (ui.opsCount) {
-            const totalOps = countBuy + countSell + pm.sellCount + pm.buyCount;
+            const totalOps = b.trf.buyCount + b.trf.sellCount + pm.buyCount + pm.sellCount;
             ui.opsCount.textContent = `${totalOps} / 1k`;
         }
 
-        if (ui.buy) ui.buy.textContent = b.buyRate || '0.00';
-        if (ui.sell) ui.sell.textContent = b.sellRate || '0.00';
+        // --- MAPEO BLOQUE TRF (Transferencias) ---
+        if (ui.buy) ui.buy.textContent = b.trf.buyRate || '0.00';
+        if (ui.sell) ui.sell.textContent = b.trf.sellRate || '0.00';
 
-        // CORRECCIÓN: Usamos los campos explícitos de Fiat y Fees del backend (Normalizados en dashboard.js)
-        if (ui.volBuy) ui.volBuy.textContent = fVES(b.buyFiat || b.buyVol || 0);
-        if (ui.volSell) ui.volSell.textContent = fVES(b.sellFiat || b.sellVol || 0);
+        if (ui.volBuy) ui.volBuy.textContent = fVES(b.trf.buyVol || 0);
+        if (ui.volSell) ui.volSell.textContent = fVES(b.trf.sellVol || 0);
 
-        // Fees (Normalizados)
-        if (ui.feeBuy) ui.feeBuy.textContent = fUSDT(b.feeBuy || 0);
-        if (ui.feeSell) ui.feeSell.textContent = fUSDT(b.feeSell || 0);
+        if (ui.feeBuy) ui.feeBuy.textContent = fUSDT(b.trf.buyFee || 0);
+        if (ui.feeSell) ui.feeSell.textContent = fUSDT(b.trf.sellFee || 0);
 
 
         const safeFloat = (val) => {
