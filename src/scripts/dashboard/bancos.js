@@ -78,24 +78,15 @@ export function updateBancosUI(insights = []) {
         const countSell = Number(b.countSell ?? b.sellCount ?? b.opsSell ?? 0);
 
         // 3. Datos Pago Móvil
-        // ESTRATEGIA: "Pago Móvil" se reporta como una entidad separada en el backend.
-        // Para bancos individuales (Banesco, Mercantil), el objeto .pm viene vacío o en 0.
-        // Por lo tanto, usamos el objeto GLOBAL 'Pago Movil' (globalPM) para rellenar esos datos en todas las tarjetas,
-        // SALVO que el banco traiga explícitamente datos propios de PM (futuro).
-
-        const hasLocalPM = b.pm && (Number(b.pm.sellVol || 0) > 0 || Number(b.pm.buyVol || 0) > 0);
-        const rawPM = hasLocalPM ? b.pm : globalPM;
+        // ESTRATEGIA: Usamos los datos DIRECTOS del objeto banco si existen.
+        // El JSON del usuario confirma que cada banco trae su propio desglose "pm".
+        const rawPM = b.pm || {};
 
         const pm = {
-            // API V2 Spec: sellCount, buyCount
             sellCount: Number(rawPM.sellCount ?? 0),
             buyCount: Number(rawPM.buyCount ?? 0),
-
-            // API V2 Spec: sellVol, buyVol (en VES)
             sellVol: Number(rawPM.sellVol ?? 0),
             buyVol: Number(rawPM.buyVol ?? 0),
-
-            // API V2 Spec: sellFee, buyFee
             sellFee: Number(rawPM.sellFee ?? 0),
             buyFee: Number(rawPM.buyFee ?? 0)
         };

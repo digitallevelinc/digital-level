@@ -128,7 +128,46 @@ const banks = [
                 </div>
                 </div>
 
-                {/* 5. BLOQUE PAGO MOVIL (COMENTADO) */}
+                {/* 5. BLOQUE PAGO MOVIL */}
+                <div class="mt-4 bg-purple-500/[0.03] border border-purple-500/10 rounded-xl overflow-hidden shadow-inner">
+                    <div class="bg-purple-500/10 px-4 py-2.5 flex justify-between items-center border-b border-purple-500/10">
+                        <div class="flex items-center gap-2">
+                            <div class="w-2 h-2 bg-purple-400 rounded-full animate-pulse shadow-[0_0_5px_rgba(192,132,252,0.5)]"></div>
+                            <span class="text-xs font-black text-purple-400 uppercase tracking-[0.15em]">Pago Móvil</span>
+                        </div>
+                        <span id={`bank-pm-ops-${b.id}`} class="text-xs font-mono font-bold text-purple-400">0 OPS</span>
+                    </div>
+                    <div class="grid grid-cols-2 gap-4 bg-black/10 p-4 rounded-xl border border-white/[0.03]">
+                        <div class="space-y-3 border-r border-white/10 pr-4">
+                            <div class="flex justify-between items-center">
+                                <span class="text-rose-500 font-black uppercase tracking-wide text-xs">Venta PM</span>
+                                <span id={`bank-sell-pm-${b.id}`} class="text-white font-mono font-bold text-xl">0</span>
+                            </div>
+                            <div class="flex flex-col bg-black/30 p-3 rounded-lg border border-white/5 relative">
+                                <span class="sentinel-label !text-[11px] font-black mb-1 opacity-60 uppercase">Vendido</span>
+                                <span id={`bank-vol-sell-pm-${b.id}`} class="text-white font-mono text-sm font-bold truncate">0.00 VES</span>
+                                <div class="flex justify-between items-center mt-2 border-t border-white/5 pt-2">
+                                    <span class="text-xs text-rose-400 font-bold uppercase">Fee:</span>
+                                    <span id={`bank-fee-sell-pm-${b.id}`} class="text-sm text-rose-400 font-mono font-bold">0.00</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="space-y-3 pl-4">
+                            <div class="flex justify-between items-center">
+                                <span class="text-emerald-500 font-black uppercase tracking-wide text-xs">Compra PM</span>
+                                <span id={`bank-buy-pm-${b.id}`} class="text-white font-mono font-bold text-xl">0</span>
+                            </div>
+                            <div class="flex flex-col bg-black/30 p-3 rounded-lg border border-white/5 relative">
+                                <span class="sentinel-label !text-[11px] font-black mb-1 opacity-60 uppercase">Comprado</span>
+                                <span id={`bank-vol-buy-pm-${b.id}`} class="text-white font-mono text-sm font-bold truncate">0.00 VES</span>
+                                <div class="flex justify-between items-center mt-2 border-t border-white/5 pt-2">
+                                    <span class="text-xs text-emerald-400 font-bold uppercase">Fee:</span>
+                                    <span id={`bank-fee-buy-pm-${b.id}`} class="text-sm text-emerald-400 font-mono font-bold">0.00</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
 
                 {/* 6. FOOTER: VUELTAS & MARGEN (IGUAL) */}
                 <div class="pt-4 border-t border-white/10 flex justify-between items-center mt-auto">
