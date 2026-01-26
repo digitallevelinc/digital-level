@@ -149,31 +149,43 @@ export function updateBancosUI(insights = []) {
 
 
         // --- 4. TECHO y IDEAL (Breakeven) ---
-        // Buscamos rate de breakeven (legacy o v2), con fallbacks progresivos
-        // Usamos safeFloat porque los rates pueden venir como strings "123,45"
-        const beRate = safeFloat(b.breakEvenRate) || safeFloat(b.weightedBreakEvenRate) || safeFloat(b.avgBuyRate) || safeFloat(b.buyRate) || safeFloat(b.sellRate) || 0;
+        // User Request: ceilingRate = avgSellRate / 1.005 | idealRate = ceilingRate / 1.01
 
-        if (ui.breakeven) {
-            ui.breakeven.textContent = beRate > 0 ? beRate.toFixed(2) : '0.00';
+        const avgSell = safeFloat(b.sellRate) || safeFloat(b.avgSellRate) || 0; // rate fallback already handled in mapping
+
+        // 1. Techo (Ceiling)
+        // Prioridad: API ceilingRate > breakEvenRate > Fórmula (Sell / 1.005)
+        let techo = safeFloat(b.ceilingRate) || safeFloat(b.breakEvenRate) || safeFloat(b.weightedBreakEvenRate) || 0;
+
+        if (techo === 0 && avgSell > 0) {
+            techo = avgSell / 1.005;
         }
 
-        // Calculamos ideal como BE - 0.5% extra (aprox) o usamos idealRate si existe
-        // Si usamos fallback de buyRate/sellRate, agregamos un margen dummy (ej. 1%) para que no sea igual al BE
-        const idealRate = safeFloat(b.idealRate) || (beRate > 0 ? (beRate * 0.995) : 0);
+        if (ui.breakeven) {
+            ui.breakeven.textContent = techo > 0 ? techo.toFixed(2) : '0.00';
+        }
+
+        // 2. Ideal
+        // Prioridad: API idealRate > Fórmula (Techo / 1.01)
+        let ideal = safeFloat(b.idealRate);
+
+        if (ideal === 0 && techo > 0) {
+            ideal = techo / 1.01;
+        }
 
         if (ui.ideal) {
-            ui.ideal.textContent = idealRate > 0 ? idealRate.toFixed(2) : '0.00';
+            ui.ideal.textContent = ideal > 0 ? ideal.toFixed(2) : '0.00';
         }
 
         // Status Pill (Esperando... / Gap)
         if (ui.beInfo) {
-            if (!beRate) {
+            if (!techo) {
                 ui.beInfo.textContent = "Esperando...";
                 ui.beInfo.className = "text-[9px] px-2 py-0.5 rounded-full bg-white/5 text-gray-500 font-bold uppercase tracking-tighter";
             } else {
                 const currentBuy = safeFloat(b.buyRate);
-                // Diferencia porcentual entre el BE y la tasa de compra actual
-                const diff = currentBuy > 0 ? ((beRate - currentBuy) / currentBuy) * 100 : 0;
+                // Diferencia porcentual entre el Techo y la tasa de compra actual
+                const diff = currentBuy > 0 ? ((techo - currentBuy) / currentBuy) * 100 : 0;
 
                 ui.beInfo.textContent = `Gap: ${diff.toFixed(2)}%`;
                 // Color coding: Verde si hay espacio (Gap >= 0), Rojo si estamos por encima (Gap < 0)
