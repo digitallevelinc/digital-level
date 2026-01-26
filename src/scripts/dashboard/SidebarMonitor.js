@@ -29,7 +29,7 @@ export function updateSidebarMonitor(kpis = {}, bankInsights = []) {
         totalNetProfit += net;
     });
 
-    const avg = totalCycles > 0 ? (totalNetProfit / totalCycles) : 0;
+    const avg = kpis.critical?.averageCycleProfit ?? (totalCycles > 0 ? (totalNetProfit / totalCycles) : 0);
 
     // 3. Inyectar en los IDs del Sidebar
     inject('side-teorico', fUSDT(teorico));
