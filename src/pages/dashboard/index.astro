@@ -14,6 +14,9 @@ import Ciclos from '../../components/dashboard/ciclos.astro';
 import Profit from '../../components/dashboard/profit.astro';
 import ComisionOperador from '../../components/dashboard/ComisionOperador.astro'; 
 import ProyeccionGanancias from '../../components/dashboard/ProyeccionGanancias.astro';
+import 'flatpickr/dist/flatpickr.min.css';
+import 'flatpickr/dist/themes/dark.css';
+
 ---
 
 <DashboardLayout>
@@ -73,13 +76,23 @@ import ProyeccionGanancias from '../../components/dashboard/ProyeccionGanancias.
     </div>
 
     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-      <div class="space-y-2">
+    <div class="space-y-2">
         <label class="sentinel-label px-1">Desde</label>
-        <input id="kpi-date-from" type="date" class="bg-black text-white text-sm border border-gray-700 p-4 rounded-xl w-full outline-none focus:border-[#F3BA2F]/70 transition-colors shadow-inner" />
+        <div class="relative group">
+            <input id="kpi-date-from" type="text" placeholder="Seleccionar fecha..." class="bg-black text-white text-sm border border-gray-700 p-4 pl-11 rounded-xl w-full outline-none focus:border-[#F3BA2F]/70 focus:bg-white/5 transition-all shadow-inner cursor-pointer" readonly />
+            <div class="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 group-hover:text-[#F3BA2F] transition-colors pointer-events-none">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+            </div>
+        </div>
       </div>
       <div class="space-y-2">
         <label class="sentinel-label px-1">Hasta</label>
-        <input id="kpi-date-to" type="date" class="bg-black text-white text-sm border border-gray-700 p-4 rounded-xl w-full outline-none focus:border-[#F3BA2F]/70 transition-colors shadow-inner" />
+        <div class="relative group">
+            <input id="kpi-date-to" type="text" placeholder="Seleccionar fecha..." class="bg-black text-white text-sm border border-gray-700 p-4 pl-11 rounded-xl w-full outline-none focus:border-[#F3BA2F]/70 focus:bg-white/5 transition-all shadow-inner cursor-pointer" readonly />
+            <div class="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 group-hover:text-[#F3BA2F] transition-colors pointer-events-none">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+            </div>
+        </div>
       </div>
       <div class="flex items-end">
         <button id="kpi-apply-range" class="bg-[#F3BA2F] text-black text-[12px] font-black py-4.5 px-4 rounded-xl w-full uppercase tracking-widest hover:bg-[#d9a927] transition-all shadow-lg shadow-[#F3BA2F]/20 active:scale-[0.98]">
