@@ -159,6 +159,8 @@ export async function updateDashboard(API_BASE, token, alias, range = {}) {
                 // Sumas si no vienen pre-calculadas
                 buyFiat: i.buyFiat ?? ((trf.buyTotal || 0) + (pm.buyTotal || 0)),
                 sellFiat: i.sellFiat ?? ((trf.sellTotal || 0) + (pm.sellTotal || 0)),
+                feeBuy: (trf.buyFee || 0) + (pm.buyFee || 0),
+                feeSell: (trf.sellFee || 0) + (pm.sellFee || 0),
                 trf: trfFinal,
                 pm,
                 isFavorite: finalIsFav
