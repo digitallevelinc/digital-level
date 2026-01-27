@@ -1,5 +1,9 @@
 import { fVES, fUSDT, buildSheetLink } from './utils.js';
 
+const formatNumber = (num, decimals = 2) => {
+    return Number(num || 0).toLocaleString('es-VE', { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
+};
+
 /**
  * Summariza todos los bancos y actualiza la tarjeta FIAT Balance
  * @param {Object} kpis - Datos globales
@@ -8,75 +12,65 @@ import { fVES, fUSDT, buildSheetLink } from './utils.js';
 export function updateFiatSection(kpis = {}, bankInsights = []) {
     const ui = {
         amount: document.getElementById('fiat-amount'),
-        amountUSD: document.getElementById('fiat-amount-usd'), // Nuevo ID para el aproximado
+        amountUSD: document.getElementById('fiat-amount-usd'),
         withdrawalCount: document.getElementById('fiat-withdrawal-count'),
         withdrawalVol: document.getElementById('fiat-withdrawal-vol'),
         depoCount: document.getElementById('fiat-depo-count'),
         depoVol: document.getElementById('fiat-depo-vol'),
-        totalOps: document.getElementById('fiat-total-ops'), 
+        totalOps: document.getElementById('fiat-total-ops'),
         sheetLink: document.getElementById('link-fiat-sheet')
     };
 
-    // 1. Inicializamos acumuladores
-    let totalVendidoVES = 0;
-    let totalCompradoVES = 0;
-    let totalCountVendido = 0;
-    let totalCountComprado = 0;
+    const operations = kpis.operations || {};
 
-    // 2. Sumarizamos la data de todos los bancos detectados
-    if (bankInsights && bankInsights.length > 0) {
-        bankInsights.forEach(bank => {
-            totalVendidoVES += (bank.volumeSellFiat || (bank.volumeSell * bank.sellRate) || 0);
-            totalCompradoVES += (bank.volumeBuyFiat || (bank.volumeBuy * bank.buyRate) || 0);
-            
-            totalCountVendido += (bank.countSell || 0);
-            totalCountComprado += (bank.countBuy || 0);
-        });
-    } else {
-        totalVendidoVES = kpis.operations?.sells?.totalFiat || 0;
-        totalCompradoVES = kpis.operations?.buys?.totalFiat || 0;
-    }
+    // Balance Fiat (COMPRADO/VENDIDO/BALANCE)
+    // Aseguramos leer totalFiat de las operaciones globales
+    const fiatBought = operations?.buys?.totalFiat || 0;
+    const fiatSold = operations?.sells?.totalFiat || 0;
 
-    // --- CÁLCULO DE BALANCE NETO ---
-    const totalBalanceFiat = totalCompradoVES - totalVendidoVES;
+    // Balance desde operations (nuevo campo API)
+    const fiatBalance = operations?.fiatBalance || 0;
+    const fiatBalanceUSDT = operations?.fiatBalanceUSDT || 0;
 
     // 3. Inyección en UI
-    
-    // Balance Total Sumarizado
+
+    // Balance Total VES
     if (ui.amount) {
-        ui.amount.textContent = fVES(totalBalanceFiat);
-        ui.amount.style.color = totalBalanceFiat >= 0 ? "#28a745" : "#dc3545";
+        ui.amount.textContent = `${formatNumber(fiatBalance, 2)} VES`;
+        ui.amount.style.color = fiatBalance >= 0 ? "#28a745" : "#dc3545";
     }
 
-    // --- NUEVO: CÁLCULO APROXIMADO USD ---
+    // USD equivalent (nuevo campo API)
     if (ui.amountUSD) {
-        // Obtenemos la tasa de venta (prioridad: tasa de mercado > tasa de kpis)
-        const currentRate = kpis.rates?.sellRate || kpis.metrics?.sellRate || 0;
-
-        if (currentRate > 0 && totalBalanceFiat !== 0) {
-            const usdApprox = totalBalanceFiat / currentRate;
-            ui.amountUSD.textContent = `${fUSDT(usdApprox)} USD`;
-        } else {
-            ui.amountUSD.textContent = "0.00 USD";
-        }
+        ui.amountUSD.textContent = `≈ ${formatNumber(fiatBalanceUSDT, 2)} USD`;
     }
 
-    // ROJO: Salidas/Vendido (PRODUCCIÓN)
-    if (ui.withdrawalCount) ui.withdrawalCount.textContent = (totalCountVendido || kpis.operations?.sells?.count || 0).toString();
-    if (ui.withdrawalVol) ui.withdrawalVol.textContent = fVES(totalVendidoVES);
+    // VENDIDO (Salidas/Withdrawals)
+    // Elements.fiatSold -> ui.withdrawalVol
+    if (ui.withdrawalVol) {
+        ui.withdrawalVol.textContent = `$${formatNumber(fiatSold, 2)}`;
+    }
+    // Counts mapping (keep existing logic or map from operations)
+    if (ui.withdrawalCount) {
+        ui.withdrawalCount.textContent = (operations?.sells?.count || 0).toString();
+    }
 
-    // VERDE: Entradas/Comprado (PRODUCCIÓN)
-    if (ui.depoCount) ui.depoCount.textContent = (totalCountComprado || kpis.operations?.buys?.count || 0).toString();
-    if (ui.depoVol) ui.depoVol.textContent = fVES(totalCompradoVES);
+    // COMPRADO (Entradas/Deposits)
+    // Elements.fiatBought -> ui.depoVol
+    if (ui.depoVol) {
+        ui.depoVol.textContent = `$${formatNumber(fiatBought, 2)}`;
+    }
+    if (ui.depoCount) {
+        ui.depoCount.textContent = (operations?.buys?.count || 0).toString();
+    }
 
-    // TOTAL DE OPERACIONES (PRODUCCIÓN)
+    // TOTAL DE OPERACIONES
     if (ui.totalOps) {
-        const total = (totalCountVendido + totalCountComprado) || 
-                      ((kpis.operations?.sells?.count || 0) + (kpis.operations?.buys?.count || 0));
+        const total = (operations?.sells?.count || 0) + (operations?.buys?.count || 0);
         ui.totalOps.textContent = total.toString();
     }
 
-    // 4. Link Sheet (PRODUCCIÓN)
+    // 4. Link Sheet
     if (ui.sheetLink) {
         const url = kpis.config?.fiatSheetUrl || buildSheetLink(kpis.config?.googleSheetId);
         ui.sheetLink.href = url;
