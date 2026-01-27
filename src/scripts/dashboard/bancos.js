@@ -267,4 +267,66 @@ export function updateBancosUI(insights = []) {
             }
         }
     });
+
+    // 4. REORDENAMIENTO VISUAL (NUEVO: Favoritos > Volumen)
+    sortBankCards(insights, getBankId);
+}
+
+/**
+ * Reordena las tarjetas en el DOM:
+ * 1. Favoritos (Star = true)
+ * 2. Volumen/Indice original (No favoritos)
+ */
+function sortBankCards(insights, getBankIdFn) {
+    const grid = document.getElementById('banks-grid');
+    if (!grid) return;
+
+    // Convertimos NodeList a Array para poder ordenar
+    const cards = Array.from(grid.children);
+
+    cards.sort((a, b) => {
+        // Obtenemos los data-bank-id del DOM (coincide con nuestros IDs normalizados)
+        const idA = a.getAttribute('data-bank-id');
+        const idB = b.getAttribute('data-bank-id');
+        const idxA = Number(a.getAttribute('data-original-index') || 999);
+        const idxB = Number(b.getAttribute('data-original-index') || 999);
+
+        // Buscamos los datos correspondientes en insights para ver si son favoritos
+        // Nota: insights tiene la propiedad bankName original, necesitamos matchear con el ID normalizado
+        const dataA = insights.find(i => getBankIdFn(i.bank) === idA);
+        const dataB = insights.find(i => getBankIdFn(i.bank) === idB);
+
+        // Helper to handle boolean or string "true"
+        const isTrue = (val) => val === true || val === 'true';
+
+        const isFavA = isTrue(dataA?.isFavorite);
+        const isFavB = isTrue(dataB?.isFavorite);
+
+        // Regla 1: Favoritos primero
+        if (isFavA && !isFavB) return -1;
+        if (!isFavA && isFavB) return 1;
+
+        // Regla 2: Fallback al orden original (esto respeta el orden estático de bancos.astro o volumen si viniera así)
+        return idxA - idxB;
+    });
+
+    // Re-append en el nuevo orden (mueve los elementos existentes)
+    cards.forEach(card => grid.appendChild(card));
+
+    // Update Star UI
+    insights.forEach(b => {
+        const id = getBankIdFn(b.bank);
+        const starBtn = document.getElementById(`fav-${id}`);
+        if (starBtn) {
+            const isFav = b.isFavorite === true || b.isFavorite === 'true';
+            // Toggle classes
+            if (isFav) {
+                starBtn.classList.remove('text-gray-600');
+                starBtn.classList.add('text-yellow-400');
+            } else {
+                starBtn.classList.add('text-gray-600');
+                starBtn.classList.remove('text-yellow-400');
+            }
+        }
+    });
 }

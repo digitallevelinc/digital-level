@@ -47,6 +47,52 @@ export async function initDashboard() {
     });
 
     await updateDashboard(API_BASE, token, alias, currentRange);
+
+    // --- FAVORITES HANDLER (Global connection for Astro onClick) ---
+    window.handleToggleFavorite = async (bankName) => {
+        console.log(`Toggling favorite for: ${bankName}`);
+
+        // 1. Optimistic Update (Visual Instantánea)
+        // Buscamos el ID normalizado para encontrar el botón
+        // (Replicamos la lógica de normalización de bancos.js para hallar el botón)
+        // NOTA: Para simplificar, haremos un refetch rápido o toggle manual si queremos optimismo puro.
+        // Por consistencia, haremos la llamada API y luego updateDashboard.
+        // Si queremos optimismo, necesitaríamos acceso al estado 'bankData' global actual.
+
+        try {
+            const toggleUrl = `${API_BASE}/api/user/favorites/toggle`;
+            const payload = { bankId: bankName }; // El backend espera el nombre o ID
+
+            const res = await fetch(toggleUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify(payload)
+            });
+
+            const data = await res.json();
+
+            if (data.success || res.ok) {
+                console.log("Favorite toggled successfully. Refreshing...");
+
+                // HYBRID FIX: Save returned favorites to LocalStorage backup
+                if (data.favorites && Array.isArray(data.favorites)) {
+                    console.log("Saving new favorites to storage:", data.favorites);
+                    localStorage.setItem('sentinel_favorites', JSON.stringify(data.favorites));
+                }
+
+                // Recargamos datos para ver el cambio de orden y estrella
+                await updateDashboard(API_BASE, token, alias, currentRange);
+            } else {
+                console.error("Error toggling favorite:", data);
+            }
+        } catch (err) {
+            console.error("Network error toggling favorite:", err);
+        }
+    };
+
     setInterval(() => updateDashboard(API_BASE, token, alias, currentRange), 30000);
 }
 
@@ -73,16 +119,20 @@ export async function updateDashboard(API_BASE, token, alias, range = {}) {
         const kpis = await kpiRes.json();
 
         // --- PREPARACIÓN DE DATOS (API V2) ---
+        // Robustez: Buscamos lista de favoritos global por si el backend la manda así
+        const favoritesList = kpis.favorites || kpis.userFavorites || [];
+
+        const isFavGlobal = (name) => {
+            if (!Array.isArray(favoritesList)) return false;
+            return favoritesList.some(f => f.toLowerCase().trim() === name.toLowerCase().trim());
+        };
+
         // Estructura directa: metrics, bankInsights, judge
         const metrics = kpis.metrics || {};
         const insights = kpis.bankInsights || [];
-        const breakdown = kpis.judge?.bankBreakdown || []; // Legacy check just in case
+        const breakdown = kpis.judge?.bankBreakdown || [];
 
         // Fusionamos bankInsights con breakdown si es necesario, pero confiamos en bankInsights
-        // Mapa auxiliar para merge (Case Insensitive)
-        const insightsMap = new Map(insights.map(i => [i.bank.toLowerCase().trim(), i]));
-
-        // Inicializamos bankData con lo que venga en bankInsights
         const bankData = insights.map(i => {
             // Normalización de datos bancarios (API structure: bank, trf, pm)
             const trf = i.trf || {};
@@ -95,6 +145,11 @@ export async function updateDashboard(API_BASE, token, alias, range = {}) {
                 sellRate: trf.weightedAvgSellRate ?? i.weightedAvgSellRate ?? trf.avgSellRate ?? i.avgSellRate ?? 0
             };
 
+            // Determinamos favorito (Propiedad directa O Lista global)
+            const favProp = i.isFavorite === true || i.isFavorite === 'true';
+            const favList = isFavGlobal(i.bank);
+            const finalIsFav = favProp || favList;
+
             return {
                 ...i,
                 bankName: i.bank,
@@ -105,7 +160,8 @@ export async function updateDashboard(API_BASE, token, alias, range = {}) {
                 buyFiat: i.buyFiat ?? ((trf.buyTotal || 0) + (pm.buyTotal || 0)),
                 sellFiat: i.sellFiat ?? ((trf.sellTotal || 0) + (pm.sellTotal || 0)),
                 trf: trfFinal,
-                pm
+                pm,
+                isFavorite: finalIsFav
             };
         });
 
@@ -124,7 +180,10 @@ export async function updateDashboard(API_BASE, token, alias, range = {}) {
             });
 
             if (!exists) {
-                // console.warn(`Bank '${dbParams}' missing in API data. Injecting empty placeholder.`);
+                // Check if favorite in fallback
+                const isPlaceholderFav = isFavGlobal(dbParams);
+                if (isPlaceholderFav) console.log(`[Fallback] ${dbParams} RESTORED as Favorite from Storage/API`);
+
                 bankData.push({
                     bank: dbParams,
                     bankName: dbParams,
@@ -134,10 +193,15 @@ export async function updateDashboard(API_BASE, token, alias, range = {}) {
                     buyFiat: 0, sellFiat: 0,
                     feeBuy: 0, feeSell: 0,
                     trf: { buyCount: 0, sellCount: 0, buyVol: 0, sellVol: 0, buyFee: 0, sellFee: 0 },
-                    pm: { buyCount: 0, sellCount: 0, buyVol: 0, sellVol: 0, buyFee: 0, sellFee: 0 }
+                    pm: { buyCount: 0, sellCount: 0, buyVol: 0, sellVol: 0, buyFee: 0, sellFee: 0 },
+                    // Apply logic here too
+                    isFavorite: isPlaceholderFav
                 });
             }
         });
+
+        // --- MOCK TEMPORAL PARA PRUEBAS (Descomentar para probar visualmente sin Backend) ---
+        // if (bankData.find(b => b.bank === 'Banesco')) bankData.find(b => b.bank === 'Banesco').isFavorite = true;
 
         // Usamos el profit total directo de las métricas
         const cumulativeProfit = metrics.totalProfit ?? 0;
