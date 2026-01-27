@@ -109,13 +109,22 @@ const waNumber = "584120000000";
                                     </div>
                                 )}
 
+                                
                                 {service.id === 'insights' && (
                                     <div class="space-y-2">
                                         <span class="text-[10px] text-[#F3BA2F] font-bold uppercase">Métricas de Rentabilidad</span>
-                                        <img src="/img/insights.png" alt="Gráficos de rendimiento" class="rounded border border-gray-700 w-full" />
+                                        <video 
+                                            src="/img/insights.mp4" 
+                                            autoplay 
+                                            loop 
+                                            muted 
+                                            playsinline 
+                                            class="rounded border border-gray-700 w-full shadow-lg"
+                                        >
+                                            Tu navegador no soporta videos.
+                                        </video>
                                     </div>
                                 )}
-
                                 {service.id === 'ganancias' && (
                                     <div class="space-y-2">
                                         <span class="text-[10px] text-[#F3BA2F] font-bold uppercase">Monitoreo P2P</span>
