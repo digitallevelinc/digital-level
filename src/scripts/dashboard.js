@@ -1,4 +1,6 @@
 // 1. IMPORTACIONES (Preservadas todas tus rutas originales + Sidebar)
+import flatpickr from "flatpickr";
+import { Spanish } from "flatpickr/dist/l10n/es.js";
 import { fUSDT, fVES, inject } from './dashboard/utils.js';
 import { updateRedSection } from './dashboard/red.js';
 import { updatePaySection } from './dashboard/pay.js';
@@ -45,6 +47,9 @@ export async function initDashboard() {
         updateKpiFilterLabel(range.label);
         updateDashboard(API_BASE, token, alias, range);
     });
+
+    // Inicializar Flatpickr
+    setupDatePickers();
 
     await updateDashboard(API_BASE, token, alias, currentRange);
 
@@ -309,8 +314,8 @@ function setupKpiFilters(onApply) {
         if (!btn) return;
         const preset = btn.getAttribute('data-preset');
         const range = getPresetRange(preset);
-        if (range.from) fromEl && (fromEl.value = range.from);
-        if (range.to) toEl && (toEl.value = range.to);
+        if (range.from) updateDateInput(fromEl, range.from);
+        if (range.to) updateDateInput(toEl, range.to);
         highlightPreset(preset);
         onApply(range);
     });
@@ -371,4 +376,27 @@ function updateRatesCard(kpis = {}) {
 
     const label = (buy || sell) ? `${buy ? buy.toFixed(2) : '---'} / ${sell ? sell.toFixed(2) : '---'}` : '---';
     inject('ops-rates', label);
+}
+
+function setupDatePickers() {
+    const config = {
+        locale: Spanish,
+        dateFormat: "Y-m-d",
+        altInput: true,
+        altFormat: "d F, Y",
+        disableMobile: "true",
+        allowInput: true
+    };
+
+    flatpickr("#kpi-date-from", config);
+    flatpickr("#kpi-date-to", config);
+}
+
+function updateDateInput(el, value) {
+    if (!el) return;
+    if (el._flatpickr) {
+        el._flatpickr.setDate(value);
+    } else {
+        el.value = value;
+    }
 }
