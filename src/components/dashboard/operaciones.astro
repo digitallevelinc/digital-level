@@ -1,37 +1,37 @@
 ---
 // src/components/dashboard/operaciones.astro
 ---
-<div class="bg-[#161a1e] border border-gray-800 rounded-2xl p-6 shadow-lg transition-all hover:border-blue-500/20 group flex flex-col justify-between min-h-[220px]">
+<div class="bg-[#161a1e] border border-white/10 rounded-2xl p-6 shadow-lg transition-all hover:border-blue-500/20 group flex flex-col justify-between min-h-[220px]">
     <div>
         <div class="flex items-center gap-2 mb-2">
-            <div class="p-2 bg-blue-500/10 rounded-lg">
+            <div class="p-2 bg-white/5 rounded-lg">
                 <i class="fas fa-microchip text-blue-400 text-xs"></i>
             </div>
-            <p class="sentinel-label text-blue-400 !text-xs font-bold">Volumen de Operaciones</p>
+            <p class="sentinel-label text-white !text-xs font-bold">Volumen de Operaciones</p>
         </div>
         <h3 id="ops-total-count" class="sentinel-kpi-huge !text-5xl text-white mt-2">0</h3>
-        <p class="text-[11px] text-gray-600 font-black uppercase tracking-[0.2em] mt-2">Transacciones procesadas</p>
+        <p class="text-[10px] text-white/60 font-black uppercase tracking-[0.2em] mt-2">Transacciones procesadas</p>
     </div>
 
     <div class="grid grid-cols-2 gap-3 mt-6 pt-4 border-t border-white/5">
         <div class="bg-black/20 p-3 rounded-xl border border-white/5 flex flex-col gap-1">
-            <span class="sentinel-label !text-[11px] opacity-70">P2P (V/C)</span>
-            <span id="ops-p2p-counts" class="sentinel-value-md !text-lg text-blue-400 tracking-normal">0/0</span>
+            <span class="sentinel-label !text-[10px] text-white/70">P2P (Ventas/Compras)</span>
+            <span id="ops-p2p-counts" class="sentinel-value-md !text-lg text-white tracking-normal">0/0</span>
         </div>
         
         <div class="bg-black/20 p-3 rounded-xl border border-white/5 flex flex-col gap-1">
-            <span class="sentinel-label !text-[11px] opacity-70">PAY (D/R)</span>
-            <span id="ops-pay-counts" class="sentinel-value-md !text-lg text-blue-400 tracking-normal">0/0</span>
+            <span class="sentinel-label !text-[10px] text-white/70">PAY (D/R)</span>
+            <span id="ops-pay-counts" class="sentinel-value-md !text-lg text-white tracking-normal">0/0</span>
         </div>
 
         <div class="bg-black/20 p-3 rounded-xl border border-white/5 flex flex-col gap-1">
-            <span class="sentinel-label !text-[11px] opacity-70">RED (D/R)</span>
-            <span id="ops-red-counts" class="sentinel-value-md !text-lg text-blue-400 tracking-normal">0/0</span>
+            <span class="sentinel-label !text-[10px] text-white/70">RED (D/R)</span>
+            <span id="ops-red-counts" class="sentinel-value-md !text-lg text-white tracking-normal">0/0</span>
         </div>
 
         <div class="bg-black/20 p-3 rounded-xl border border-white/5 flex flex-col gap-1">
-            <span class="sentinel-label !text-[11px] opacity-70">SWT (S/F)</span>
-            <span id="ops-switch-counts" class="sentinel-value-md !text-lg text-blue-400 tracking-normal">0/0</span>
+            <span class="sentinel-label !text-[10px] text-white/70">SWT (Spot/Fondos)</span>
+            <span id="ops-switch-counts" class="sentinel-value-md !text-lg text-white tracking-normal">0/0</span>
         </div>
     </div>
 </div>

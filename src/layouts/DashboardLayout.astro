@@ -43,9 +43,13 @@ import SidebarMonitor from '../components/dashboard/SidebarMonitor.astro';
         </main>
 
         <footer class="p-8 text-center border-t border-gray-900 w-full">
-            <p class="text-[11px] text-gray-600 font-black uppercase tracking-[0.3em] font-mono">
-                &copy; 2026 DIGITAL LEVEL Sentinel System
-            </p>
+            <p class="text-[12px] text-white font-black uppercase tracking-[0.3em] font-mono">
+            &copy; <span id="year"></span> DIGITAL LEVEL Sentinel System
+        </p>
+
+        <script>
+            document.getElementById('year').textContent = new Date().getFullYear();
+        </script>
         </footer>
     </body>
 </html>
