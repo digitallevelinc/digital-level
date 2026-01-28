@@ -71,7 +71,7 @@ export function updateProfitUI(kpis = {}, bankInsights = []) {
             gapStatus.textContent = "Balance Cuadrado ✓";
             gapContainer.className = "bg-emerald-500/5 p-4 rounded-lg border border-emerald-500/20 flex flex-col justify-center";
         } else {
-            gapStatus.textContent = gap < 0 ? "Capital en Circulación (Bancos)" : "Excedente Detectado";
+            gapStatus.textContent = gap < 0 ? "Capital en Circulacion" : "Excedente Detectado";
             gapContainer.className = "bg-rose-500/5 p-4 rounded-lg border border-rose-500/20 flex flex-col justify-center";
         }
     }

@@ -2,25 +2,21 @@
   
   <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
     <div class="bg-black/20 p-4 rounded-lg border border-white/5 relative">
-      <span class="text-[10px] text-gray-500 uppercase font-black block mb-2 text-center">Balance Teórico Sistema</span>
+      <span class="text-[12px] text-white-500 uppercase font-black block mb-2 text-center">Balance Teórico Sistema</span>
       <div id="theoretical-balance" class="text-2xl font-mono font-bold text-white text-center">---</div>
-      <p class="text-[9px] text-gray-600 text-center mt-2 uppercase font-bold">Inversión + Profit Acumulado</p>
+      <p class="text-[10px] text-white-600 text-center mt-2 uppercase font-bold">Inversión + Profit Acumulado</p>
     </div>
 
     <div class="bg-emerald-500/5 p-4 rounded-lg border border-emerald-500/20">
-      <span class="text-[10px] text-emerald-500/60 uppercase font-black block mb-2 text-center">Binance Wallet (API)</span>
+      <span class="text-[12px] text-white-500/60 uppercase font-black block mb-2 text-center">Binance Wallet (API)</span>
       <div id="real-binance-balance" class="text-2xl font-mono font-bold text-emerald-400 text-center">---</div>
-      <p class="text-[9px] text-emerald-600 text-center mt-2 uppercase font-bold">Saldo real verificado</p>
+      <p class="text-[10px] text-white-600 text-center mt-2 uppercase font-bold">Saldo real verificado</p>
     </div>
 
-    <div class="bg-white/[0.02] p-4 rounded-lg border border-white/5 relative">
-      <span class="text-[10px] text-gray-500 uppercase font-black block mb-2 text-center">Capital Inicial</span>
-      <div id="audit-initial-capital" class="text-2xl font-mono font-bold text-white text-center">---</div>
-      <p class="text-[9px] text-gray-600 text-center mt-2 uppercase font-bold">Base Operativa (<span id="audit-period-days">0</span>d)</p>
-    </div>
+    
 
     <div id="balance-gap-container" class="bg-black/20 p-4 rounded-lg border border-white/5 flex flex-col justify-center">
-      <span class="text-[10px] text-gray-500 uppercase font-black block mb-2 text-center">Discrepancia (A)</span>
+      <span class="text-[12px] text-white-500 uppercase font-black block mb-2 text-center">Discrepancia</span>
       <div id="balance-gap-value" class="text-xl font-mono font-bold text-center">---</div>
       <div id="balance-gap-status" class="text-[9px] text-center mt-2 uppercase font-black tracking-wide text-rose-400">---</div>
     </div>
@@ -32,9 +28,9 @@
             <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline><polyline points="17 6 23 6 23 12"></polyline></svg>
         </div>
         <div>
-            <p class="text-[10px] text-blue-400 uppercase font-black mb-1 tracking-widest">Profit Generado Real</p>
+            <p class="text-[12px] text-white-400 uppercase font-black mb-1 tracking-widest">Profit Generado Real</p>
             <h4 id="audit-total-profit-display" class="text-2xl font-mono font-bold text-white leading-tight">---</h4>
-            <p class="text-[9px] text-gray-500 mt-1 italic uppercase">Suma de profits por ciclo finalizado</p>
+            <p class="text-[10px] text-white-500 mt-1 italic uppercase">Suma de profits por ciclo finalizado</p>
         </div>
     </div>
 
@@ -43,14 +39,11 @@
             <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"></line><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
         </div>
         <div class="flex-1">
-            <p class="text-[10px] text-purple-400 uppercase font-black mb-1 tracking-widest">Volumen Total</p>
+            <p class="text-[12px] text-white-400 uppercase font-black mb-1 tracking-widest">Volumen Total</p>
             <h4 id="audit-total-volume" class="text-2xl font-mono font-bold text-white leading-tight">---</h4>
             <div class="flex items-center justify-between mt-1">
-                <p class="text-[10px] text-gray-500 italic uppercase">USDT Operados</p>
-                <div class="flex items-center gap-2">
-                    <span class="text-[10px] text-gray-600 uppercase font-bold">Fees:</span>
-                    <span id="audit-total-fees" class="text-sm font-mono font-bold text-rose-400">---</span>
-                </div>
+                <p class="text-[10px] text-white-500 italic uppercase">USDT Operados</p>
+                
             </div>
         </div>
     </div>

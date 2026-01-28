@@ -118,7 +118,7 @@ export function updateCiclosUI(kpis = {}, bankInsights = []) {
                     </div>
                     <div class="text-right">
                         <p class="text-base font-mono font-black ${bank.netProfit > 0 ? 'text-emerald-400' : 'text-gray-500'} leading-none tracking-tight">+${fUSDT(bank.netProfit)}</p>
-                        <p class="text-[9px] text-gray-600 uppercase font-black mt-1 italic tracking-wide">Profit Acumulado</p>
+                        <p class="text-[12px] text-white-600 uppercase font-black mt-1 italic tracking-wide">Profit Acumulado</p>
                     </div>
                 </div>
                 
@@ -129,11 +129,11 @@ export function updateCiclosUI(kpis = {}, bankInsights = []) {
                         <div class="h-full bg-gray-600/30 transition-all duration-1000" 
                              style="width: ${pGris}%"></div>
                     </div>
-                    <div class="flex justify-between text-[9px] font-bold uppercase tracking-wide">
-                        <span class="${pAmarillo > 90 ? 'text-[#F3BA2F]' : (pAmarillo === 0 ? 'text-gray-600' : 'text-gray-500')} transition-colors">
+                    <div class="flex justify-between text-[12px] font-bold uppercase tracking-wide">
+                        <span class="${pAmarillo > 90 ? 'text-[#F3BA2F]' : (pAmarillo === 0 ? 'text-gray-600' : 'text-white-500')} transition-colors">
                             ${pAmarillo === 0 ? 'Sin compras P2P' : `Recomprado: ${Math.round(pAmarillo)}%`}
                         </span>
-                        <span class="text-gray-500 italic">
+                        <span class="text-white-600 arial">
                             Saldo en Banco: ${fVES(bank.fiatBalance)}
                         </span>
                     </div>

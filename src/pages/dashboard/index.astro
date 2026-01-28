@@ -79,7 +79,7 @@ import 'flatpickr/dist/themes/dark.css';
     <div class="space-y-2">
         <label class="sentinel-label px-1">Desde</label>
         <div class="relative group">
-            <input id="kpi-date-from" type="text" placeholder="Seleccionar fecha..." class="bg-black text-white text-sm border border-gray-700 p-4 pl-11 rounded-xl w-full outline-none focus:border-[#F3BA2F]/70 focus:bg-white/5 transition-all shadow-inner cursor-pointer" readonly />
+            <input id="kpi-date-from" type="text" placeholder="Seleccionar fecha..." class="bg-black text-white text-sm border border-white-700 p-4 pl-11 rounded-xl w-full outline-none focus:border-[#F3BA2F]/70 focus:bg-white/5 transition-all shadow-inner cursor-pointer" readonly />
             <div class="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 group-hover:text-[#F3BA2F] transition-colors pointer-events-none">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
             </div>
@@ -88,7 +88,7 @@ import 'flatpickr/dist/themes/dark.css';
       <div class="space-y-2">
         <label class="sentinel-label px-1">Hasta</label>
         <div class="relative group">
-            <input id="kpi-date-to" type="text" placeholder="Seleccionar fecha..." class="bg-black text-white text-sm border border-gray-700 p-4 pl-11 rounded-xl w-full outline-none focus:border-[#F3BA2F]/70 focus:bg-white/5 transition-all shadow-inner cursor-pointer" readonly />
+            <input id="kpi-date-to" type="text" placeholder="Seleccionar fecha..." class="bg-black text-white text-sm border border-white-700 p-4 pl-11 rounded-xl w-full outline-none focus:border-[#F3BA2F]/70 focus:bg-white/5 transition-all shadow-inner cursor-pointer" readonly />
             <div class="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 group-hover:text-[#F3BA2F] transition-colors pointer-events-none">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
             </div>
@@ -118,9 +118,10 @@ import 'flatpickr/dist/themes/dark.css';
 
   <div class="grid grid-cols-1 lg:grid-cols-2 gap-12 mb-12">
     <section>
-      <h2 class="sentinel-label mb-6 italic px-2 flex items-center gap-2">
-        <span class="w-1 h-3 bg-gray-700"></span> 2. CONTROL DE OPERACIONES Y VOLUMEN
-      </h2>
+      <h2 class="text-[#F3BA2F] text-[12px] font-black uppercase tracking-[0.3em] mb-6 italic flex items-center gap-3 px-2">
+      <span class="w-1.5 h-4 bg-[#F3BA2F]"></span> 2. CONTROL DE OPERACIONES Y VOLUMEN
+    </h2>
+      
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
         <Operaciones />
         <Comisiones />
@@ -128,9 +129,10 @@ import 'flatpickr/dist/themes/dark.css';
     </section>
 
     <section>
-      <h2 class="sentinel-label mb-6 italic px-2 flex items-center gap-2">
-        <span class="w-1 h-3 bg-gray-700"></span> 4. PROYECCIONES E INSIGHTS
-      </h2>
+      
+      <h2 class="text-[#F3BA2F] text-[12px] font-black uppercase tracking-[0.3em] mb-6 italic flex items-center gap-3 px-2">
+      <span class="w-1.5 h-4 bg-[#F3BA2F]"></span> 4. PROYECCIONES E INSIGHTS
+    </h2>
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
         <ProyeccionGanancias />
         <ComisionOperador />
