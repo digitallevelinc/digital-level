@@ -5,8 +5,10 @@ export const updateSwitchSection = (kpis) => {
     const container = document.getElementById('wallet-switch');
     if (!container) return;
 
-    const data = kpis.wallets?.switch || kpis.wallets || {};
-    const mainValue = document.getElementById('switch-balance-total'); // Asegúrate de que este ID esté en tu H3 del Astro
+    const wallets = kpis.wallets || {};
+    const data = wallets.switch || {};
+
+    const mainValue = document.getElementById('switch-balance-total');
     const sheetLink = document.getElementById('link-switch-sheet');
 
     const ui = {
@@ -18,16 +20,13 @@ export const updateSwitchSection = (kpis) => {
     };
 
     if (data) {
-        // CORRECCIÓN DEL BALANCE GRANDE:
-        // Si data.balanceSwitch es 0 o undefined, pero hay volumen enviado/devuelto,
-        // tomamos el balance reportado de la wallet o el total de la operativa de switch.
-        // Soporte para claves planas (switchTotalIn/Out) si no existen las genéricas
-        const valIn = data.switchTotalIn ?? data.totalIn ?? 0;
-        const valOut = data.switchTotalOut ?? data.totalOut ?? 0;
-        const countIn = data.switchCountIn ?? data.countIn ?? 0;
-        const countOut = data.switchCountOut ?? data.countOut ?? 0;
+        const valIn = data.totalIn ?? 0;
+        const valOut = data.totalOut ?? 0;
+        const countIn = data.countIn ?? 0;
+        const countOut = data.countOut ?? 0;
 
-        const actualBalance = data.balanceSwitch !== undefined ? data.balanceSwitch : (valIn || valOut || 0);
+        // Balance desde data o root
+        const actualBalance = data.balanceSwitch ?? wallets.balanceSwitch ?? 0;
 
         if (mainValue) {
             mainValue.textContent = fUSDT(actualBalance);
@@ -42,7 +41,7 @@ export const updateSwitchSection = (kpis) => {
 
         // Total de Operaciones
         if (ui.totalOps) {
-            const total = data.switchTotalOperations ?? data.totalOperations ?? (Number(countIn) + Number(countOut));
+            const total = data.totalOperations ?? (Number(countIn) + Number(countOut));
             ui.totalOps.textContent = total.toString();
         }
     }

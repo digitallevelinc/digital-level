@@ -115,86 +115,137 @@ import WhatsAppBot from '../components/WhatsAppBot.astro'; // <--- VERIFICA ESTO
 
 <script>
     let config = { compra: 'maker', venta: 'maker' };
+    let debounceTimer;
 
-    function calcular() {
-    // 1. Captura de datos
-    const capitalInicial = parseFloat(document.getElementById('capital').value) || 0;
-    const pCompra = parseFloat(document.getElementById('precioCompra').value) || 0;
-    const pVenta = parseFloat(document.getElementById('precioVenta').value) || 0;
-    const ciclos = parseFloat(document.getElementById('ciclosDiarios').value) || 0;
-    const feeMakerPct = parseFloat(document.getElementById('nivelCuenta').value); // Ej: 0.0016
-    const feeTakerFija = 0.06; // Comisión fija en USDT
+    // Obtener API_BASE del contexto global o default
+    const API_BASE = localStorage.getItem('api_base') || 'http://144.91.110.204:3003';
+    const token = localStorage.getItem('auth_token') || localStorage.getItem('session_token');
 
-    if (pCompra <= 0 || pVenta <= 0 || capitalInicial <= 0) return;
+    // Configuración por defecto (será sobreescrita por API)
+    let globalConfig = {
+        makerFee: 0.0016, // 0.16%
+        takerFee: 0.10    // 0.10% (Valor porcentual standard, aunque el input dice $0.06 fixed, revisaremos)
+    };
 
-    // --- FASE 1: COMPRA (Fiat -> USDT) ---
-    let usdtComprados = capitalInicial / pCompra;
-    let comisionCompraUSDT = 0;
-
-    if (config.compra === 'maker') {
-        // La comisión Maker se descuenta de los USDT recibidos
-        comisionCompraUSDT = usdtComprados * feeMakerPct;
-    } else {
-        // La comisión Taker es fija (0.06 USDT)
-        comisionCompraUSDT = feeTakerFija;
+    // Inicialización: Cargar Configuración
+    async function initConfig() {
+        try {
+            const res = await fetch(`${API_BASE}/api/config/commissions`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (res.ok) {
+                const data = await res.json();
+                if (data.MAKER) globalConfig.makerFee = parseFloat(data.MAKER);
+                if (data.TAKER) globalConfig.takerFee = parseFloat(data.TAKER);
+                
+                // Actualizar UI si es necesario (ej. selector de nivel)
+                // Por ahora mantenemos el selector del DOM como "override" del usuario
+            }
+        } catch (e) {
+            console.error("Error loading config:", e);
+        }
     }
-    const usdtNetos = usdtComprados - comisionCompraUSDT;
 
-    // --- FASE 2: VENTA (USDT -> Fiat) ---
-    let brutoVentaFiat = usdtNetos * pVenta;
-    let comisionVentaFiat = 0;
+    // Llamamos a initConfig al inicio
+    initConfig();
 
-    if (config.venta === 'maker') {
-        // En la venta Maker, Binance descuenta el % del capital Fiat resultante
-        comisionVentaFiat = brutoVentaFiat * feeMakerPct;
-    } else {
-        // En la venta Taker, se asume que el usuario gasta 0.06 USDT antes de vender
-        // o se descuenta el equivalente en Fiat del capital final
-        comisionVentaFiat = feeTakerFija * pVenta;
+    async function calcular() {
+        // Debounce para no saturar la API
+        clearTimeout(debounceTimer);
+        debounceTimer = setTimeout(async () => {
+             await ejecutarCalculo();
+        }, 500);
     }
-    const capitalFinalCiclo = brutoVentaFiat - comisionVentaFiat;
 
-    // --- RESULTADOS ---
-    const gananciaPorCiclo = capitalFinalCiclo - capitalInicial;
-    const roiCiclo = (gananciaPorCiclo / capitalInicial) * 100;
-    
-    // Ganancia Diaria (Interés Simple: capital inicial se mantiene igual en cada ciclo)
-    const gananciaDiaria = gananciaPorCiclo * ciclos;
-    const gananciaMensual = gananciaDiaria * 30;
+    async function ejecutarCalculo() {
+        // 1. Captura de datos
+        const capital = parseFloat(document.getElementById('capital').value) || 0;
+        const pCompra = parseFloat(document.getElementById('precioCompra').value) || 0;
+        const pVenta = parseFloat(document.getElementById('precioVenta').value) || 0;
+        const ciclos = parseFloat(document.getElementById('ciclosDiarios').value) || 0;
+        
+        // El backend probablemente asuma el fee según el nivel de cuenta del usuario o enviaremos el flag
+        // Para simplificar según la solicitud, preguntamos por profit pasando tasas y montos.
+        if (pCompra <= 0 || pVenta <= 0 || capital <= 0) return;
 
-    // Tasa Mínima de Venta (Break Even)
-    // Para no perder, CapitalFinal debe ser = CapitalInicial
-    // PVenta = PCompra / ((1 - FeeCompra) * (1 - FeeVenta))
-    const feeC = config.compra === 'maker' ? feeMakerPct : (feeTakerFija / usdtComprados);
-    const feeV = config.venta === 'maker' ? feeMakerPct : (feeTakerFija / usdtNetos);
-    const breakEven = pCompra / ((1 - feeC) * (1 - feeV));
+        try {
+            // --- LLAMADA A API: PROFIT ---
+            const params = new URLSearchParams({
+                amount: capital.toString(),
+                buyRate: pCompra.toString(),
+                saleRate: pVenta.toString(),
+                modeBuy: config.compra, // Enviamos modo (maker/taker)
+                modeSell: config.venta // Enviamos modo
+            });
 
-    // --- ACTUALIZACIÓN DE UI ---
-    actualizarPantalla({
-        gananciaPorCiclo,
-        roiCiclo,
-        gananciaDiaria,
-        gananciaMensual,
-        breakEven,
-        capitalInicial,
-        ciclos
-    });
-}
+            const res = await fetch(`${API_BASE}/api/calculator/profit?${params}`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            
+            if (!res.ok) throw new Error("Error API Profit");
+            const data = await res.json();
 
-function actualizarPantalla(res) {
-    document.getElementById('gananciaCiclo').innerText = `$${res.gananciaPorCiclo.toFixed(2)}`;
-    document.getElementById('roiBadge').innerText = `ROI: ${res.roiCiclo.toFixed(2)}%`;
-    document.getElementById('gananciaDiaria').innerText = `$${res.gananciaDiaria.toFixed(2)}`;
-    document.getElementById('proyeccionMensual').innerText = `$${res.gananciaMensual.toLocaleString('en-US', {minimumFractionDigits: 2})}`;
-    document.getElementById('breakeven').innerText = res.breakEven.toFixed(2);
-    
-    const vol = res.capitalInicial * res.ciclos * 2 * 30;
-    document.getElementById('volumenMensual').innerText = `$${(vol/1000).toFixed(0)}k`;
+            // Mapeo de respuesta (Data.profitUsdt es la ganancia por ciclo)
+            const profitCiclo = parseFloat(data.profitUsdt || 0);
+            const roi = parseFloat(data.profitPercent || 0);
 
-    // Estética de color
-    const gEl = document.getElementById('gananciaCiclo');
-    gEl.style.color = res.gananciaPorCiclo >= 0 ? '#4ade80' : '#f87171';
-}
+            // Cálculos de proyección (Escalados simples permitidos en cliente)
+            const gananciaDiaria = profitCiclo * ciclos;
+            const gananciaMensual = gananciaDiaria * 30;
+
+            // --- LLAMADA ESTRATÉGICA: TECHO / BREAKEVEN (Si aplica) ---
+            // Usamos el endpoint de ceiling para obtener sugerencias o el breakeven implícito
+            // Nota: En la respuesta del profit podría venir el breakEven real, si no, llamamos aparte o usamos el del profit si lo trae.
+            // Asumiremos que /profit también devuelve 'breakEven' o llamamos a /ceiling si queremos sugerir venta.
+            // Según instrucciones: /get/calculator/ceiling para "Techo".
+            
+            // Para mostrar el BreakEven actual de esta operación:
+            // Si la API Profit lo devuelve perfecto, si no, es un dato derivado crítico.
+            // Asumiremos que data.breakEven viene, o llamamos a ceiling con margen 0 para saber el BE.
+            
+            let breakEvenVal = data.breakEven || 0;
+            if (!breakEvenVal) {
+                 // Fallback: llamar a ceiling con margen 0 (BE)
+                 const resBe = await fetch(`${API_BASE}/api/calculator/ceiling?saleRate=${pVenta}&margin=0`, {
+                     headers: { 'Authorization': `Bearer ${token}` }
+                 });
+                 if (resBe.ok) {
+                     const dataBe = await resBe.json();
+                     breakEvenVal = dataBe.breakEven || dataBe.ceilingRate;
+                 }
+            }
+
+            actualizarPantalla({
+                gananciaPorCiclo: profitCiclo,
+                roiCiclo: roi,
+                gananciaDiaria,
+                gananciaMensual,
+                breakEven: breakEvenVal,
+                capitalInicial: capital,
+                ciclos
+            });
+
+        } catch (e) {
+            console.error("Error calculando:", e);
+        }
+    }
+
+    function actualizarPantalla(res) {
+        document.getElementById('gananciaCiclo').innerText = `$${res.gananciaPorCiclo.toFixed(2)}`;
+        document.getElementById('roiBadge').innerText = `ROI: ${res.roiCiclo.toFixed(2)}%`;
+        document.getElementById('gananciaDiaria').innerText = `$${res.gananciaDiaria.toFixed(2)}`;
+        document.getElementById('proyeccionMensual').innerText = `$${res.gananciaMensual.toLocaleString('en-US', {minimumFractionDigits: 2})}`;
+        
+        const beEl = document.getElementById('breakeven');
+        if (beEl) beEl.innerText = res.breakEven ? parseFloat(res.breakEven).toFixed(2) : '---';
+        
+        const vol = res.capitalInicial * res.ciclos * 2 * 30;
+        document.getElementById('volumenMensual').innerText = `$${(vol/1000).toFixed(0)}k`;
+
+        // Estética de color
+        const gEl = document.getElementById('gananciaCiclo');
+        gEl.style.color = res.gananciaPorCiclo >= 0 ? '#4ade80' : '#f87171';
+    }
 
     // Listeners para botones
     document.querySelectorAll('.btn-fee').forEach(btn => {
@@ -210,8 +261,10 @@ function actualizarPantalla(res) {
 
     // Listeners para inputs
     ['capital', 'precioCompra', 'precioVenta', 'ciclosDiarios', 'nivelCuenta'].forEach(id => {
-        document.getElementById(id).addEventListener('input', calcular);
+        const el = document.getElementById(id);
+        if(el) el.addEventListener('input', calcular);
     });
 
-    calcular();
+    // Run initial
+    setTimeout(calcular, 500);
 </script>

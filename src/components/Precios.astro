@@ -1,59 +1,5 @@
 ---
 // src/components/Precios.astro
-const tracks = [
-  {
-    title: "Plan Básico",
-    price: "24.99",
-    tag: "Básico",
-    description: "Control automatizado de tus operaciones personales. Olvida los registros manuales.",
-    features: [
-      "Acceso al Tracker (API)", 
-      "Alertas Telegram/Discord", 
-      "Balances Instantáneos",
-      "Actividad Pay/Red/Switch",
-      "Soporte por Email",
-      "Auditoria Report"
-    ],
-    icon: "fa-seedling",
-    color: "from-blue-500/20 to-transparent",
-    popular: false
-  },
-  {
-    title: "Business Pro",
-    price: "49.99",
-    tag: "Pro",
-    description: "La solución definitiva para dueños de mesas P2P que escalan con equipos de trabajo.",
-    features: [
-      "Todo lo del plan Básico", 
-      "Gestión de Operadores Delegados", 
-      "Reportes de Rendimiento P2P", 
-      "Soporte Prioritario WhatsApp", 
-      "Múltiples Cuentas API", 
-      "Sincronización con Google Sheets"
-    ],
-    icon: "fa-user-tie",
-    color: "from-[#F3BA2F]/20 to-transparent",
-    popular: true
-  },
-  {
-    title: "Mesa VIP",
-    price: "99.99",
-    tag: "VIP",
-    description: "Infraestructura institucional, participación en fondo y liquidez garantizada.",
-    features: [
-      "Todo lo del plan Pro", 
-      "Participación en Fondo", 
-      "Liquidez Inmediata (Retiro)", 
-      "Asesoría Estratégica 1-1", 
-      "Acceso a API Privada",
-      "Política AML & Seguridad",
-      "Maestría de Binance P2P" 
-    ],
-    icon: "fa-chart-line",
-    color: "from-green-500/20 to-transparent",
-    popular: false
-  }
-];
 ---
 
 <section id="precios" class="py-24 bg-[#0b0e11] relative overflow-hidden border-t border-gray-800/30 scroll-mt-20">
@@ -70,64 +16,15 @@ const tracks = [
         </div>
 
         <div class="grid grid-cols-1 md:grid-cols-3 gap-6 lg:gap-8" id="pricing-container">
-            {tracks.map(item => (
-                <div class={`relative flex flex-col h-full bg-[#1e2329]/40 backdrop-blur-sm border ${item.popular ? 'border-[#F3BA2F]' : 'border-gray-800/80'} p-8 rounded-[2.5rem] hover:border-[#F3BA2F]/40 transition-all duration-500 group overflow-hidden shadow-2xl`}>
-                    
-                    {item.popular && (
-                        <div class="absolute top-0 right-0 bg-[#F3BA2F] text-black text-[10px] font-black px-5 py-1.5 rounded-bl-2xl uppercase tracking-[0.2em] z-20 shadow-lg">
-                            Más Popular
-                        </div>
-                    )}
-
-                    <div class={`absolute inset-0 bg-gradient-to-br ${item.color} opacity-5 group-hover:opacity-15 transition-opacity duration-500`}></div>
-                    
-                    <div class="relative z-10 flex flex-col h-full">
-                        <div class="flex justify-between items-start mb-8">
-                            <div class={`p-3 rounded-2xl bg-gray-800/50 border border-gray-700/50 text-2xl ${item.popular ? 'text-[#F3BA2F]' : 'text-white/40'} group-hover:scale-110 group-hover:rotate-3 transition-all duration-500`}>
-                                <i class={`fas ${item.icon}`}></i>
-                            </div>
-                            <span class="text-[10px] font-black tracking-[0.25em] text-[#F3BA2F] uppercase bg-[#F3BA2F]/5 border border-[#F3BA2F]/20 px-4 py-1.5 rounded-full">
-                                {item.tag}
-                            </span>
-                        </div>
-                        
-                        <div class="mb-2">
-                            <span class="text-5xl font-black text-white tracking-tighter transition-all group-hover:text-[#F3BA2F]">${item.price}</span>
-                            <span class="text-gray-500 text-xs font-bold uppercase tracking-widest ml-1">/mes</span>
-                        </div>
-                        
-                        <h3 class="text-xl font-bold text-white mb-4 uppercase tracking-tight group-hover:translate-x-1 transition-transform">{item.title}</h3>
-                        
-                        <p class="text-gray-400 text-sm leading-relaxed mb-8 italic min-h-[60px] border-l-2 border-[#F3BA2F]/20 pl-4">
-                            "{item.description}"
-                        </p>
-                        
-                        <div class="flex-grow">
-                            <ul class="space-y-4 mb-10">
-                                {item.features.map(feat => (
-                                    <li class="text-gray-300 text-[13px] flex items-start gap-3 group/item">
-                                        <i class="fas fa-check-circle text-[#F3BA2F] mt-0.5 text-sm transition-transform group-hover/item:scale-125"></i> 
-                                        <span class="group-hover/item:text-white transition-colors">{feat}</span>
-                                    </li>
-                                ))}
-                            </ul>
-                        </div>
-
-                        {/* Botón con data-attribute para el script */}
-                        <button 
-                            data-plan={item.tag}
-                            class="pricing-cta-btn relative z-10 w-full py-5 rounded-2xl font-black transition-all uppercase text-[11px] tracking-[0.2em] shadow-xl active:scale-95 bg-white/5 border border-white/10 text-white hover:bg-[#F3BA2F] hover:text-black hover:border-[#F3BA2F] data-[popular=true]:bg-[#F3BA2F] data-[popular=true]:text-black data-[popular=true]:hover:bg-[#ffdb4d]"
-                            data-popular={item.popular.toString()}
-                        >
-                            Comenzar Ahora
-                        </button>
-                    </div>
-                </div>
-            ))}
+            <!-- Loading Skeleton -->
+            <div class="col-span-3 text-center py-10">
+                <i class="fas fa-circle-notch fa-spin text-4xl text-[#F3BA2F]"></i>
+                <p class="mt-4 text-gray-500 font-bold uppercase tracking-widest text-xs">Cargando planes...</p>
+            </div>
         </div>
 
         <div class="mt-16 text-center">
-            <p class="text-gray-500 text-xs font-medium uppercase tracking-[0.3em] flex items-center justify-center gap-3">
+             <p class="text-gray-500 text-xs font-medium uppercase tracking-[0.3em] flex items-center justify-center gap-3">
                 <span class="w-8 h-px bg-gray-800"></span>
                 Pagos seguros vía Binance Pay
                 <span class="w-8 h-px bg-gray-800"></span>
@@ -137,12 +34,87 @@ const tracks = [
 </section>
 
 <script>
-    function setupPricing() {
+    async function setupPricing() {
         const container = document.getElementById('pricing-container');
         if (!container) return;
 
+        const API_BASE = localStorage.getItem('api_base') || 'http://144.91.110.204:3003';
+        // Endpoint público o protegido? Asumimos público o con token si hay sesión, pero planes suelen ser públicos.
+        // El user dijo: GET /api/config/plans
+        
+        try {
+            const res = await fetch(`${API_BASE}/api/config/plans`);
+            if (!res.ok) throw new Error("Error fetching plans");
+            
+            const tracks = await res.json();
+            
+            // Render
+            container.innerHTML = tracks.map(item => {
+                 const isPopular = item.popular === true || item.popular === 'true';
+                 const color = item.color || "from-[#F3BA2F]/20 to-transparent"; // Fallback color
+                 const features = item.features || [];
+                 const icon = item.icon || "fa-check";
+
+                 return `
+                <div class="relative flex flex-col h-full bg-[#1e2329]/40 backdrop-blur-sm border ${isPopular ? 'border-[#F3BA2F]' : 'border-gray-800/80'} p-8 rounded-[2.5rem] hover:border-[#F3BA2F]/40 transition-all duration-500 group overflow-hidden shadow-2xl">
+                    
+                    ${isPopular ? `
+                        <div class="absolute top-0 right-0 bg-[#F3BA2F] text-black text-[10px] font-black px-5 py-1.5 rounded-bl-2xl uppercase tracking-[0.2em] z-20 shadow-lg">
+                            Más Popular
+                        </div>
+                    ` : ''}
+
+                    <div class="absolute inset-0 bg-gradient-to-br ${color} opacity-5 group-hover:opacity-15 transition-opacity duration-500"></div>
+                    
+                    <div class="relative z-10 flex flex-col h-full">
+                        <div class="flex justify-between items-start mb-8">
+                            <div class="p-3 rounded-2xl bg-gray-800/50 border border-gray-700/50 text-2xl ${isPopular ? 'text-[#F3BA2F]' : 'text-white/40'} group-hover:scale-110 group-hover:rotate-3 transition-all duration-500">
+                                <i class="fas ${icon}"></i>
+                            </div>
+                            <span class="text-[10px] font-black tracking-[0.25em] text-[#F3BA2F] uppercase bg-[#F3BA2F]/5 border border-[#F3BA2F]/20 px-4 py-1.5 rounded-full">
+                                ${item.tag || 'Plan'}
+                            </span>
+                        </div>
+                        
+                        <div class="mb-2">
+                            <span class="text-5xl font-black text-white tracking-tighter transition-all group-hover:text-[#F3BA2F]">$${item.price}</span>
+                            <span class="text-gray-500 text-xs font-bold uppercase tracking-widest ml-1">/mes</span>
+                        </div>
+                        
+                        <h3 class="text-xl font-bold text-white mb-4 uppercase tracking-tight group-hover:translate-x-1 transition-transform">${item.title}</h3>
+                        
+                        <p class="text-gray-400 text-sm leading-relaxed mb-8 italic min-h-[60px] border-l-2 border-[#F3BA2F]/20 pl-4">
+                            "${item.description || ''}"
+                        </p>
+                        
+                        <div class="flex-grow">
+                            <ul class="space-y-4 mb-10">
+                                ${features.map(feat => `
+                                    <li class="text-gray-300 text-[13px] flex items-start gap-3 group/item">
+                                        <i class="fas fa-check-circle text-[#F3BA2F] mt-0.5 text-sm transition-transform group-hover/item:scale-125"></i> 
+                                        <span class="group-hover/item:text-white transition-colors">${feat}</span>
+                                    </li>
+                                `).join('')}
+                            </ul>
+                        </div>
+
+                        <button 
+                            data-plan="${item.tag}"
+                            class="pricing-cta-btn relative z-10 w-full py-5 rounded-2xl font-black transition-all uppercase text-[11px] tracking-[0.2em] shadow-xl active:scale-95 bg-white/5 border border-white/10 text-white hover:bg-[#F3BA2F] hover:text-black hover:border-[#F3BA2F] ${isPopular ? 'bg-[#F3BA2F] text-black hover:bg-[#ffdb4d]' : ''}"
+                        >
+                            Comenzar Ahora
+                        </button>
+                    </div>
+                </div>
+                 `;
+            }).join('');
+
+        } catch(e) {
+            console.error("Failed to load plans", e);
+            container.innerHTML = `<p class="text-center text-red-500 w-full col-span-3">No se pudieron cargar los precios.</p>`;
+        }
+
         container.addEventListener('click', (e) => {
-            // Buscamos si el clic fue en un botón de plan o dentro de él
             const btn = (e.target as HTMLElement).closest('.pricing-cta-btn');
             if (btn) {
                 const plan = btn.getAttribute('data-plan');
@@ -150,6 +122,8 @@ const tracks = [
                     window.openModal(plan);
                 } else {
                     console.error("Lógica de modal no detectada.");
+                    // Fallback redirect
+                    window.location.href = '#registro?plan=' + plan;
                 }
             }
         });

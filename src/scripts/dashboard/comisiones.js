@@ -20,45 +20,36 @@ export function updateComisionesUI(data = {}) {
 
     if (!ui.balance) return;
 
-    // 2. ACUMULADORES MANUALES
-    let totalFeesVentas = 0;
-    let totalFeesCompras = 0;
-    let totalOpsVentas = 0;
-    let totalOpsCompras = 0;
+    // 2. DATOS GLOBALES (Source of Truth)
+    // El backend ahora provee operations.totalFeesBuy y totalFeesSell
+    const ops = data.operations || data.metrics?.operations || {};
 
-    // 3. SUMA DETALLADA BANCO POR BANCO
-    // 3. SUMA DETALLADA BANCO POR BANCO
-    insights.forEach(b => {
-        // Sumamos Montos (Fees en USDT)
-        // Usamos las propiedades normalizadas en dashboard.js
-        totalFeesVentas += Number(b.feeSell || 0);
-        totalFeesCompras += Number(b.feeBuy || 0);
+    const totalFeesGlobal = Number(ops.totalFeesPaid || 0);
+    const totalFeesVentas = Number(ops.totalFeesSell || 0);
+    const totalFeesCompras = Number(ops.totalFeesBuy || 0);
 
-        // Sumamos Cantidad de Operaciones
-        totalOpsVentas += Number(b.countSell || b.sellCount || 0);
-        totalOpsCompras += Number(b.countBuy || b.buyCount || 0);
-    });
-
-    const totalGlobal = totalFeesVentas + totalFeesCompras;
-    const totalOpsGlobal = totalOpsVentas + totalOpsCompras;
+    // Totales de Operaciones (Counts)
+    const buysCount = Number(ops.buys?.count || 0);
+    const sellsCount = Number(ops.sells?.count || 0);
+    const totalOps = Number(ops.totalOperations || (buysCount + sellsCount));
 
     // 4. INYECCIÓN EN LA INTERFAZ
     // Total Global
-    ui.balance.textContent = fUSDT(totalGlobal);
+    ui.balance.textContent = fUSDT(totalFeesGlobal);
 
     // Desglose de Ventas
     if (ui.salesAmount) ui.salesAmount.textContent = totalFeesVentas.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-    if (ui.salesOps) ui.salesOps.textContent = totalOpsVentas.toLocaleString();
+    if (ui.salesOps) ui.salesOps.textContent = sellsCount.toLocaleString();
 
     // Desglose de Compras
     if (ui.buysAmount) ui.buysAmount.textContent = totalFeesCompras.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-    if (ui.buysOps) ui.buysOps.textContent = totalOpsCompras.toLocaleString();
+    if (ui.buysOps) ui.buysOps.textContent = buysCount.toLocaleString();
 
     // Contador Total Arriba
-    if (ui.totalOps) ui.totalOps.textContent = totalOpsGlobal.toLocaleString();
+    if (ui.totalOps) ui.totalOps.textContent = totalOps.toLocaleString();
 
     // 5. ESTILO VISUAL
-    if (totalGlobal > 0) {
+    if (totalFeesGlobal > 0) {
         ui.balance.classList.add('text-[#F3BA2F]');
         ui.balance.classList.remove('text-white');
     }
