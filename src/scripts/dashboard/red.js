@@ -4,8 +4,13 @@ export const updateRedSection = (kpis) => {
     const container = document.getElementById('wallet-red');
     if (!container) return;
 
-    // Soporte para estructura anidada (kpis.wallets.red) o plana (kpis.wallets)
-    const data = kpis.wallets?.red || kpis.wallets || {};
+    // Estructura JSON: wallets: { red: { ... }, balanceRed: ... }
+    const wallets = kpis.wallets || {};
+    // Priorizamos el objeto anidado si existe para detalles, sino el root wallet
+    const data = wallets.red || {};
+
+    // Balance principal: JSON tiene wallets.balanceRed (root) y wallets.red.balanceRed (nested). Usamos root por consistencia.
+    const mainBalance = wallets.balanceRed ?? data.balanceRed ?? 0;
     const mainValue = document.getElementById('red-balance-total');
     const sheetLink = document.getElementById('link-red-sheet');
 
@@ -20,27 +25,24 @@ export const updateRedSection = (kpis) => {
 
     // Validamos si tenemos datos relevantes (balance o operaciones)
     if (data) {
-        // Balance: intenta balanceRed (plano) o usa el del objeto red
-        const balance = data.balanceRed !== undefined ? data.balanceRed : (data.balance ?? 0);
-        if (mainValue) mainValue.textContent = fUSDT(balance);
+        if (mainValue) mainValue.textContent = fUSDT(mainBalance);
 
         // Asignación de datos (Salidas/Enviado)
-        // Intenta claves planas específicas (ej: redCountOut) o genéricas usadas en el objeto red
-        const countOut = data.redCountOut ?? data.countOut ?? 0;
-        const volOut = data.redTotalExpense ?? data.totalExpense ?? 0;
+        const countOut = data.countOut ?? 0;
+        const volOut = data.totalExpense ?? 0;
 
         if (ui.sentCount) ui.sentCount.textContent = countOut.toString();
         if (ui.sentVol) ui.sentVol.textContent = fUSDT(volOut);
 
         // Entradas/Recibido
-        const countIn = data.redCountIn ?? data.countIn ?? 0;
-        const volIn = data.redTotalIncome ?? data.totalIncome ?? 0;
+        const countIn = data.countIn ?? 0;
+        const volIn = data.totalIncome ?? 0;
 
         if (ui.receivedCount) ui.receivedCount.textContent = countIn.toString();
         if (ui.receivedVol) ui.receivedVol.textContent = fUSDT(volIn);
 
         // Total
-        const total = data.redTotalOperations ?? data.totalOperations ?? (Number(countIn) + Number(countOut));
+        const total = data.totalOperations ?? (Number(countIn) + Number(countOut));
         if (ui.totalOps) ui.totalOps.textContent = total.toString();
     }
 

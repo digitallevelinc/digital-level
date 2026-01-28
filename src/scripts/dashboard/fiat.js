@@ -21,16 +21,17 @@ export function updateFiatSection(kpis = {}, bankInsights = []) {
         sheetLink: document.getElementById('link-fiat-sheet')
     };
 
-    const operations = kpis.operations || {};
+    // 1. DATA EXTRACTION ROBUSTNESS
+    const operations = kpis.operations || kpis.metrics?.operations || {};
 
     // Balance Fiat (COMPRADO/VENDIDO/BALANCE)
     // Aseguramos leer totalFiat de las operaciones globales
-    const fiatBought = operations?.buys?.totalFiat || 0;
-    const fiatSold = operations?.sells?.totalFiat || 0;
+    const fiatBought = operations.buys?.totalFiat ?? 0;
+    const fiatSold = operations.sells?.totalFiat ?? 0;
 
-    // Balance desde operations (nuevo campo API)
-    const fiatBalance = operations?.fiatBalance || 0;
-    const fiatBalanceUSDT = operations?.fiatBalanceUSDT || 0;
+    // Balance desde wallets (nuevo campo API prioritario para balance bancario)
+    const fiatBalance = kpis.wallets?.balanceFiat ?? operations.fiatBalance ?? 0;
+    const fiatBalanceUSDT = kpis.wallets?.fiatBalanceUSDT ?? operations.fiatBalanceUSDT ?? 0;
 
     // 3. Inyección en UI
 
@@ -48,7 +49,7 @@ export function updateFiatSection(kpis = {}, bankInsights = []) {
     // VENDIDO (Salidas/Withdrawals)
     // Elements.fiatSold -> ui.withdrawalVol
     if (ui.withdrawalVol) {
-        ui.withdrawalVol.textContent = `$${formatNumber(fiatSold, 2)}`;
+        ui.withdrawalVol.textContent = `${formatNumber(fiatSold, 2)} VES`;
     }
     // Counts mapping (keep existing logic or map from operations)
     if (ui.withdrawalCount) {
@@ -58,7 +59,7 @@ export function updateFiatSection(kpis = {}, bankInsights = []) {
     // COMPRADO (Entradas/Deposits)
     // Elements.fiatBought -> ui.depoVol
     if (ui.depoVol) {
-        ui.depoVol.textContent = `$${formatNumber(fiatBought, 2)}`;
+        ui.depoVol.textContent = `${formatNumber(fiatBought, 2)} VES`;
     }
     if (ui.depoCount) {
         ui.depoCount.textContent = (operations?.buys?.count || 0).toString();
@@ -66,7 +67,7 @@ export function updateFiatSection(kpis = {}, bankInsights = []) {
 
     // TOTAL DE OPERACIONES
     if (ui.totalOps) {
-        const total = (operations?.sells?.count || 0) + (operations?.buys?.count || 0);
+        const total = operations?.totalOperations ?? ((operations?.sells?.count || 0) + (operations?.buys?.count || 0));
         ui.totalOps.textContent = total.toString();
     }
 

@@ -16,8 +16,8 @@ export function updateOperacionesUI(kpis = {}) {
     const wallets = kpis.wallets || {};
 
     // 1. TOTAL GENERAL (Suma de todas las ventas y compras registradas)
-    // Usamos Number() para asegurar que la suma sea aritmética y no concatenación
-    const totalOps = Number(ops.buys?.count || 0) + Number(ops.sells?.count || 0);
+    // El servidor ya proporciona totalOperations para mayor precisión.
+    const totalOps = ops.totalOperations ?? (Number(ops.buys?.count || 0) + Number(ops.sells?.count || 0));
     inject('ops-total-count', totalOps.toLocaleString());
 
     // 2. P2P: Ventas / Compras 

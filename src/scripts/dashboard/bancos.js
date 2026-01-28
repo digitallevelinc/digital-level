@@ -11,7 +11,7 @@ export function updateBancosUI(insights = []) {
 
     const getBankId = (name) => {
         const lower = name.toLowerCase().trim();
-        if (lower.includes('pago') || lower.includes('movil')) return 'pagomovil';
+        if (lower.includes('pago') || lower.includes('movil') || lower === 'pm') return 'pagomovil';
         if (lower === 'bbvabank') return 'bbvabank'; // Specific match
         if (lower.includes('bbva') || lower.includes('provincial')) return 'provincial';
         if (lower.includes('bnc')) return 'bnc';
@@ -68,28 +68,17 @@ export function updateBancosUI(insights = []) {
         // --- DEFINICIÓN DE VARIABLES (Robustez Máxima) ---
         // Buscamos datos en todas las ubicaciones posibles (Legacy vs V2)
 
-        // 1. Datos Básicos (Balances)
-        const fiatBal = b.fiatBalance ?? b.currentCycleFiatRemaining ?? 0;
-        const usdtBal = b.usdtBalance ?? b.currentCycleRecoveredUSDT ?? 0;
-        const bankProfit = b.profit ?? b.currentCycleProfitUSDT ?? 0;
+        // 1. Datos Básicos (Balances) - Source of Truth
+        const fiatBal = safeFloat(b.fiatBalance);
+        const usdtBal = safeFloat(b.usdtBalance); // Si el back no manda esto, será 0. Validar si usamos el calculated o raw.
+        const bankProfit = safeFloat(b.profit);
 
-        // 2. Contadores de Operaciones
-        const countBuy = Number(b.countBuy ?? b.buyCount ?? b.opsBuy ?? 0);
-        const countSell = Number(b.countSell ?? b.sellCount ?? b.opsSell ?? 0);
+        // 2. Contadores (Informativo, ya no para cálculo)
+        // La API debe mandar buyVolUSDT/sellVolUSDT agregados
 
         // 3. Datos Pago Móvil
-        // ESTRATEGIA: Usamos los datos DIRECTOS del objeto banco si existen.
-        // El JSON del usuario confirma que cada banco trae su propio desglose "pm".
-        const rawPM = b.pm || {};
-
-        const pm = {
-            sellCount: Number(rawPM.sellCount ?? 0),
-            buyCount: Number(rawPM.buyCount ?? 0),
-            sellVol: Number(rawPM.sellVol ?? 0),
-            buyVol: Number(rawPM.buyVol ?? 0),
-            sellFee: Number(rawPM.sellFee ?? 0),
-            buyFee: Number(rawPM.buyFee ?? 0)
-        };
+        // Usamos el objeto .pm directo
+        const pm = b.pm || { sellCount: 0, buyCount: 0, sellVol: 0, buyVol: 0, sellFee: 0, buyFee: 0 };
 
         // --- BINDING DE ELEMENTOS UI ---
 
@@ -135,42 +124,57 @@ export function updateBancosUI(insights = []) {
             ui.opsCount.textContent = `${totalOps} / 1k`;
         }
 
-        // --- MAPEO BLOQUE TRF (Transferencias) ---
-        if (ui.buy) ui.buy.textContent = safeFloat(b.trf.buyRate).toFixed(2);
-        if (ui.sell) ui.sell.textContent = safeFloat(b.trf.sellRate).toFixed(2);
+        // --- MAPEO TASAS (Source of Truth) ---
+        // User Request: Tasa Compra = .weightedAvgBuyRate, Tasa Venta = .weightedAvgSellRate
+        const buyRate = safeFloat(b.weightedAvgBuyRate);
+        const sellRate = safeFloat(b.weightedAvgSellRate);
 
-        if (ui.volBuy) ui.volBuy.textContent = fVES(b.trf.buyVol || 0);
-        if (ui.volSell) ui.volSell.textContent = fVES(b.trf.sellVol || 0);
+        // Volumen (USDT de TRF+PM ya sumado en backend o campo BuyVolUSDT)
+        // La UI actual pide 'volBuy' (display VES o USDT?). Original era VES TRF.
+        // User Request: "Volumen (USDT) .buyVolUSDT / .sellVolUSDT Volúmenes totales agregados (TRF+PM)."
+        // Sin embargo, las tarjetas suelen mostrar volúmenes en VES o USDT. Mantendremos VES si la UI lo espera así, o USDT si el usuario prefiere.
+        // Dado el contexto "dashboard.js" A. Tarjetas de Bancos: "Volumen (USDT) .buyVolUSDT".
+        // Pero la UI actual tiene `fVES(b.trf.buyVol)`. Cambiaremos a mostrar USDT total si el elemento lo permite,
+        // o mapearemos el VES Balance Total.
+        // Vamos a asumir que los selectores bank-vol-buy-${id} esperan texto formateado.
+        // Si el usuario dijo "Volumen (USDT)", entonces mostramos USDT.
 
-        if (ui.feeBuy) ui.feeBuy.textContent = fUSDT(b.trf.buyFee || 0);
-        if (ui.feeSell) ui.feeSell.textContent = fUSDT(b.trf.sellFee || 0);
+        if (ui.buy) ui.buy.textContent = buyRate > 0 ? buyRate.toFixed(2) : '---';
+        if (ui.sell) ui.sell.textContent = sellRate > 0 ? sellRate.toFixed(2) : '---';
+
+        // Usamos buyVolUSDT y sellVolUSDT para volúmenes totales (Requerimiento)
+        if (ui.volBuy) ui.volBuy.textContent = fUSDT(b.buyVolUSDT || 0);
+        if (ui.volSell) ui.volSell.textContent = fUSDT(b.sellVolUSDT || 0);
+
+        // Fees (USDT)
+        // Se puede hacer suma simple visual o, si viene en API, usarlo.
+        const totalFeeBuy = (b.trf?.buyFee || 0) + (b.pm?.buyFee || 0);
+        const totalFeeSell = (b.trf?.sellFee || 0) + (b.pm?.sellFee || 0);
+
+        if (ui.feeBuy) ui.feeBuy.textContent = fUSDT(totalFeeBuy);
+        if (ui.feeSell) ui.feeSell.textContent = fUSDT(totalFeeSell);
 
 
 
 
-        // --- 4. TECHO y IDEAL (Breakeven) ---
-        // User Request: ceilingRate = avgSellRate / 1.005 | idealRate = ceilingRate / 1.01
+        // --- 4. TECHO y IDEAL (Breakeven & Ceiling) ---
+        // Request: "Consumir directamente la Fuente de Verdad"
 
-        const avgSell = safeFloat(b.sellRate) || safeFloat(b.avgSellRate) || 0; // rate fallback already handled in mapping
+        // Techo: ceiling rate calculate by backend?
+        // El usuario mencionó: "Tasa Venta .weightedAvgSellRate (BreakEven)" en una sección,
+        // pero luego en "Calculadora" menciona POST /ceiling.
+        // En Dashboard Bancos, solemos mostrar el "BreakEven" como referencia.
 
-        // 1. Techo (Ceiling)
-        // Prioridad: API ceilingRate > breakEvenRate > Fórmula (Sell / 1.005)
-        let techo = safeFloat(b.ceilingRate) || safeFloat(b.breakEvenRate) || safeFloat(b.weightedBreakEvenRate) || 0;
+        // Si la API trae 'ceilingRate' o 'breakEvenRate', lo usamos.
+        const techo = safeFloat(b.ceilingRate || b.breakEvenRate || 0);
+        // Ideal: suele ser un spread sobre el techo
+        const ideal = safeFloat(b.idealRate || 0);
 
-        if (techo === 0 && avgSell > 0) {
-            techo = avgSell / 1.005;
-        }
+        // Eliminamos overrides manuales (Mercantil etc) porque el backend ya debe manejarlo.
+        // Si el backend envía data limpia, confiamos.
 
         if (ui.breakeven) {
             ui.breakeven.textContent = techo > 0 ? techo.toFixed(2) : '0.00';
-        }
-
-        // 2. Ideal
-        // Prioridad: API idealRate > Fórmula (Techo / 1.01)
-        let ideal = safeFloat(b.idealRate);
-
-        if (ideal === 0 && techo > 0) {
-            ideal = techo / 1.01;
         }
 
         if (ui.ideal) {
@@ -257,10 +261,11 @@ export function updateBancosUI(insights = []) {
         // 3. Margen y Colores
         // 3. Margen y Colores
         if (ui.margin) {
-            ui.margin.textContent = `${b.margin || 0}%`;
+            const marginVal = safeFloat(b.margin);
+            ui.margin.textContent = `${marginVal.toFixed(2)}%`;
 
             // Fix: Aplicar clases al elemento directo, no al contenedor padre
-            if (b.margin >= 0) {
+            if (marginVal >= 0) {
                 ui.margin.className = 'bg-emerald-500/10 text-emerald-400 px-5 py-2 rounded-full border border-emerald-500/20 text-[13px] font-black shadow-lg';
             } else {
                 ui.margin.className = 'bg-rose-500/10 text-rose-400 px-5 py-2 rounded-full border border-rose-500/20 text-[13px] font-black shadow-lg';

@@ -1,69 +1,67 @@
-import { fUSDT, inject } from './utils.js';
+import { fUSDT, fVES, inject } from './utils.js';
 
 export function updateProfitUI(kpis = {}, bankInsights = []) {
-    const audit = kpis.audit || {};
-    const wallets = kpis.wallets || {};
     const critical = kpis.critical || {};
     const operations = kpis.operations || {};
+    const audit = kpis.audit || {};
 
-    // 1. CAPITAL INICIAL DINÁMICO (Desde la API)
-    // Prioridad: 1. audit.initialCapital, 2. kpis.initialCapital, 3. config, 4. default
-    const CAPITAL_INICIAL = parseFloat(audit.initialCapital || kpis.capitalInicial || kpis.initialCapital || kpis.config?.initialCapital || 5400);
-
+    // 1. CAPITAL INICIAL (Dato maestro)
+    const CAPITAL_INICIAL = parseFloat(critical.capitalInicial || kpis.capitalInicial || 0);
     inject('audit-initial-capital', fUSDT(CAPITAL_INICIAL));
     inject('audit-period-days', audit.periodDays || 0);
 
-    // 2. PROFIT REAL ACUMULADO (Suma de los éxitos en los bancos)
-    // Este número SOLO sube a menos que haya una pérdida registrada en un ciclo.
-    // Usamos el de critical como fuente de verdad si existe
-    const totalProfitCalculated = critical.profitTotalUSDT ?? bankInsights.reduce((acc, bank) => acc + (bank.profit || 0), 0);
+    // 2. PROFIT REAL (Desde Backend)
+    const totalProfitUSDT = parseFloat(critical.profitTotalUSDT || 0);
 
-    // 3. DATOS DE OPERACIÓN (Lo que hay físicamente)
-    const red = wallets.red?.balanceRed || wallets.balanceRed || 0;
-    const switchVal = wallets.switch?.balanceSwitch || wallets.balanceSwitch || 0;
-    const p2p = wallets.balanceP2P || 0;
-    const pay = wallets.pay?.balancePay || wallets.balancePay || 0;
-    const totalCripto = red + switchVal + p2p + pay; // Este es el balance actual de la Wallet
+    // 3. BALANCE TEÓRICO (Desde Backend)
+    // El backend envía el 'balanceTotal'
+    const theoreticalTotal = parseFloat(critical.balanceTotal || 0);
 
-    // 4. BALANCE TEÓRICO (Lo que DEBERÍAS tener: Inversión + Ganancia generada)
-    const theoreticalTotal = CAPITAL_INICIAL + totalProfitCalculated;
-
-    // 5. DISCREPANCIA (GAP)
-    // Comparamos lo que hay en Binance (Wallet) contra el Teórico.
-    // Si da negativo, es exactamente el dinero que está "en la calle" (Bancos/Ordenes).
-    const realBinance = parseFloat(critical.balanceTotal || audit.realBalance || (kpis.currentBalance ?? 0));
-    const gap = realBinance - theoreticalTotal;
+    // 4. ROI GLOBAL (Desde Backend)
+    const roiPercent = parseFloat(critical.globalMarginPercent || 0);
 
     // --- INYECCIONES EN UI ---
 
-    // A. BALANCE TEÓRICO: Inversión + Profit Acumulado
+    // A. Balance Teórico
     inject('theoretical-balance', fUSDT(theoreticalTotal));
 
-    // B. BINANCE WALLET: Lo que hay realmente en la API
+    // B. Balance Real (Consistencia con valores de auditoría si existen)
+    // B. Balance Real (Consistencia con valores de auditoría si existen)
+    // Fallback: Si no viene realBalance explícito, usamos balanceTotal (que suele ser el real reportado por API)
+    const realBinance = parseFloat(critical.realBalance || audit.realBalance || critical.balanceTotal || 0);
     inject('real-binance-balance', fUSDT(realBinance));
 
-    // C. DISCREPANCIA: El dinero que falta por retornar
+    // C. Discrepancia / GAP (Ahora debería venir del backend, usamos fallback visual si no viene)
+    // Si el backend no envía 'balanceGap', asumimos que el cálculo se hace allá y esto es solo display.
+    // Mantenemos una resta simple SOLO para display si no viene el campo explícito, para no romper la UI.
+    const gap = critical.balanceGap !== undefined ? parseFloat(critical.balanceGap) : (realBinance - theoreticalTotal);
     inject('balance-gap-value', fUSDT(gap));
 
-    // D. PROFIT ACTUAL TOTAL (Tarjeta Azul): Tu ganancia neta generada
-    // Aquí es donde estaba el error. Ahora inyectamos totalProfitCalculated.
-    inject('audit-total-profit-display', fUSDT(totalProfitCalculated));
+    // D. Profit Total
+    inject('audit-total-profit-display', fUSDT(totalProfitUSDT));
 
-    // E. CRECIMIENTO %
-    const roiPercent = CAPITAL_INICIAL > 0 ? (totalProfitCalculated / CAPITAL_INICIAL) * 100 : 0;
+    // E. Crecimiento %
     inject('audit-growth-percent', `${roiPercent >= 0 ? '+' : ''}${roiPercent.toFixed(2)}%`);
 
-    // F. VOLUMEN Y FEES TOTALES
-    inject('audit-total-volume', fUSDT(parseFloat(operations.totalVolumeUSDT || audit.totalVolume || 0)));
-    inject('audit-total-fees', fUSDT(parseFloat(operations.totalFeesPaid || audit.totalFees || 0)));
+    // F. Volumen y Fees (Operaciones)
+    // F. Volumen y Fees (Operaciones)
+    inject('audit-total-volume', fUSDT(parseFloat(operations.totalVolumeUSDT || 0)));
+    inject('audit-total-fees', fUSDT(parseFloat(operations.totalFeesPaid || 0)));
 
-    // Inyectar balances de canales (tus wallets individuales)
-    inject('channel-red', fUSDT(red));
-    inject('channel-switch', fUSDT(switchVal));
-    inject('channel-p2p', fUSDT(p2p));
-    inject('channel-pay', fUSDT(pay));
+    // G. Datos Fiat (Request)
+    // Agregamos inyeccion para profitTotalFiat si existe elemento
+    if (critical.profitTotalFiat) {
+        inject('audit-profit-fiat', fVES(critical.profitTotalFiat), true);
+    }
 
-    // Lógica visual del GAP
+    // Inyectar balances de canales (Visualización)
+    const wallets = kpis.wallets || {};
+    inject('channel-red', fUSDT(wallets.balanceRed || 0));
+    inject('channel-switch', fUSDT(wallets.balanceSwitch || 0));
+    inject('channel-p2p', fUSDT(wallets.balanceP2P || 0));
+    inject('channel-pay', fUSDT(wallets.balancePay || 0));
+
+    // Lógica visual del GAP (Estado)
     const gapStatus = document.getElementById('balance-gap-status');
     const gapContainer = document.getElementById('balance-gap-container');
     if (gapStatus && gapContainer) {

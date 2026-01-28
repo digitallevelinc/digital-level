@@ -118,52 +118,33 @@ export async function updateDashboard(API_BASE, token, alias, range = {}) {
         }
         const kpis = await kpiRes.json();
 
-        // --- PREPARACIÓN DE DATOS (API V2) ---
-        // Robustez: Buscamos lista de favoritos global por si el backend la manda así
-        const favoritesList = kpis.favorites || kpis.userFavorites || [];
-
-        const isFavGlobal = (name) => {
-            if (!Array.isArray(favoritesList)) return false;
-            return favoritesList.some(f => f.toLowerCase().trim() === name.toLowerCase().trim());
-        };
-
-        // Estructura directa: metrics, bankInsights, judge
+        // --- PREPARACIÓN DE DATOS (API V2 - Source of Truth) ---
         const metrics = kpis.metrics || {};
-        const insights = kpis.bankInsights || [];
-        const breakdown = kpis.judge?.bankBreakdown || [];
-
-        // Fusionamos bankInsights con breakdown si es necesario, pero confiamos en bankInsights
-        const bankData = insights.map(i => {
-            // Normalización de datos bancarios (API structure: bank, trf, pm)
+        // La API ya devuelve bankInsights.
+        // RESTAURACIÓN DE NORMALIZACIÓN:
+        // Calculamos fees y totales sumando TRF + PM porque la API entrega estos datos desagregados en subobjetos.
+        // Esto corrige el bug de "Fees = 0" en el dashboard.
+        const bankData = (kpis.bankInsights || []).map(i => {
             const trf = i.trf || {};
             const pm = i.pm || {};
 
-            // Prioridad: 1. Weighted de TRF, 2. Weighted Root, 3. Avg de TRF, 4. Root Avg
-            const trfFinal = {
-                ...trf,
-                buyRate: trf.weightedAvgBuyRate ?? i.weightedAvgBuyRate ?? trf.avgBuyRate ?? i.avgBuyRate ?? 0,
-                sellRate: trf.weightedAvgSellRate ?? i.weightedAvgSellRate ?? trf.avgSellRate ?? i.avgSellRate ?? 0
-            };
-
-            // Determinamos favorito (Propiedad directa O Lista global)
-            const favProp = i.isFavorite === true || i.isFavorite === 'true';
-            const favList = isFavGlobal(i.bank);
-            const finalIsFav = favProp || favList;
-
             return {
                 ...i,
-                bankName: i.bank,
-                // Propiedades raíz garantizadas
-                buyRate: i.buyRate ?? i.avgBuyRate ?? 0,
-                sellRate: i.sellRate ?? i.avgSellRate ?? 0,
-                // Sumas si no vienen pre-calculadas
-                buyFiat: i.buyFiat ?? ((trf.buyTotal || 0) + (pm.buyTotal || 0)),
-                sellFiat: i.sellFiat ?? ((trf.sellTotal || 0) + (pm.sellTotal || 0)),
-                feeBuy: (trf.buyFee || 0) + (pm.buyFee || 0),
-                feeSell: (trf.sellFee || 0) + (pm.sellFee || 0),
-                trf: trfFinal,
-                pm,
-                isFavorite: finalIsFav
+                // Totales Fiat (Si no vienen, los sumamos)
+                buyFiat: i.buyFiat ?? (Number(trf.buyTotal || 0) + Number(pm.buyTotal || 0)),
+                sellFiat: i.sellFiat ?? (Number(trf.sellTotal || 0) + Number(pm.sellTotal || 0)),
+
+                // Fees (CRÍTICO: Sumar TRF + PM)
+                feeBuy: Number(trf.buyFee || 0) + Number(pm.buyFee || 0),
+                feeSell: Number(trf.sellFee || 0) + Number(pm.sellFee || 0),
+
+                // Volúmenes USDT (Si el back no los suma, lo hacemos aquí aunque sea aproximado o confiamos en trf+pm si tienen dolares)
+                // El JSON muestra trf.buyVolUSDT y pm.buyVolUSDT. Sumémoslos para tener el total root.
+                buyVolUSDT: i.buyVolUSDT ?? (Number(trf.buyVolUSDT || 0) + Number(pm.buyVolUSDT || 0)),
+                sellVolUSDT: i.sellVolUSDT ?? (Number(trf.sellVolUSDT || 0) + Number(pm.sellVolUSDT || 0)),
+
+                trf: trf,
+                pm: pm
             };
         });
 
@@ -182,43 +163,35 @@ export async function updateDashboard(API_BASE, token, alias, range = {}) {
             });
 
             if (!exists) {
-                // Check if favorite in fallback
-                const isPlaceholderFav = isFavGlobal(dbParams);
-                if (isPlaceholderFav) console.log(`[Fallback] ${dbParams} RESTORED as Favorite from Storage/API`);
-
                 bankData.push({
                     bank: dbParams,
                     bankName: dbParams,
+                    // Campos Source of Truth (Inicializados en 0)
+                    fiatBalance: 0,
                     profit: 0,
-                    buyRate: 0, sellRate: 0,
-                    countBuy: 0, countSell: 0,
-                    buyFiat: 0, sellFiat: 0,
-                    feeBuy: 0, feeSell: 0,
+                    weightedAvgBuyRate: 0,
+                    weightedAvgSellRate: 0,
+                    margin: 0,
+                    buyVolUSDT: 0,
+                    sellVolUSDT: 0,
                     trf: { buyCount: 0, sellCount: 0, buyVol: 0, sellVol: 0, buyFee: 0, sellFee: 0 },
-                    pm: { buyCount: 0, sellCount: 0, buyVol: 0, sellVol: 0, buyFee: 0, sellFee: 0 },
-                    // Apply logic here too
-                    isFavorite: isPlaceholderFav
+                    pm: { buyCount: 0, sellCount: 0, buyVol: 0, sellVol: 0, buyFee: 0, sellFee: 0, avgBuyRate: 0, avgSellRate: 0 },
+                    isFavorite: false
                 });
             }
         });
 
-        // --- MOCK TEMPORAL PARA PRUEBAS (Descomentar para probar visualmente sin Backend) ---
-        // if (bankData.find(b => b.bank === 'Banesco')) bankData.find(b => b.bank === 'Banesco').isFavorite = true;
-
-        // Usamos el profit total directo de las métricas
-        const cumulativeProfit = metrics.totalProfit ?? 0;
-
         // --- ACTUALIZACIÓN DE MÉTRICAS BASE ---
-        updateMainKpis(kpis, cumulativeProfit);
+        updateMainKpis(kpis);
         updateRatesCard(kpis);
 
         const kpisWithNormalizedBanks = { ...kpis, bankInsights: bankData };
         updateComisionesUI(kpisWithNormalizedBanks);
-        updateOperacionesUI(kpis); // Asegurar que use kpis.operations
+        updateOperacionesUI(kpis);
 
         // --- MONITOR LATERAL ---
         if (kpis) {
-            if (!kpis.metrics) kpis.metrics = metrics; // Asegurar referencia
+            if (!kpis.metrics) kpis.metrics = metrics;
             updateSidebarMonitor(kpis, bankData);
         }
 
@@ -228,10 +201,10 @@ export async function updateDashboard(API_BASE, token, alias, range = {}) {
             updateCiclosUI(kpis, bankData);
         }
 
-        // Sincronizamos el Profit con el cálculo manual de bancos
+        // Sincronizamos el Profit UI (usando datos críticos del backend)
         updateProfitUI(kpis, bankData);
 
-        // Sincronizamos la comisión para que el 60% sea exacto sobre cumulativeProfit
+        // Sincronizamos la comisión
         updateComisionOperadorUI(kpis, bankData);
 
         updateProyeccionesUI(kpis);

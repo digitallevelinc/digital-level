@@ -6,14 +6,23 @@ export function updateSidebarMonitor(kpis = {}, bankInsights = []) {
     const audit = kpis.audit || {};
 
     // 2. Extraer valores (Lógica Espejo de profit.js)
-    // Prioridad: 1. audit.initialCapital, 2. kpis.capitalInicial (API root), 3. kpis.initialCapital, 4. config, 5. default
-    const CAPITAL_INICIAL = parseFloat(audit.initialCapital || kpis.capitalInicial || kpis.initialCapital || kpis.config?.initialCapital || 5400);
-    const profit = summary.totalProfit ?? 0; // Inyectado desde el orquestador
+    const critical = kpis.critical || {};
 
-    // Cálculos Sincronizados
-    const teorico = CAPITAL_INICIAL + profit;
-    const binance = parseFloat(audit.realBalance || kpis.critical?.balanceTotal || 0);
-    const diferencia = binance - teorico;
+    // CAPITAL: Prioridad Mirror de profit.js
+    const CAPITAL_INICIAL = parseFloat(critical.capitalInicial || kpis.capitalInicial || audit.initialCapital || 0);
+
+    // PROFIT: Prioridad Mirror
+    const profit = parseFloat(critical.profitTotalUSDT || summary.totalProfit || 0);
+
+    // BALANCES: Prioridad Mirror
+    // El 'teorico' es lo que el sistema dice que deberíamos tener (Balance Dinámico del Back)
+    const teorico = parseFloat(critical.balanceTotal || 0);
+
+    // El 'binance' es el real verificado (si no hay, espejamos teorico para balance cuadrado)
+    const binance = parseFloat(critical.realBalance || audit.realBalance || critical.balanceTotal || 0);
+
+    // La diferencia/gap
+    const diferencia = critical.balanceGap !== undefined ? parseFloat(critical.balanceGap) : (binance - teorico);
 
     // Cálculo Dinámico de Promedio (Igual que ciclos.js)
     let totalCycles = 0;
