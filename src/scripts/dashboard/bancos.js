@@ -12,7 +12,8 @@ export function updateBancosUI(insights = []) {
     const getBankId = (name) => {
         const lower = name.toLowerCase().trim();
         if (lower.includes('pago') || lower.includes('movil') || lower === 'pm') return 'pagomovil';
-        if (lower === 'bbvabank') return 'bbvabank'; // Specific match
+        if (lower.includes('pago') || lower.includes('movil') || lower === 'pm') return 'pagomovil';
+        if (lower.includes('bbva') || lower.includes('provincial')) return 'provincial';
         if (lower.includes('bbva') || lower.includes('provincial')) return 'provincial';
         if (lower.includes('bnc')) return 'bnc';
         if (lower.includes('banesco')) return 'banesco';
@@ -62,7 +63,8 @@ export function updateBancosUI(insights = []) {
             // Missing BreakEven selectors
             breakeven: document.getElementById(`bank-breakeven-${id}`),
             ideal: document.getElementById(`bank-ideal-${id}`),
-            beInfo: document.getElementById(`bank-be-info-${id}`)
+            beInfo: document.getElementById(`bank-be-info-${id}`),
+            pmBadge: document.getElementById(`bank-pm-badge-${id}`) // Select the new badge
         };
 
         // --- DEFINICIÓN DE VARIABLES (Robustez Máxima) ---
@@ -122,6 +124,17 @@ export function updateBancosUI(insights = []) {
         if (ui.opsCount) {
             const totalOps = b.trf.buyCount + b.trf.sellCount + pm.buyCount + pm.sellCount;
             ui.opsCount.textContent = `${totalOps} / 1k`;
+        }
+
+        // --- PM BADGE LOGIC ---
+        // Shows badge if PM has any activity (ops > 0) or significant volume
+        if (ui.pmBadge) {
+            const hasPM = (pm.buyCount + pm.sellCount) > 0 || (pm.buyVol + pm.sellVol) > 0;
+            if (hasPM) {
+                ui.pmBadge.classList.remove('hidden');
+            } else {
+                ui.pmBadge.classList.add('hidden');
+            }
         }
 
         // --- MAPEO TASAS (Source of Truth) ---

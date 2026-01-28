@@ -120,37 +120,37 @@ export async function updateDashboard(API_BASE, token, alias, range = {}) {
 
         // --- PREPARACIÓN DE DATOS (API V2 - Source of Truth) ---
         const metrics = kpis.metrics || {};
-        // La API ya devuelve bankInsights.
-        // RESTAURACIÓN DE NORMALIZACIÓN:
-        // Calculamos fees y totales sumando TRF + PM porque la API entrega estos datos desagregados en subobjetos.
-        // Esto corrige el bug de "Fees = 0" en el dashboard.
+
+        // La API ya devuelve bankInsights con campos unificados.
+        // Mapeamos asegurando que existan los campos raíz o fallback a las sumas si es necesario (aunque el back debería mandarlos).
         const bankData = (kpis.bankInsights || []).map(i => {
             const trf = i.trf || {};
             const pm = i.pm || {};
 
             return {
                 ...i,
-                // Totales Fiat (Si no vienen, los sumamos)
-                buyFiat: i.buyFiat ?? (Number(trf.buyTotal || 0) + Number(pm.buyTotal || 0)),
-                sellFiat: i.sellFiat ?? (Number(trf.sellTotal || 0) + Number(pm.sellTotal || 0)),
+                // Balances y Profit (Source of Truth del Root)
+                fiatBalance: Number(i.fiatBalance || 0),
+                usdtBalance: Number(i.usdtBalance || 0),
+                profit: Number(i.profit || 0),
 
-                // Fees (CRÍTICO: Sumar TRF + PM)
+                // Volúmenes Totales Real (USDT) - Preferimos el campo Root calculado por backend
+                buyVolUSDT: Number(i.buyVolUSDT || 0),
+                sellVolUSDT: Number(i.sellVolUSDT || 0),
+
+                // Fees Totales
                 feeBuy: Number(trf.buyFee || 0) + Number(pm.buyFee || 0),
                 feeSell: Number(trf.sellFee || 0) + Number(pm.sellFee || 0),
 
-                // Volúmenes USDT (Si el back no los suma, lo hacemos aquí aunque sea aproximado o confiamos en trf+pm si tienen dolares)
-                // El JSON muestra trf.buyVolUSDT y pm.buyVolUSDT. Sumémoslos para tener el total root.
-                buyVolUSDT: i.buyVolUSDT ?? (Number(trf.buyVolUSDT || 0) + Number(pm.buyVolUSDT || 0)),
-                sellVolUSDT: i.sellVolUSDT ?? (Number(trf.sellVolUSDT || 0) + Number(pm.sellVolUSDT || 0)),
-
+                // Preservamos sub-objetos para detalles
                 trf: trf,
                 pm: pm
             };
         });
 
         // --- FALLBACK VISUAL: Asegurar que todos los bancos del DOM tengan datos (aunque sean ceros) ---
-        // Lista hardcodeada que debe coincidir con bancos.astro
-        const defaultBanks = ['Mercantil', 'Banesco', 'BNC', 'BBVA/Provincial', 'Bancamiga', 'BANK', 'BBVABank'];
+        // Lista hardcodeada que debe coincidir con bancos.astro (BBVABank eliminado)
+        const defaultBanks = ['Mercantil', 'Banesco', 'BNC', 'BBVA/Provincial', 'Bancamiga', 'BANK'];
 
         defaultBanks.forEach(dbParams => {
             // Buscamos si ya existe en bankData (normalizando nombres)
