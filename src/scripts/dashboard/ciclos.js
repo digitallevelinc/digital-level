@@ -18,10 +18,9 @@ export function updateCiclosUI(kpis = {}, bankInsights = []) {
         // Fees: En bankBreakdown no veo fees explícitos en el ejemplo, asumimos 0 o usamos los legacy si disponibles
         const fees = Number(b.feeBuy || 0) + Number(b.feeSell || 0);
 
-        // Profit: En bankBreakdown tenemos 'totalProfitUSDT' (acumulado) o 'currentCycleProfitUSDT'.
-        // Para "Profit Acumulado" usamos totalProfitUSDT.
+        // Profit: El backend envía el profit NETO directamente, no restar fees aquí.
         const rawProfit = b.totalProfitUSDT ?? b.profit ?? 0;
-        const netProfit = Number(rawProfit) - fees; // Si fees ya están deducidos en backend, esto podría redundar, pero por seguridad.
+        const netProfit = Number(rawProfit);
 
         // FIAT Balance
         // En bankBreakdown: "currentCycleFiatRemaining"? O "currentCycleTotalFiat"? 

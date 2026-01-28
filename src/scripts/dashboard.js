@@ -333,6 +333,7 @@ function updateMainKpis(kpis = {}, manualProfit = null) {
 
     inject('kpi-margin', pct(critical.globalMarginPercent ?? summary.globalMarginPct), true);
 
+    // El backend envía el PROFIT NETO directamente, no hacer cálculos aquí.
     const profitToDisplay = critical.profitTotalUSDT ?? (manualProfit !== null ? manualProfit : (summary.totalProfit ?? summary.profit ?? 0));
     inject('kpi-profit', fUSDT(profitToDisplay), true);
 
