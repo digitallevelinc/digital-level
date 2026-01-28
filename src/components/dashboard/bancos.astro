@@ -5,8 +5,7 @@ const banks = [
   { name: 'BNC', color: 'border-l-orange-500', id: 'bnc' },
   { name: 'BBVA/Provincial', color: 'border-l-blue-900', id: 'provincial' },
   { name: 'Bancamiga', color: 'border-l-green-800', id: 'bancamiga' },
-  { name: 'BANK', color: 'border-l-yellow-500', id: 'bank' },
-  { name: 'BBVABank', color: 'border-l-green-800', id: 'bbvabank' }
+  { name: 'BANK', color: 'border-l-yellow-500', id: 'bank' }
 ];
 ---
 
@@ -35,7 +34,8 @@ const banks = [
               <path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/>
             </svg>
           </button>
-          <h3 class="sentinel-title !text-sm">{b.name}</h3>
+          <h3 class="sentinel-title !text-lg">{b.name}</h3>
+          <span id={`bank-pm-badge-${b.id}`} class="hidden px-2 py-0.5 rounded text-[10px] font-black bg-purple-500/20 text-purple-400 border border-purple-500/30 uppercase tracking-wider">PM</span>
         </div>
         <div class="flex items-center gap-4">
              <span id={`bank-profit-${b.id}`} class="text-[#F3BA2F] font-mono text-[14px] font-black tracking-tighter">0.00 USDT ≈ Profit</span>
