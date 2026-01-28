@@ -36,8 +36,10 @@ export function updateBancosUI(insights = []) {
             usdt: document.getElementById(`bank-usdt-${id}`),
             buy: document.getElementById(`bank-buy-${id}`),
             sell: document.getElementById(`bank-sell-${id}`),
-            volBuy: document.getElementById(`bank-vol-buy-${id}`),
-            volSell: document.getElementById(`bank-vol-sell-${id}`),
+            volBuyVes: document.getElementById(`bank-vol-buy-ves-${id}`),
+            volBuyUsd: document.getElementById(`bank-vol-buy-usd-${id}`),
+            volSellVes: document.getElementById(`bank-vol-sell-ves-${id}`),
+            volSellUsd: document.getElementById(`bank-vol-sell-usd-${id}`),
             feeBuy: document.getElementById(`bank-fee-buy-${id}`),
             feeSell: document.getElementById(`bank-fee-sell-${id}`),
             profit: document.getElementById(`bank-profit-${id}`),
@@ -129,22 +131,23 @@ export function updateBancosUI(insights = []) {
         const buyRate = safeFloat(b.weightedAvgBuyRate);
         const sellRate = safeFloat(b.weightedAvgSellRate);
 
-        // Volumen (USDT de TRF+PM ya sumado en backend o campo BuyVolUSDT)
-        // La UI actual pide 'volBuy' (display VES o USDT?). Original era VES TRF.
-        // User Request: "Volumen (USDT) .buyVolUSDT / .sellVolUSDT Volúmenes totales agregados (TRF+PM)."
-        // Sin embargo, las tarjetas suelen mostrar volúmenes en VES o USDT. Mantendremos VES si la UI lo espera así, o USDT si el usuario prefiere.
-        // Dado el contexto "dashboard.js" A. Tarjetas de Bancos: "Volumen (USDT) .buyVolUSDT".
-        // Pero la UI actual tiene `fVES(b.trf.buyVol)`. Cambiaremos a mostrar USDT total si el elemento lo permite,
-        // o mapearemos el VES Balance Total.
-        // Vamos a asumir que los selectores bank-vol-buy-${id} esperan texto formateado.
-        // Si el usuario dijo "Volumen (USDT)", entonces mostramos USDT.
-
         if (ui.buy) ui.buy.textContent = buyRate > 0 ? buyRate.toFixed(2) : '---';
         if (ui.sell) ui.sell.textContent = sellRate > 0 ? sellRate.toFixed(2) : '---';
 
-        // Usamos buyVolUSDT y sellVolUSDT para volúmenes totales (Requerimiento)
-        if (ui.volBuy) ui.volBuy.textContent = fUSDT(b.buyVolUSDT || 0);
-        if (ui.volSell) ui.volSell.textContent = fUSDT(b.sellVolUSDT || 0);
+        // --- VOLÚMENES TRANSFERENCIAS (VES + USD) ---
+        // Mostramos el volumen específico de Transferencias desde b.trf
+        const trfBuyVol = safeFloat(b.trf.buyVol);
+        const trfSellVol = safeFloat(b.trf.sellVol);
+
+        // Usamos los valores USDT precalculados del backend
+        const trfBuyVolUSD = safeFloat(b.trf.buyVolUSDT);
+        const trfSellVolUSD = safeFloat(b.trf.sellVolUSDT);
+
+        if (ui.volBuyVes) ui.volBuyVes.textContent = fVES(trfBuyVol);
+        if (ui.volBuyUsd) ui.volBuyUsd.textContent = fUSDT(trfBuyVolUSD);
+
+        if (ui.volSellVes) ui.volSellVes.textContent = fVES(trfSellVol);
+        if (ui.volSellUsd) ui.volSellUsd.textContent = fUSDT(trfSellVolUSD);
 
         // Fees (USDT)
         // Se puede hacer suma simple visual o, si viene en API, usarlo.
