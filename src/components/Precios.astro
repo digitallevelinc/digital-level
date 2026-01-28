@@ -33,7 +33,160 @@
     </div>
 </section>
 
+
 <script>
+    async function setupPricing() {
+        const container = document.getElementById('pricing-container');
+        if (!container) return;
+
+        // DATOS REALES DE TUS PLANES (Como respaldo si la API falla)
+        const localPlans = [
+            {
+                title: "PLAN STARTER",
+                price: "24.99",
+                tag: "BÁSICO",
+                description: "Ideal para comerciantes P2P en solo",
+                features: [
+                    "Sincronización API Real-Time",
+                    "Alertas de Actividad (Telegram/Discord)",
+                    "Monitoreo Pay / Red / Switch",
+                    "Balances Instantáneos y Reales",
+                    "Soporte por email",
+                    "Auditoría en Tiempo Real"
+                ],
+                icon: "fa-seedling",
+                popular: false,
+                color: "from-blue-500/20 to-transparent"
+            },
+            {
+                title: "BUSINESS PRO",
+                price: "49.99",
+                tag: "RECOMENDADO",
+                description: "Ideal para mesas de cambio que necesitan gestionar múltiples operadores",
+                features: [
+                    "Todo lo del plan Básico",
+                    "Gestión de Operadores Takers/Makers",
+                    "Reportes de Rendimiento P2P",
+                    "Soporte Prioritario WhatsApp",
+                    "Múltiples Cuentas",
+                    "Sincronización con Google Sheets"
+                ],
+                icon: "fa-rocket",
+                popular: true,
+                color: "from-[#F3BA2F]/20 to-transparent"
+            },
+            {
+                title: "MESA VIP",
+                price: "99.99",
+                tag: "ELITE",
+                description: "Acceso total a nuestra infraestructura de liquidez y fondo compartido",
+                features: [
+                    "Todo lo del plan Pro",
+                    "Participación en Fondo",
+                    "Liquidez Inmediata P2P",
+                    "Asesoría Estratégica",
+                    "Acceso a API Privada",
+                    "Política AML",
+                    "Maestría de Binance P2P"
+                ],
+                icon: "fa-crown",
+                popular: false,
+                color: "from-purple-500/20 to-transparent"
+            }
+        ];
+
+        const API_BASE = localStorage.getItem('api_base') || 'http://144.91.110.204:3003';
+        let tracks = [];
+        
+        try {
+            const res = await fetch(`${API_BASE}/api/config/plans`);
+            if (!res.ok) throw new Error("API Error");
+            tracks = await res.json();
+        } catch(e) {
+            // Si la API falla por el token o red, usamos los datos locales para que la web no se rompa
+            tracks = localPlans;
+        }
+            
+        // Render: Tu lógica exacta de producción, sin cambios en las clases de Tailwind
+        container.innerHTML = tracks.map(item => {
+             const isPopular = item.popular === true || item.popular === 'true' || item.tag === 'RECOMENDADO';
+             const color = item.color || "from-[#F3BA2F]/20 to-transparent";
+             const features = item.features || [];
+             const icon = item.icon || "fa-check";
+
+             return `
+            <div class="relative flex flex-col h-full bg-[#1e2329]/40 backdrop-blur-sm border ${isPopular ? 'border-[#F3BA2F]' : 'border-gray-800/80'} p-8 rounded-[2.5rem] hover:border-[#F3BA2F]/40 transition-all duration-500 group overflow-hidden shadow-2xl">
+                
+                ${isPopular ? `
+                    <div class="absolute top-0 right-0 bg-[#F3BA2F] text-black text-[10px] font-black px-5 py-1.5 rounded-bl-2xl uppercase tracking-[0.2em] z-20 shadow-lg">
+                        Más Popular
+                    </div>
+                ` : ''}
+
+                <div class="absolute inset-0 bg-gradient-to-br ${color} opacity-5 group-hover:opacity-15 transition-opacity duration-500"></div>
+                
+                <div class="relative z-10 flex flex-col h-full">
+                    <div class="flex justify-between items-start mb-8">
+                        <div class="p-3 rounded-2xl bg-gray-800/50 border border-gray-700/50 text-2xl ${isPopular ? 'text-[#F3BA2F]' : 'text-white/40'} group-hover:scale-110 group-hover:rotate-3 transition-all duration-500">
+                            <i class="fas ${icon}"></i>
+                        </div>
+                        <span class="text-[10px] font-black tracking-[0.25em] text-[#F3BA2F] uppercase bg-[#F3BA2F]/5 border border-[#F3BA2F]/20 px-4 py-1.5 rounded-full">
+                            ${item.tag || 'Plan'}
+                        </span>
+                    </div>
+                    
+                    <div class="mb-2">
+                        <span class="text-5xl font-black text-white tracking-tighter transition-all group-hover:text-[#F3BA2F]">$${item.price}</span>
+                        <span class="text-gray-500 text-xs font-bold uppercase tracking-widest ml-1">/mes</span>
+                    </div>
+                    
+                    <h3 class="text-xl font-bold text-white mb-4 uppercase tracking-tight group-hover:translate-x-1 transition-transform">${item.title}</h3>
+                    
+                    <p class="text-gray-400 text-sm leading-relaxed mb-8 italic min-h-[60px] border-l-2 border-[#F3BA2F]/20 pl-4">
+                        "${item.description || ''}"
+                    </p>
+                    
+                    <div class="flex-grow">
+                        <ul class="space-y-4 mb-10">
+                            ${features.map(feat => `
+                                <li class="text-gray-300 text-[13px] flex items-start gap-3 group/item">
+                                    <i class="fas fa-check-circle text-[#F3BA2F] mt-0.5 text-sm transition-transform group-hover/item:scale-125"></i> 
+                                    <span class="group-hover/item:text-white transition-colors">${feat}</span>
+                                </li>
+                            `).join('')}
+                        </ul>
+                    </div>
+
+                    <button 
+                        data-plan="${item.tag}"
+                        class="pricing-cta-btn relative z-10 w-full py-5 rounded-2xl font-black transition-all uppercase text-[11px] tracking-[0.2em] shadow-xl active:scale-95 bg-white/5 border border-white/10 text-white hover:bg-[#F3BA2F] hover:text-black hover:border-[#F3BA2F] ${isPopular ? 'bg-[#F3BA2F] text-black hover:bg-[#ffdb4d]' : ''}"
+                    >
+                        Comenzar Ahora
+                    </button>
+                </div>
+            </div>
+             `;
+        }).join('');
+
+        container.addEventListener('click', (e) => {
+            const btn = (e.target as HTMLElement).closest('.pricing-cta-btn');
+            if (btn) {
+                const plan = btn.getAttribute('data-plan');
+                if ((window as any).openModal) {
+                    (window as any).openModal(plan);
+                } else {
+                    console.error("Lógica de modal no detectada.");
+                    window.location.href = '#registro?plan=' + plan;
+                }
+            }
+        });
+    }
+
+    setupPricing();
+    document.addEventListener('astro:page-load', setupPricing);
+</script>
+
+<!-- <script>
     async function setupPricing() {
         const container = document.getElementById('pricing-container');
         if (!container) return;
@@ -132,4 +285,4 @@
     // Ejecutar en carga y navegación de Astro
     setupPricing();
     document.addEventListener('astro:page-load', setupPricing);
-</script>
+</script>   -->
