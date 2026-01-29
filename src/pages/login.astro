@@ -134,7 +134,11 @@ import Footer from '../components/Footer.astro';
         const maxAge = maxAgeDays * 24 * 60 * 60; // 7 días
         document.cookie = `session_token=${result.token}; Path=/; Max-Age=${maxAge}; SameSite=Lax`;
         
-        window.location.href = "/dashboard";
+        if (role === 'investor') {
+            window.location.href = "/investor";
+        } else {
+            window.location.href = "/dashboard";
+        }
       } else {
         if (errorContainer) {
           errorContainer.innerText = result.error || "Credenciales inválidas";
