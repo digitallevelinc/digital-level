@@ -22,9 +22,22 @@ import { updateSidebarMonitor } from './dashboard/SidebarMonitor.js';
 export async function initDashboard() {
     console.log("Sentinel Dashboard: Sincronizando módulos...");
 
-    const API_BASE = localStorage.getItem('api_base') || 'http://144.91.110.204:3003';
+    const API_BASE = localStorage.getItem('api_base') || import.meta.env.PUBLIC_API_URL || 'http://localhost:3003';
     const token = localStorage.getItem('auth_token') || localStorage.getItem('session_token');
-    const alias = localStorage.getItem('operator_alias') || 'Operador';
+
+    // Recuperar alias con soporte Multi-Rol
+    let alias = 'Operador';
+    try {
+        const userInfoStr = localStorage.getItem('user_info');
+        if (userInfoStr) {
+            const user = JSON.parse(userInfoStr);
+            alias = user.alias || localStorage.getItem('operator_alias') || 'Usuario';
+        } else {
+            alias = localStorage.getItem('operator_alias') || 'Operador';
+        }
+    } catch (e) {
+        alias = localStorage.getItem('operator_alias') || 'Operador';
+    }
 
     if (!token) {
         console.warn("No se encontró token, redirigiendo...");
@@ -35,6 +48,9 @@ export async function initDashboard() {
     const logoutBtn = document.getElementById('logout-btn');
     logoutBtn?.addEventListener('click', () => {
         localStorage.clear();
+        // Limpieza de cookie también si es posible, aunque suele ser HttpOnly o gestionada por servidor.
+        // Forzamos expiración de cookie cliente
+        document.cookie = "session_token=; Path=/; Max-Age=0; SameSite=Lax";
         window.location.href = '/login';
     });
 
