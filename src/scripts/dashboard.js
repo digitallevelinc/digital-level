@@ -20,7 +20,7 @@ import { updateSidebarMonitor } from './dashboard/SidebarMonitor.js';
 export async function initDashboard() {
     console.log("Sentinel Dashboard: Sincronizando módulos...");
 
-    const API_BASE = localStorage.getItem('api_base') || 'http://144.91.110.204:3003';
+    const API_BASE = localStorage.getItem('api_base') || import.meta.env.PUBLIC_API_URL || 'http://localhost:3003';
     const token = localStorage.getItem('auth_token') || localStorage.getItem('session_token');
     const alias = localStorage.getItem('operator_alias') || 'Operador';
 
