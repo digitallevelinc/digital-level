@@ -91,7 +91,12 @@ import Footer from '../components/Footer.astro';
 
     try {
       // LLAMADA AL PUERTO 3003 (Portal de Operadores)
-      const response = await fetch("http://144.91.110.204:3003/api/auth/login", {
+      // UPDATED TO LOCALHOST FOR DEV
+      const apiUrl = window.location.hostname === 'localhost' 
+        ? "http://localhost:3003/api/auth/login" 
+        : "http://144.91.110.204:3003/api/auth/login";
+
+      const response = await fetch(apiUrl, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ alias, pin }) // El motor espera 'alias' y 'pin'
@@ -104,9 +109,25 @@ import Footer from '../components/Footer.astro';
         // Persistencia en localStorage (para peticiones cliente)
         localStorage.setItem('session_token', result.token);
         localStorage.setItem('auth_token', result.token);
-        localStorage.setItem('operator_alias', result.operator.alias);
+        
+        // --- MULTI-ROL (OPERADOR / INVERSOR) ---
+        const role = result.role || 'operator'; // Fallback legacy
+        const user = role === 'investor' ? result.investor : (result.operator || {});
+        
+        localStorage.setItem('user_role', role);
+        localStorage.setItem('user_info', JSON.stringify(user));
+        
+        // Compatibilidad Legacy
+        if (user.alias) {
+          localStorage.setItem('operator_alias', user.alias);
+        }
+
         // Base de la API (puerto 3003 del VPS)
-        localStorage.setItem('api_base', 'http://144.91.110.204:3003');
+        // Update API Base as well based on environment
+        const apiBase = window.location.hostname === 'localhost'
+            ? 'http://localhost:3003'
+            : 'http://144.91.110.204:3003';
+        localStorage.setItem('api_base', apiBase);
 
         // Persistencia en cookie (para middleware de Astro)
         const maxAgeDays = 7;
@@ -124,7 +145,7 @@ import Footer from '../components/Footer.astro';
       }
     } catch (error) {
       if (errorContainer) {
-        errorContainer.innerText = "Error: El motor Sentinel no responde en el puerto 3003.";
+        errorContainer.innerText = "Error: El motor Sentinel no responde en el puerto 3003 (Local o Remoto).";
         errorContainer.classList.remove('hidden');
       }
       submitBtn.disabled = false;
