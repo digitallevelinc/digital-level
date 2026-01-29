@@ -21,7 +21,7 @@ import DashboardLayout from '../layouts/DashboardLayout.astro';
           id="logout-btn"
           class="bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 text-red-500 text-[10px] font-black uppercase px-4 py-2 rounded-lg transition-all duration-300 flex items-center gap-2 group"
         >
-          <span>Out</span>
+          <span>Cerrar Sesión</span>
           <svg class="w-3 h-3 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
           </svg>
@@ -80,6 +80,14 @@ import DashboardLayout from '../layouts/DashboardLayout.astro';
 <script is:inline src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <script>
+  // Logout Logic
+  const logoutBtn = document.getElementById('logout-btn');
+  if (logoutBtn) {
+    logoutBtn.addEventListener('click', () => {
+      localStorage.removeItem('auth_token');
+      window.location.href = '/';
+    });
+  }
   import { updateInvestorDashboard } from '../scripts/investor-logic.js';
   
   const API_BASE = 'http://144.91.110.204:3003';

@@ -3,10 +3,10 @@
 /**
  * Formateador de moneda USDT
  */
-const fUSDT = (val) => new Intl.NumberFormat('en-US', { 
-    style: 'currency', 
+const fUSDT = (val) => new Intl.NumberFormat('en-US', {
+    style: 'currency',
     currency: 'USD',
-    minimumFractionDigits: 2 
+    minimumFractionDigits: 2
 }).format(val);
 
 /**
@@ -28,39 +28,47 @@ export async function updateInvestorDashboard(API_BASE, token, participationFact
         const res = await fetch(`${API_BASE}/api/kpis`, {
             headers: { 'Authorization': `Bearer ${token}` }
         });
-        
-        if (!res.ok) throw new Error('Error en la respuesta de API');
-        
+
+        if (res.status === 401 || res.status === 403) {
+            throw new Error('SESIÓN EXPIRADA');
+        }
+
+        if (res.status >= 500) {
+            throw new Error('ERROR DE SERVIDOR');
+        }
+
+        if (!res.ok) throw new Error(`ERROR ${res.status}`);
+
         const data = await res.json();
-        
+
         // Normalización de la estructura de datos según tu API
         const summary = data.metrics || data.summary || data || {};
 
         // --- 1. CÁLCULO DE PARTICIPACIÓN ---
         // Capital bruto proporcional al pool total
         const capitalBaseInversor = (summary.totalBalance || 0) * participationFactor;
-        
+
         // Profit bruto proporcional
         const profitBrutoProporcional = (summary.totalProfit || 0) * participationFactor;
-        
+
         // Profit Neto Inversor: Se descuenta el 10% de fondo operativo
-        const gananciaNetaInversor = profitBrutoProporcional * 0.90; 
+        const gananciaNetaInversor = profitBrutoProporcional * 0.90;
 
         // Equity Total: Lo que el inversor tiene realmente (Capital + Ganancia)
         const equityTotal = capitalBaseInversor + gananciaNetaInversor;
 
         // --- 2. INYECCIÓN EN EL DOM ---
-        
+
         // Card Principal: Equity (Grande) y Capital Base (Pequeño)
-        inject('inv-capital-total', fUSDT(equityTotal));      
-        inject('inv-base-deposit', fUSDT(capitalBaseInversor)); 
+        inject('inv-capital-total', fUSDT(equityTotal));
+        inject('inv-base-deposit', fUSDT(capitalBaseInversor));
 
         // Card de Ganancias: El 90% del profit que le corresponde
         inject('inv-profit-neto', fUSDT(gananciaNetaInversor));
-        
+
         // Cálculo de ROI: Basado en el capital base invertido
-        const roi = capitalBaseInversor > 0 
-            ? ((gananciaNetaInversor / capitalBaseInversor) * 100).toFixed(2) 
+        const roi = capitalBaseInversor > 0
+            ? ((gananciaNetaInversor / capitalBaseInversor) * 100).toFixed(2)
             : "0.00";
         inject('inv-roi', `${roi}%`);
 
@@ -68,7 +76,8 @@ export async function updateInvestorDashboard(API_BASE, token, participationFact
         const statusEl = document.getElementById('inv-status');
         if (statusEl) {
             statusEl.textContent = "CONECTADO A BINANCE";
-            statusEl.classList.replace('text-gray-500', 'text-emerald-500');
+            statusEl.classList.remove('animate-pulse', 'text-red-500', 'text-gray-500');
+            statusEl.classList.add('text-emerald-500');
         }
 
         // Actualización del Gráfico (si existe la función global)
@@ -80,8 +89,13 @@ export async function updateInvestorDashboard(API_BASE, token, participationFact
         console.error("Error en Portal Inversionista:", err);
         const statusEl = document.getElementById('inv-status');
         if (statusEl) {
-            statusEl.textContent = "ERROR DE SINCRONIZACIÓN";
-            statusEl.classList.replace('text-emerald-500', 'text-red-500');
+            // Mostrar mensaje específico si es conocido, sino "ERROR DE CONEXIÓN"
+            const knownErrors = ['SESIÓN EXPIRADA', 'ERROR DE SERVIDOR'];
+            const msg = knownErrors.includes(err.message) ? err.message : "ERROR DE CONEXIÓN";
+
+            statusEl.textContent = msg;
+            statusEl.classList.remove('animate-pulse', 'text-emerald-500');
+            statusEl.classList.add('text-red-500');
         }
     }
 }
