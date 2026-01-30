@@ -93,4 +93,13 @@
             icon.className = 'fas fa-microchip text-[#F3BA2F] text-[10px]';
         }
     });
+
+    // Ocultar para Inversores
+    try {
+        const userInfo = JSON.parse(localStorage.getItem('user_info') || '{}');
+        if (userInfo.role === 'investor' || window.location.pathname.includes('investor')) {
+            const container = trigger?.closest('.fixed');
+            if (container) container.style.display = 'none';
+        }
+    } catch (e) {}
 </script>

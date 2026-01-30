@@ -8,7 +8,7 @@ import DashboardLayout from '../layouts/DashboardLayout.astro';
     <div class="max-w-7xl mx-auto flex justify-between items-center mb-10">
       <div>
         <h1 class="text-2xl font-black italic uppercase tracking-tighter">Sentinel <span class="text-[#F3BA2F]">Investor Hub</span></h1>
-        <p class="text-[10px] text-gray-500 font-mono uppercase">ID: #INV-2025-001 | <span id="inv-status" class="text-emerald-500 animate-pulse">Sincronizando con Binance...</span></p>
+        <p class="text-[10px] text-gray-500 font-mono uppercase">ID: #INV-2025-001 | <span id="inv-name" class="text-white">---</span> | <span id="inv-status" class="text-emerald-500 animate-pulse">Sincronizando con Binance...</span></p>
       </div>
       
       <div class="flex items-center gap-6">
@@ -90,7 +90,7 @@ import DashboardLayout from '../layouts/DashboardLayout.astro';
   }
   import { updateInvestorDashboard } from '../scripts/investor-logic.js';
   
-  const API_BASE = 'http://144.91.110.204:3003';
+  const API_BASE = 'http://localhost:3003';
   const token = localStorage.getItem('auth_token');
   const FACTOR = 0.2; 
 
@@ -99,7 +99,7 @@ import DashboardLayout from '../layouts/DashboardLayout.astro';
   const chart = new Chart(ctx, {
       type: 'line',
       data: {
-          labels: ['Día 1', 'Día 2', 'Día 3', 'Día 4', 'Día 5'],
+          labels: [],
           datasets: [{
               label: 'Crecimiento Equity',
               data: [2000, 2060, 2120, 2180, 2297], // Ejemplo escalonado
@@ -123,6 +123,18 @@ import DashboardLayout from '../layouts/DashboardLayout.astro';
           }
       }
   });
+
+  // Función global para actualizar el gráfico desde scripts externos
+  window.updateInvestorChart = (history) => {
+    if (!history || !Array.isArray(history)) return;
+    
+    chart.data.labels = history.map(h => {
+        const d = new Date(h.date);
+        return d.toLocaleDateString('es-ES', { day: '2-digit', month: 'short' });
+    });
+    chart.data.datasets[0].data = history.map(h => h.equity);
+    chart.update();
+  };
 
   if(token) {
     updateInvestorDashboard(API_BASE, token, FACTOR);

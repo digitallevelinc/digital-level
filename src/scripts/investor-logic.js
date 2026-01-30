@@ -46,8 +46,9 @@ export async function updateInvestorDashboard(API_BASE, token, participationFact
         let gananciaNetaInversor = 0;
 
         // --- NUEVA LÓGICA (Rol Investor) ---
+        let hub = null;
         if (data.role === 'investor' && data.investorHub) {
-            const hub = data.investorHub;
+            hub = data.investorHub;
             equityTotal = Number(hub.equity || 0);
             capitalBaseInversor = Number(hub.capital || 0);
             gananciaNetaInversor = Number(hub.profit || 0);
@@ -63,6 +64,15 @@ export async function updateInvestorDashboard(API_BASE, token, participationFact
         }
 
         // --- 2. INYECCIÓN EN EL DOM ---
+
+        // Nombre del Inversor (Si existe)
+        try {
+            const userInfo = JSON.parse(localStorage.getItem('user_info') || '{}');
+            const name = userInfo.name || userInfo.alias || 'Inversionista';
+            inject('inv-name', name);
+        } catch (e) {
+            console.warn("No se pudo cargar el nombre del inversor");
+        }
 
         // Card Principal: Equity (Grande) y Capital Base (Pequeño)
         inject('inv-capital-total', fUSDT(equityTotal));
@@ -85,9 +95,9 @@ export async function updateInvestorDashboard(API_BASE, token, participationFact
             statusEl.classList.add('text-emerald-500');
         }
 
-        // Actualización del Gráfico (si existe la función global)
-        if (window.updateInvestorChart) {
-            window.updateInvestorChart(equityTotal);
+        // Actualización del Gráfico
+        if (window.updateInvestorChart && hub && hub.history) {
+            window.updateInvestorChart(hub.history);
         }
 
     } catch (err) {
