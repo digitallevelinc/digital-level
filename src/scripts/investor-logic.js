@@ -41,21 +41,26 @@ export async function updateInvestorDashboard(API_BASE, token, participationFact
 
         const data = await res.json();
 
-        // Normalización de la estructura de datos según tu API
-        const summary = data.metrics || data.summary || data || {};
+        let equityTotal = 0;
+        let capitalBaseInversor = 0;
+        let gananciaNetaInversor = 0;
 
-        // --- 1. CÁLCULO DE PARTICIPACIÓN ---
-        // Capital bruto proporcional al pool total
-        const capitalBaseInversor = (summary.totalBalance || 0) * participationFactor;
-
-        // Profit bruto proporcional
-        const profitBrutoProporcional = (summary.totalProfit || 0) * participationFactor;
-
-        // Profit Neto Inversor: Se descuenta el 10% de fondo operativo
-        const gananciaNetaInversor = profitBrutoProporcional * 0.90;
-
-        // Equity Total: Lo que el inversor tiene realmente (Capital + Ganancia)
-        const equityTotal = capitalBaseInversor + gananciaNetaInversor;
+        // --- NUEVA LÓGICA (Rol Investor) ---
+        if (data.role === 'investor' && data.investorHub) {
+            const hub = data.investorHub;
+            equityTotal = Number(hub.equity || 0);
+            capitalBaseInversor = Number(hub.capital || 0);
+            gananciaNetaInversor = Number(hub.profit || 0);
+            // El ROI ya viene calculado o lo recalculamos si preferimos consistencia
+        }
+        // --- FALLBACK LEGACY (Por si acaso) ---
+        else {
+            const summary = data.metrics || data.summary || data || {};
+            capitalBaseInversor = (summary.totalBalance || 0) * participationFactor;
+            const profitBrutoProporcional = (summary.totalProfit || 0) * participationFactor;
+            gananciaNetaInversor = profitBrutoProporcional * 0.90;
+            equityTotal = capitalBaseInversor + gananciaNetaInversor;
+        }
 
         // --- 2. INYECCIÓN EN EL DOM ---
 

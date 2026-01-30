@@ -19,6 +19,13 @@ import 'flatpickr/dist/themes/dark.css';
 ---
 
 <DashboardLayout>
+  <!-- Protección de Ruta: Redirigir Inversores al Hub correcto -->
+  <script is:inline>
+    const userRole = localStorage.getItem('user_role');
+    if (userRole === 'investor') {
+      window.location.href = '/investor';
+    }
+  </script>
   <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 px-2 gap-4">
     <div>
       <h1 class="text-white font-black text-2xl md:text-3xl uppercase tracking-tighter">
