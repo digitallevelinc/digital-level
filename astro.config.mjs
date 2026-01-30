@@ -6,6 +6,6 @@ import alpinejs from '@astrojs/alpinejs';
 import react from '@astrojs/react';
 
 export default defineConfig({
-  site: 'https://www.digitalevel.com', // Cambia esto por tu dominio real
+  site: 'https://digitalevel.com', // Cambia esto por tu dominio real
   integrations: [tailwind(), alpinejs(), react()],
 });
