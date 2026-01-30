@@ -1,0 +1,90 @@
+---
+interface Props {
+  participationRatio: number; // 0 to 1
+  poolTotal: number;
+  grossProfit: number;
+  platformFee: number;
+  netProfit: number;
+}
+
+const { participationRatio, poolTotal, grossProfit, platformFee, netProfit } = Astro.props;
+
+const formatCurrency = (amount: number) => {
+  return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amount);
+};
+
+const formatPercent = (val: number) => {
+    return new Intl.NumberFormat('en-US', { style: 'percent', minimumFractionDigits: 2 }).format(val);
+}
+
+const ratioPercent = participationRatio * 100;
+---
+
+<div class="mb-8 grid grid-cols-1 lg:grid-cols-2 gap-6">
+    <!-- Participación en el Pool -->
+    <div class="bg-[#111316] border border-gray-800 p-6 rounded-2xl shadow-lg relative overflow-hidden">
+        <div class="flex items-center justify-between mb-4">
+            <h3 class="text-[11px] font-black uppercase tracking-[0.2em] text-gray-400 flex items-center gap-2">
+                <span class="w-1.5 h-4 bg-blue-500"></span>
+                Participación en Pool
+            </h3>
+            <span class="text-xs font-mono text-blue-400 border border-blue-500/20 bg-blue-500/5 px-2 py-1 rounded">
+                Pool Total: <span id="inv-pool-total">{formatCurrency(poolTotal)}</span>
+            </span>
+        </div>
+
+        <div class="flex items-center gap-6">
+            <div class="relative w-24 h-24 flex-shrink-0 flex items-center justify-center">
+                <!-- Simple SVG Ring Chart (Mocked visual for now) -->
+                <svg class="w-full h-full transform -rotate-90">
+                    <circle cx="48" cy="48" r="40" stroke="currentColor" stroke-width="8" fill="transparent" class="text-gray-800" />
+                    <circle id="inv-ring-stroke" cx="48" cy="48" r="40" stroke="currentColor" stroke-width="8" fill="transparent" class="text-blue-500 transition-all duration-1000 ease-out" 
+                        stroke-dasharray={`${251.2 * participationRatio} 251.2`} 
+                    />
+                </svg>
+                <span id="inv-participation-ratio" class="absolute text-sm font-bold text-white">{formatPercent(participationRatio * 100)}</span>
+            </div>
+            
+            <div class="flex-1">
+                 <p class="text-sm text-gray-300 leading-relaxed">
+                    Tu capital representa el <strong id="inv-participation-percent" class="text-white">{formatPercent(participationRatio * 100)}</strong> del Pool Total de <strong id="inv-pool-total-text" class="text-white">{formatCurrency(poolTotal)}</strong> administrado por Sentinel.
+                 </p>
+                 <div class="mt-3 h-1.5 w-full bg-gray-800 rounded-full overflow-hidden">
+                    <div id="inv-bar-width" class="h-full bg-blue-500 rounded-full shadow-[0_0_10px_rgba(59,130,246,0.5)] transition-all duration-1000 ease-out" style={`width: ${ratioPercent}%`}></div>
+                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Desglose de Comisiones -->
+    <div class="bg-[#111316] border border-gray-800 p-6 rounded-2xl shadow-lg">
+         <div class="flex items-center justify-between mb-6">
+            <h3 class="text-[11px] font-black uppercase tracking-[0.2em] text-gray-400 flex items-center gap-2">
+                <span class="w-1.5 h-4 bg-emerald-500"></span>
+                Transparencia de Retornos
+            </h3>
+        </div>
+
+        <div class="space-y-3 font-mono text-sm">
+            <div class="flex justify-between items-center p-3 rounded-lg bg-gray-800/30 border border-transparent hover:border-gray-700 transition-colors">
+                <span class="text-gray-400">Ganancia Bruta Generada</span>
+                <span id="inv-gross-profit" class="text-white font-bold">{formatCurrency(grossProfit)}</span>
+            </div>
+            
+            <div class="flex justify-between items-center p-3 rounded-lg bg-red-500/5 border border-red-500/10">
+                <span class="text-red-400/80 flex items-center gap-2">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 17h8m0 0V9m0 8l-8-8-4 4-6-6"></path></svg>
+                    Fee Plataforma (10%)
+                </span>
+                <span id="inv-platform-fee" class="text-red-400 font-bold">-{formatCurrency(platformFee)}</span>
+            </div>
+
+            <div class="w-full h-px bg-gray-700 my-2"></div>
+
+             <div class="flex justify-between items-center p-4 rounded-xl bg-gradient-to-r from-emerald-500/10 to-transparent border border-emerald-500/20">
+                <span class="text-emerald-400 font-bold uppercase tracking-wider text-xs">Ganancia Neta Final</span>
+                <span id="inv-net-profit-breakdown" class="text-2xl text-emerald-400 font-black shadow-emerald-500/20 drop-shadow-lg leading-none">{formatCurrency(netProfit)}</span>
+            </div>
+        </div>
+    </div>
+</div>

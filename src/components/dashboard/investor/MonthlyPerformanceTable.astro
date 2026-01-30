@@ -1,0 +1,99 @@
+---
+interface Props {
+  monthlyPerformance: Array<{
+    month: string;
+    grossProfit: number;
+    fee: number;
+    netProfit: number;
+    roi: number;
+  }>;
+}
+
+const { monthlyPerformance } = Astro.props;
+
+const formatCurrency = (amount: number) => {
+  return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amount);
+};
+
+const formatPercent = (val: number) => {
+    return new Intl.NumberFormat('en-US', { style: 'percent', minimumFractionDigits: 2 }).format(val / 100);
+}
+---
+
+<div class="bg-[#111316] border border-gray-800 rounded-2xl overflow-hidden shadow-lg">
+    <div class="p-6 border-b border-gray-800 flex justify-between items-center">
+         <h3 class="text-[11px] font-black uppercase tracking-[0.2em] text-gray-400 flex items-center gap-2">
+            <span class="w-1.5 h-4 bg-gray-500"></span>
+            Histórico Mensual
+        </h3>
+        <button class="text-[10px] text-[#F3BA2F] hover:text-white transition-colors uppercase font-bold flex items-center gap-1">
+            Descargar CSV
+            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+        </button>
+    </div>
+
+    <div class="overflow-x-auto">
+        <table class="w-full text-left">
+            <thead>
+                <tr class="bg-black/40 text-[10px] uppercase text-gray-500 font-bold tracking-wider border-b border-gray-800">
+                    <th class="px-6 py-4">Mes</th>
+                    <th class="px-6 py-4 text-right text-gray-400">Ganancia Bruta</th>
+                    <th class="px-6 py-4 text-right text-red-400/70">Comisión (Fee)</th>
+                    <th class="px-6 py-4 text-right text-emerald-500">Ganancia Neta</th>
+                    <th class="px-6 py-4 text-right text-[#F3BA2F]">ROI Mensual</th>
+                </tr>
+            </thead>
+            <tbody id="inv-table-body" class="divide-y divide-gray-800/50">
+                {monthlyPerformance && monthlyPerformance.length > 0 ? (
+                    monthlyPerformance.map((row) => (
+                        <tr class="hover:bg-white/[0.02] transition-colors group">
+                            <td class="px-6 py-4 font-mono text-xs text-white group-hover:text-[#F3BA2F] transition-colors">{row.month}</td>
+                            <td class="px-6 py-4 font-mono text-xs text-gray-300 text-right">{formatCurrency(row.grossProfit)}</td>
+                            <td class="px-6 py-4 font-mono text-xs text-red-400/60 text-right">-{formatCurrency(row.fee)}</td>
+                            <td class="px-6 py-4 font-mono text-sm text-emerald-400 font-bold text-right shadow-emerald-500/10 drop-shadow-sm">{formatCurrency(row.netProfit)}</td>
+                            <td class="px-6 py-4 font-mono text-xs text-[#F3BA2F] font-bold text-right">{formatPercent(row.roi)}</td>
+                        </tr>
+                    ))
+                ) : (
+                    <tr>
+                        <td colspan="5" class="px-6 py-12 text-center text-gray-500 text-xs italic">
+                            Aún no hay datos históricos suficientes para mostrar el rendimiento mensual.
+                        </td>
+                    </tr>
+                )}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<script is:inline>
+    // Función global para actualizar la tabla desde scripts externos
+    window.updateInvestorTable = (data) => {
+        const tbody = document.getElementById('inv-table-body');
+        if (!tbody || !data || !Array.isArray(data)) return;
+
+        if (data.length === 0) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="5" class="px-6 py-12 text-center text-gray-500 text-xs italic">
+                        Aún no hay datos históricos suficientes para mostrar el rendimiento mensual.
+                    </td>
+                </tr>
+            `;
+            return;
+        }
+
+        const formatCurrency = (val) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(val);
+        const formatPercent = (val) => new Intl.NumberFormat('en-US', { style: 'percent', minimumFractionDigits: 2 }).format(val / 100);
+
+        tbody.innerHTML = data.map(row => `
+            <tr class="hover:bg-white/[0.02] transition-colors group">
+                <td class="px-6 py-4 font-mono text-xs text-white group-hover:text-[#F3BA2F] transition-colors">${row.month}</td>
+                <td class="px-6 py-4 font-mono text-xs text-gray-300 text-right">${formatCurrency(row.grossProfit)}</td>
+                <td class="px-6 py-4 font-mono text-xs text-red-400/60 text-right">-${formatCurrency(row.fee || 0)}</td>
+                <td class="px-6 py-4 font-mono text-sm text-emerald-400 font-bold text-right shadow-emerald-500/10 drop-shadow-sm">${formatCurrency(row.netProfit)}</td>
+                <td class="px-6 py-4 font-mono text-xs text-[#F3BA2F] font-bold text-right">${formatPercent(row.roi)}</td>
+            </tr>
+        `).join('');
+    };
+</script>
