@@ -1,0 +1,286 @@
+---
+---
+
+<div class="bg-gradient-to-b from-[#111316] to-black border border-gray-800 p-6 rounded-3xl shadow-2xl relative overflow-hidden mb-8">
+     <div class="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-[#F3BA2F] via-orange-500 to-[#F3BA2F] opacity-50"></div>
+    
+     <div class="flex flex-col md:flex-row justify-between items-end mb-6 gap-4">
+        <div>
+            <h3 class="text-[11px] font-black uppercase tracking-[0.2em] text-[#F3BA2F] mb-1 flex items-center gap-2">
+                 <span class="w-1.5 h-4 bg-[#F3BA2F]"></span>
+                 <span id="chart-title">Evolución de Tu Capital</span>
+            </h3>
+            <p class="text-[10px] text-gray-500 font-mono" id="chart-subtitle">Historial de tu balance total acumulado</p>
+        </div>
+        
+        <!-- Toggle Buttons -->
+        <div class="flex bg-gray-900/50 p-1 rounded-lg border border-gray-800">
+            <button id="btn-equity" class="px-3 py-1.5 rounded-md text-[10px] font-bold uppercase transition-all duration-300 bg-[#F3BA2F] text-black shadow-lg shadow-[#F3BA2F]/20">
+                Equity
+            </button>
+            <button id="btn-metrics" class="px-3 py-1.5 rounded-md text-[10px] font-bold uppercase transition-all duration-300 text-gray-400 hover:text-white hover:bg-white/5">
+                Métricas
+            </button>
+        </div>
+
+        <div class="text-right hidden md:block">
+             <span class="text-[10px] font-mono text-gray-500 bg-gray-900 px-2 py-1 rounded border border-gray-800">
+                Última actualización: <span class="text-white">Tiempo Real</span>
+            </span>
+        </div>
+    </div>
+    
+    <div class="h-[350px] w-full relative">
+        <canvas id="investorGrowthChart"></canvas>
+        
+        <!-- Loading State Overlay -->
+        <div id="chart-loader" class="absolute inset-0 flex items-center justify-center bg-black/50 backdrop-blur-sm z-10 transition-opacity duration-500">
+             <div class="flex flex-col items-center gap-2">
+                <div class="w-8 h-8 border-2 border-[#F3BA2F] border-t-transparent rounded-full animate-spin"></div>
+                <span class="text-[10px] text-[#F3BA2F] font-mono animate-pulse">Cargando datos...</span>
+             </div>
+        </div>
+    </div>
+</div>
+
+<script>
+  import Chart from 'chart.js/auto';
+
+  let chartInstance = null;
+  let rawHistory = [];
+  let currentMode = 'equity'; // 'equity' | 'metrics'
+
+  const btnEquity = document.getElementById('btn-equity');
+  const btnMetrics = document.getElementById('btn-metrics');
+  const titleEl = document.getElementById('chart-title');
+  const subtitleEl = document.getElementById('chart-subtitle');
+
+  // --- Toggle Logic ---
+  function setMode(mode) {
+      currentMode = mode;
+      
+      // Update Buttons
+      if (mode === 'equity') {
+          btnEquity.classList.add('bg-[#F3BA2F]', 'text-black', 'shadow-lg', 'shadow-[#F3BA2F]/20');
+          btnEquity.classList.remove('text-gray-400', 'hover:text-white', 'hover:bg-white/5');
+          
+          btnMetrics.classList.remove('bg-[#F3BA2F]', 'text-black', 'shadow-lg', 'shadow-[#F3BA2F]/20');
+          btnMetrics.classList.add('text-gray-400', 'hover:text-white', 'hover:bg-white/5');
+
+          if(titleEl) titleEl.textContent = "Evolución de Tu Capital";
+          if(subtitleEl) subtitleEl.textContent = "Historial de tu balance total acumulado";
+      } else {
+          btnMetrics.classList.add('bg-[#F3BA2F]', 'text-black', 'shadow-lg', 'shadow-[#F3BA2F]/20');
+          btnMetrics.classList.remove('text-gray-400', 'hover:text-white', 'hover:bg-white/5');
+          
+          btnEquity.classList.remove('bg-[#F3BA2F]', 'text-black', 'shadow-lg', 'shadow-[#F3BA2F]/20');
+          btnEquity.classList.add('text-gray-400', 'hover:text-white', 'hover:bg-white/5');
+
+          if(titleEl) titleEl.textContent = "Métricas Diarias";
+          if(subtitleEl) subtitleEl.textContent = "Desglose de Profit, Ciclos, Fee y Capital";
+      }
+
+      // Re-render chart
+      if (rawHistory.length > 0) {
+          renderChart();
+      }
+  }
+
+  if(btnEquity) btnEquity.addEventListener('click', () => setMode('equity'));
+  if(btnMetrics) btnMetrics.addEventListener('click', () => setMode('metrics'));
+
+
+  function renderChart() {
+    const ctx = document.getElementById('investorGrowthChart');
+    if (!ctx) return;
+
+    // Destroy existing chart
+    if (chartInstance) {
+        chartInstance.destroy();
+    }
+
+    const commonOptions = {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: { 
+                display: currentMode === 'metrics', // Only show legend in metrics mode
+                labels: {
+                    color: '#9ca3af',
+                    font: { family: 'monospace', size: 10 },
+                    boxWidth: 10,
+                    usePointStyle: true
+                }
+            },
+            tooltip: {
+                mode: 'index',
+                intersect: false,
+                backgroundColor: 'rgba(0,0,0, 0.9)',
+                titleColor: '#F3BA2F',
+                bodyColor: '#fff',
+                borderColor: '#333',
+                borderWidth: 1,
+                titleFont: { family: 'monospace' },
+                bodyFont: { family: 'monospace' },
+                padding: 12,
+                callbacks: {
+                    label: function(context) {
+                        let label = context.dataset.label || '';
+                        if (label) {
+                            label += ': ';
+                        }
+                        if (context.parsed.y !== null) {
+                            // Format as currency if it's money related
+                            if (context.dataset.label === 'Ciclos') {
+                                label += context.parsed.y;
+                            } else {
+                                label += new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(context.parsed.y);
+                            }
+                        }
+                        return label;
+                    },
+                    afterBody: function(tooltipItems) {
+                        // Only show daily profit diff in Equity mode
+                        if (currentMode === 'equity') {
+                            const index = tooltipItems[0].dataIndex;
+                            if (index > 0 && rawHistory[index] && rawHistory[index-1]) {
+                                const current = rawHistory[index].equity;
+                                const prev = rawHistory[index-1].equity;
+                                const diff = current - prev;
+                                const sign = diff >= 0 ? '+' : '';
+                                const formattedDiff = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(diff);
+                                return `Beneficio Diario: ${sign}${formattedDiff}`;
+                            }
+                        }
+                        return ''; 
+                    }
+                }
+            }
+        },
+        scales: {
+            x: {
+                grid: { display: false, color: '#333' },
+                ticks: { 
+                    color: '#666', 
+                    font: { family: 'monospace', size: 10 },
+                    maxTicksLimit: 8
+                }
+            },
+            y: {
+                grid: { color: 'rgba(255,255,255,0.05)' },
+                ticks: { 
+                    color: '#666', 
+                    font: { family: 'monospace', size: 10 },
+                    callback: function(value) {
+                         // Simplify Y axis labels
+                        return value >= 1000 ? '$' + (value/1000) + 'k' : '$' + value;
+                    }
+                },
+                border: { display: false }
+            }
+        },
+        interaction: {
+            mode: 'nearest',
+            axis: 'x',
+            intersect: false
+        }
+    };
+
+    // --- EQUITY MODE CONFIG ---
+    if (currentMode === 'equity') {
+        chartInstance = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: rawHistory.map(h => {
+                    const d = new Date(h.date);
+                    return d.toLocaleDateString('es-ES', { day: '2-digit', month: 'short' });
+                }),
+                datasets: [{
+                    label: 'Equity Total',
+                    data: rawHistory.map(h => h.equity),
+                    borderColor: '#F3BA2F',
+                    backgroundColor: (context) => {
+                        const ctx = context.chart.ctx;
+                        const gradient = ctx.createLinearGradient(0, 0, 0, 400);
+                        gradient.addColorStop(0, 'rgba(243, 186, 47, 0.4)');
+                        gradient.addColorStop(1, 'rgba(243, 186, 47, 0)');
+                        return gradient;
+                    },
+                    borderWidth: 2,
+                    fill: true,
+                    tension: 0.4,
+                    pointRadius: 0,
+                    pointHoverRadius: 6,
+                    pointBackgroundColor: '#F3BA2F',
+                    pointBorderColor: '#000',
+                    pointBorderWidth: 2
+                }]
+            },
+            options: commonOptions
+        });
+    } 
+    // --- METRICS MODE CONFIG ---
+    else {
+        chartInstance = new Chart(ctx, {
+            type: 'bar', // Using bar chart for metrics
+            data: {
+                labels: rawHistory.map(h => {
+                    const d = new Date(h.date);
+                    return d.getDate(); // Just the day number: 10, 11, 12...
+                }),
+                datasets: [
+                    {
+                        label: 'Producción',
+                        data: rawHistory.map(h => h.profit || 0), // Fallback to 0
+                        backgroundColor: '#3b82f6', // Bright Blue 500
+                        borderColor: '#2563eb',
+                        borderWidth: 1,
+                        borderRadius: 4
+                    },
+                    {
+                        label: 'Ciclos',
+                        data: rawHistory.map(h => h.cycles || 0),
+                        backgroundColor: '#ef4444', // Red 500
+                        borderColor: '#dc2626',
+                        borderWidth: 1,
+                        borderRadius: 4
+                    },
+                    {
+                        label: 'Comisión',
+                        data: rawHistory.map(h => h.fees || 0),
+                        backgroundColor: '#eab308', // Yellow 500
+                        borderColor: '#ca8a04',
+                        borderWidth: 1,
+                        borderRadius: 4
+                    },
+                    {
+                        label: 'Capital',
+                        data: rawHistory.map(h => h.capital || h.equity), // Use equity/capital
+                        backgroundColor: '#10b981', // Emerald 500
+                        borderColor: '#059669',
+                        borderWidth: 1,
+                        borderRadius: 4
+                    }
+                ]
+            },
+            options: {
+                ...commonOptions,
+                interaction: {
+                    mode: 'index',
+                    intersect: false,
+                }
+            }
+        });
+    }
+  }
+
+  window.updateInvestorChartData = (history) => {
+      const loader = document.getElementById('chart-loader');
+      
+      if (history && Array.isArray(history)) {
+          rawHistory = history;
+          renderChart();
+          if(loader) loader.classList.add('opacity-0', 'pointer-events-none');
+      }
+  };
+</script>
