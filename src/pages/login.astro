@@ -94,7 +94,7 @@ import Footer from '../components/Footer.astro';
       // UPDATED TO LOCALHOST FOR DEV
       const apiUrl = window.location.hostname === 'localhost' 
         ? "http://localhost:3003/api/auth/login" 
-        : "http://144.91.110.204:3003/api/auth/login";
+        : "/api/auth/login";
 
       const response = await fetch(apiUrl, {
         method: "POST",
@@ -126,7 +126,7 @@ import Footer from '../components/Footer.astro';
         // Update API Base as well based on environment
         const apiBase = window.location.hostname === 'localhost'
             ? 'http://localhost:3003'
-            : 'http://144.91.110.204:3003';
+            : window.location.origin;
         localStorage.setItem('api_base', apiBase);
 
         // Persistencia en cookie (para middleware de Astro)

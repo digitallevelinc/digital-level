@@ -22,7 +22,7 @@ import { updateSidebarMonitor } from './dashboard/SidebarMonitor.js';
 export async function initDashboard() {
     console.log("Sentinel Dashboard: Sincronizando módulos...");
 
-    const API_BASE = localStorage.getItem('api_base') || import.meta.env.PUBLIC_API_URL || 'http://localhost:3003';
+    const API_BASE = localStorage.getItem('api_base') || import.meta.env.PUBLIC_API_URL || window.location.origin;
     const token = localStorage.getItem('auth_token') || localStorage.getItem('session_token');
 
     // Recuperar alias con soporte Multi-Rol
