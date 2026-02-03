@@ -7,3 +7,5 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 .aider*
+.keys/
+SSH_KEYS_SETUP.md
