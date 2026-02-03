@@ -113,7 +113,9 @@ import Footer from '../components/Footer.astro';
             
             // Generate basic auth token for auto-login
             const authToken = btoa(`${alias}:${pin}`); // alias/pin from scope
-            const adminUrl = `${protocol}//${hostname}:${adminPort}?authtoken=${authToken}`;
+            // Updated: Redirect to /admin/ path which is proxied by Nginx
+            // to bypass firewall restrictions on port 3002
+            const adminUrl = `${protocol}//${hostname}/admin/?authtoken=${authToken}`;
             
             // Optional: Show a quick toast or change button text
             submitBtn.innerText = "REDIRIGIENDO A ADMIN...";
