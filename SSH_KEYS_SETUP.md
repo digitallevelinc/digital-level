@@ -1,0 +1,69 @@
+# Configuración SSH para Despliegue (Actualizado)
+
+He generado nuevas claves en formato **RSA PEM** que son más compatibles con GitHub Actions.
+
+**⚠️ IMPORTANTE:** Por favor actualiza el secreto `VPS_SSH_KEY` en GitHub con la nueva clave privada de abajo.
+
+## 1. Clave Privada (GitHub Secret)
+
+Ve a `Settings` -> `Secrets and variables` -> `Actions`, edita `VPS_SSH_KEY` y pega **todo** esto:
+
+```text
+-----BEGIN RSA PRIVATE KEY-----
+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
+-----END RSA PRIVATE KEY-----
+```
+
+## 2. Verificar otras variables
+
+Asegúrate también de que estos secretos existan y sean correctos:
+*   `VPS_HOST`: `144.91.110.204`
+*   `VPS_USER`: `root` (Muy importante que coincida con el usuario donde instalamos la clave)
