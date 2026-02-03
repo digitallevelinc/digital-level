@@ -14,8 +14,9 @@ export function updateProfitUI(kpis = {}, bankInsights = []) {
     const totalProfitUSDT = parseFloat(critical.profitTotalUSDT || 0);
 
     // 3. BALANCE TEÓRICO (Desde Backend)
-    // El backend envía el 'balanceTotal'
-    const theoreticalTotal = parseFloat(critical.balanceTotal || 0);
+    // 3. CAPITAL INICIAL (Desde Backend)
+    // Antes 'Balance Teórico', ahora representa el Capital Inicial del periodo seleccionado
+    const theoreticalTotal = parseFloat(audit.currentBalanceEstimate || critical.balanceTotal || 0);
 
     // 4. ROI GLOBAL (Desde Backend)
     const roiPercent = parseFloat(critical.globalMarginPercent || 0);
@@ -28,13 +29,13 @@ export function updateProfitUI(kpis = {}, bankInsights = []) {
     // B. Balance Real (Consistencia con valores de auditoría si existen)
     // B. Balance Real (Consistencia con valores de auditoría si existen)
     // Fallback: Si no viene realBalance explícito, usamos balanceTotal (que suele ser el real reportado por API)
-    const realBinance = parseFloat(critical.realBalance || audit.realBalance || critical.balanceTotal || 0);
+    const realBinance = parseFloat(audit.realBalance || critical.realBalance || critical.balanceTotal || 0);
     inject('real-binance-balance', fUSDT(realBinance));
 
     // C. Discrepancia / GAP (Ahora debería venir del backend, usamos fallback visual si no viene)
-    // Si el backend no envía 'balanceGap', asumimos que el cálculo se hace allá y esto es solo display.
-    // Mantenemos una resta simple SOLO para display si no viene el campo explícito, para no romper la UI.
-    const gap = critical.balanceGap !== undefined ? parseFloat(critical.balanceGap) : (realBinance - theoreticalTotal);
+    // C. PROFIT GENERADO (Discrepancy)
+    // Mapeamos audit.discrepancy como el Profit del periodo.
+    const gap = audit.discrepancy !== undefined ? parseFloat(audit.discrepancy) : (realBinance - theoreticalTotal);
     inject('balance-gap-value', fUSDT(gap));
 
     // D. Profit Total
@@ -66,10 +67,10 @@ export function updateProfitUI(kpis = {}, bankInsights = []) {
     const gapContainer = document.getElementById('balance-gap-container');
     if (gapStatus && gapContainer) {
         if (Math.abs(gap) < 2.0) {
-            gapStatus.textContent = "Balance Cuadrado ✓";
+            gapStatus.textContent = "Sin Movimiento (Neutro)";
             gapContainer.className = "bg-emerald-500/5 p-4 rounded-lg border border-emerald-500/20 flex flex-col justify-center";
         } else {
-            gapStatus.textContent = gap < 0 ? "Capital en Circulacion" : "Excedente Detectado";
+            gapStatus.textContent = gap < 0 ? "Pérdida (Drawdown)" : "Profit Positivo";
             gapContainer.className = "bg-rose-500/5 p-4 rounded-lg border border-rose-500/20 flex flex-col justify-center";
         }
     }
