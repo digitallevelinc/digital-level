@@ -90,7 +90,7 @@ export default function NavbarReact() {
             <a href="/" className="flex items-center gap-3 transition-transform hover:scale-105">
               <img className="h-10 w-auto" src="/img/logo.png" alt="Logo Digital Level" />
               <span className="text-xl font-bold text-white tracking-tighter uppercase">
-                DIGITAL<span className="text-[#F3BA2F]">LEVEL</span>
+                DIGITA<span className="text-[#F3BA2F]">LEVEL</span>
               </span>
             </a>
           </div>
@@ -160,7 +160,7 @@ export default function NavbarReact() {
               <div className="flex items-center gap-3">
                 <img src="/img/logo.png" alt="Logo" className="h-8 w-auto" />
                 <span className="text-xl font-black text-white uppercase tracking-tighter italic">
-                  Digital<span className="text-[#F3BA2F]">Level</span>
+                  <span className="text-[#F3BA2F]">Level</span>
                 </span>
               </div>
               <button onClick={() => setMobileMenuOpen(false)} className="text-gray-400 p-2"><XMarkIcon className="h-8 w-8" /></button>
@@ -189,7 +189,7 @@ export default function NavbarReact() {
               <div className="mt-8 space-y-1">
                 <p className="text-[10px] uppercase font-black text-[#F3BA2F] tracking-widest">In God We Trust</p>
                 <p className="text-[9px] uppercase font-bold text-gray-500 tracking-tighter">
-                  © {displayFullDate} Digital Level
+                  © {displayFullDate} Digita Level
                 </p>
               </div>
             </div>
