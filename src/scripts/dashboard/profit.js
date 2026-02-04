@@ -1,4 +1,5 @@
 import { fUSDT, fVES, inject } from './utils.js';
+import Chart from 'chart.js/auto';
 
 export function updateProfitUI(kpis = {}, bankInsights = []) {
     const critical = kpis.critical || {};
@@ -76,6 +77,7 @@ export function updateProfitUI(kpis = {}, bankInsights = []) {
     }
 
     renderBankProfitList(bankInsights);
+    renderProfitChart(kpis.chartData);
 }
 
 function renderBankProfitList(bankInsights) {
@@ -92,4 +94,149 @@ function renderBankProfitList(bankInsights) {
             </div>
         `;
     }).join('');
+}
+
+// --- CHART LOGIC ---
+let profitChartInstance = null;
+
+function renderProfitChart(chartData = []) {
+    const ctx = document.getElementById('profit-chart');
+    if (!ctx) return;
+
+    // Destroy existing chart to prevent canvas reuse errors
+    if (profitChartInstance) {
+        profitChartInstance.destroy();
+    }
+
+    if (!chartData || chartData.length === 0) {
+        // Optional: Show "No data" message?
+        return;
+    }
+
+    // Sort by date just in case
+    const sortedData = [...chartData].sort((a, b) => new Date(a.date) - new Date(b.date));
+
+    const labels = sortedData.map(d => {
+        const date = new Date(d.date);
+        // Format: "Mon 12" (short day + date)
+        return date.toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric' });
+    });
+
+    const profitData = sortedData.map(d => d.profit);
+    const feesData = sortedData.map(d => d.fees);
+    const capitalData = sortedData.map(d => d.capital);
+    const cyclesData = sortedData.map(d => d.cycles); // Optional
+
+    profitChartInstance = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [
+                {
+                    label: 'Profit (USDT)',
+                    data: profitData,
+                    backgroundColor: '#4ade80', // emerald-400
+                    stack: 'Stack 0',
+                    order: 2,
+                    yAxisID: 'y'
+                },
+                {
+                    label: 'Fees (USDT)',
+                    data: feesData,
+                    backgroundColor: '#f87171', // red-400
+                    stack: 'Stack 0',
+                    order: 3,
+                    yAxisID: 'y'
+                },
+                {
+                    label: 'Capital',
+                    data: capitalData,
+                    type: 'line',
+                    borderColor: '#60a5fa', // blue-400
+                    borderWidth: 2,
+                    pointRadius: 2,
+                    tension: 0.3,
+                    order: 0,
+                    yAxisID: 'y1'
+                },
+                // Optional Cycles Line/Points
+                {
+                    label: 'Ciclos',
+                    data: cyclesData,
+                    type: 'line',
+                    borderColor: '#fbbf24', // amber-400
+                    borderDash: [5, 5],
+                    pointStyle: 'circle',
+                    pointRadius: 3,
+                    backgroundColor: '#fbbf24',
+                    borderWidth: 1,
+                    order: 1,
+                    yAxisID: 'y2',
+                    hidden: true // Hidden by default to avoid clutter
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: {
+                mode: 'index',
+                intersect: false,
+            },
+            plugins: {
+                tooltip: {
+                    callbacks: {
+                        label: function (context) {
+                            let label = context.dataset.label || '';
+                            if (label) {
+                                label += ': ';
+                            }
+                            if (context.raw !== null) {
+                                if (label.includes('Profit') || label.includes('Fees') || label.includes('Capital')) {
+                                    label += fUSDT(context.raw);
+                                } else {
+                                    label += context.raw;
+                                }
+                            }
+                            return label;
+                        }
+                    }
+                },
+                legend: {
+                    labels: {
+                        color: '#9ca3af', // gray-400
+                        font: { size: 10 }
+                    }
+                }
+            },
+            scales: {
+                x: {
+                    grid: { color: 'rgba(255, 255, 255, 0.05)' },
+                    ticks: { color: '#9ca3af' }
+                },
+                y: { // Profit & Fees Axis
+                    type: 'linear',
+                    display: true,
+                    position: 'left',
+                    grid: { color: 'rgba(255, 255, 255, 0.05)' },
+                    ticks: { color: '#4ade80' }
+                },
+                y1: { // Capital Axis
+                    type: 'linear',
+                    display: true,
+                    position: 'right',
+                    grid: { drawOnChartArea: false }, // only want the grid lines for one axis to show up
+                    ticks: { color: '#60a5fa' }
+                },
+                y2: { // Cycles Axis (Hidden or Small)
+                    type: 'linear',
+                    display: false, // Hide axis labels but keep scaling
+                    position: 'right',
+                    grid: { drawOnChartArea: false },
+                    min: 0,
+                    suggestedMax: 10 // Assuming daily cycles are low
+                }
+            }
+        }
+    });
 }

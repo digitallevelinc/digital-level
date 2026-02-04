@@ -78,7 +78,7 @@ import MonthlyPerformanceTable from '../components/dashboard/investor/MonthlyPer
 
   import { updateInvestorDashboard } from '../scripts/investor-logic.js';
   
-  const API_BASE = 'http://localhost:3003'; // Consider moving to env var
+  const API_BASE = import.meta.env.PUBLIC_API_URL || 'http://localhost:3003'; 
   const token = localStorage.getItem('auth_token');
 
   if(token) {

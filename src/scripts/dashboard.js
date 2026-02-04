@@ -73,12 +73,35 @@ export async function initDashboard() {
     window.handleToggleFavorite = async (bankName) => {
         console.log(`Toggling favorite for: ${bankName}`);
 
+        // Helper para normalizar ID (mismo que en bancos.js)
+        const getBankId = (name) => {
+            const lower = name.toLowerCase().trim();
+            if (lower.includes('pago') || lower.includes('movil') || lower === 'pm') return 'pagomovil';
+            if (lower.includes('bbva') || lower.includes('provincial')) return 'provincial';
+            if (lower.includes('bnc')) return 'bnc';
+            if (lower.includes('banesco')) return 'banesco';
+            if (lower.includes('mercantil')) return 'mercantil';
+            if (lower.includes('bancamiga')) return 'bancamiga';
+            if (lower.includes('fintech') || lower === 'bank') return 'bank';
+            return lower.split(' ')[0].replace(/\s+/g, '');
+        };
+
+        const id = getBankId(bankName);
+        const starBtn = document.getElementById(`fav-${id}`);
+        let wasFavorite = false;
+
         // 1. Optimistic Update (Visual Instantánea)
-        // Buscamos el ID normalizado para encontrar el botón
-        // (Replicamos la lógica de normalización de bancos.js para hallar el botón)
-        // NOTA: Para simplificar, haremos un refetch rápido o toggle manual si queremos optimismo puro.
-        // Por consistencia, haremos la llamada API y luego updateDashboard.
-        // Si queremos optimismo, necesitaríamos acceso al estado 'bankData' global actual.
+        if (starBtn) {
+            wasFavorite = starBtn.classList.contains('text-yellow-400');
+            // Toggle visual state immediately
+            if (wasFavorite) {
+                starBtn.classList.remove('text-yellow-400');
+                starBtn.classList.add('text-gray-600');
+            } else {
+                starBtn.classList.remove('text-gray-600');
+                starBtn.classList.add('text-yellow-400');
+            }
+        }
 
         try {
             const toggleUrl = `${API_BASE}/api/user/favorites/toggle`;
@@ -96,21 +119,42 @@ export async function initDashboard() {
             const data = await res.json();
 
             if (data.success || res.ok) {
-                console.log("Favorite toggled successfully. Refreshing...");
+                console.log("Favorite toggled successfully.");
 
                 // HYBRID FIX: Save returned favorites to LocalStorage backup
                 if (data.favorites && Array.isArray(data.favorites)) {
-                    console.log("Saving new favorites to storage:", data.favorites);
                     localStorage.setItem('sentinel_favorites', JSON.stringify(data.favorites));
                 }
 
-                // Recargamos datos para ver el cambio de orden y estrella
+                // Recargamos datos para ver el cambio de orden
+                // NOTA: Como ya actualizamos la estrella, el usuario ve respuesta inmediata.
+                // La recarga reordenará las tarjetas (si hay lógica de ordenamiento).
                 await updateDashboard(API_BASE, token, alias, currentRange);
             } else {
                 console.error("Error toggling favorite:", data);
+                // Revert optimistic update
+                if (starBtn) {
+                    if (wasFavorite) {
+                        starBtn.classList.add('text-yellow-400');
+                        starBtn.classList.remove('text-gray-600');
+                    } else {
+                        starBtn.classList.add('text-gray-600');
+                        starBtn.classList.remove('text-yellow-400');
+                    }
+                }
             }
         } catch (err) {
             console.error("Network error toggling favorite:", err);
+            // Revert optimistic update
+            if (starBtn) {
+                if (wasFavorite) {
+                    starBtn.classList.add('text-yellow-400');
+                    starBtn.classList.remove('text-gray-600');
+                } else {
+                    starBtn.classList.add('text-gray-600');
+                    starBtn.classList.remove('text-yellow-400');
+                }
+            }
         }
     };
 
@@ -184,6 +228,10 @@ export async function updateDashboard(API_BASE, token, alias, range = {}) {
             });
 
             if (!exists) {
+                // FIX: Check against global favorites list from API (case-insensitive)
+                const globalFavorites = kpis.favorites || [];
+                const isFav = globalFavorites.some(f => f.toLowerCase().trim() === dbParams.toLowerCase().trim());
+
                 bankData.push({
                     bank: dbParams,
                     bankName: dbParams,
@@ -197,7 +245,7 @@ export async function updateDashboard(API_BASE, token, alias, range = {}) {
                     sellVolUSDT: 0,
                     trf: { buyCount: 0, sellCount: 0, buyVol: 0, sellVol: 0, buyFee: 0, sellFee: 0 },
                     pm: { buyCount: 0, sellCount: 0, buyVol: 0, sellVol: 0, buyFee: 0, sellFee: 0, avgBuyRate: 0, avgSellRate: 0 },
-                    isFavorite: false
+                    isFavorite: isFav
                 });
             }
         });
