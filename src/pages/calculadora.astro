@@ -118,7 +118,7 @@ import WhatsAppBot from '../components/WhatsAppBot.astro'; // <--- VERIFICA ESTO
     let debounceTimer;
 
     // Obtener API_BASE del contexto global o default
-    const API_BASE = localStorage.getItem('api_base') || 'http://144.91.110.204:3003';
+    const API_BASE = localStorage.getItem('api_base') || import.meta.env.PUBLIC_API_URL || (window.location.hostname === 'localhost' ? 'http://localhost:3003' : window.location.origin);
     const token = localStorage.getItem('auth_token') || localStorage.getItem('session_token');
 
     // Configuración por defecto (será sobreescrita por API)

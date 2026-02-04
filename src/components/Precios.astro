@@ -97,7 +97,7 @@
             }
         ];
 
-        const API_BASE = localStorage.getItem('api_base') || 'http://144.91.110.204:3003';
+        const API_BASE = localStorage.getItem('api_base') || import.meta.env.PUBLIC_API_URL || (window.location.hostname === 'localhost' ? 'http://localhost:3003' : window.location.origin);
         let tracks = [];
         
         try {
@@ -193,7 +193,7 @@
         const container = document.getElementById('pricing-container');
         if (!container) return;
 
-        const API_BASE = localStorage.getItem('api_base') || 'http://144.91.110.204:3003';
+        const API_BASE = localStorage.getItem('api_base') || import.meta.env.PUBLIC_API_URL || (window.location.hostname === 'localhost' ? 'http://localhost:3003' : window.location.origin);
         // Endpoint público o protegido? Asumimos público o con token si hay sesión, pero planes suelen ser públicos.
         // El user dijo: GET /api/config/plans
         
