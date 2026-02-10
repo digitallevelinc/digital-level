@@ -10,7 +10,7 @@ export const CheckoutUI = {
         // --- TUS DATOS ---
         // Asegúrate de usar el número completo con código de país 
         const MI_BINANCE_ID = "173109190"; 
-        const MI_WHATSAPP = "14482045984"; // Actualizado al número completo
+        const MI_WHATSAPP = "14482197360"; // Actualizado al número completo
         // -----------------
 
         // Construcción del mensaje profesional para WhatsApp

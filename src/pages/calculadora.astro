@@ -2,7 +2,7 @@
 import Layout from '../layouts/Base.astro';
 import Navbar from '../components/Navbar.tsx';
 import Footer from '../components/Footer.astro';
-import WhatsAppBot from '../components/WhatsAppBot.astro'; // <--- VERIFICA ESTO
+import WhatsAppBot from '../components/WhatsAppBot.astro';
 ---
 
 <Layout title="Calculadora P2P Pro | Digital Level">
@@ -12,16 +12,15 @@ import WhatsAppBot from '../components/WhatsAppBot.astro'; // <--- VERIFICA ESTO
         <div class="max-w-6xl mx-auto px-4">
             <div class="text-center mb-10">
                 <h1 class="text-4xl md:text-5xl font-black mb-3 tracking-tighter italic">
-                    CALCULADORA <span class="text-[#F3BA2F]">P2P TRADING</span>
+                    CALCULADORA <span class="text-[#F3BA2F]">P2P</span>
                 </h1>
-                
             </div>
 
             <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
                 <div class="lg:col-span-5 space-y-6">
                     <div class="bg-[#15191d] p-8 rounded-[2rem] border border-gray-800 shadow-2xl">
                         <h3 class="font-bold mb-6 flex items-center gap-2 text-lg uppercase tracking-wider">
-                            <span class="w-1.5 h-6 bg-[#F3BA2F] rounded-full"></span> Configuración
+                            <span class="w-1.5 h-6 bg-[#F3BA2F] rounded-full"></span> Configuración Local
                         </h3>
 
                         <div class="space-y-5">
@@ -31,7 +30,7 @@ import WhatsAppBot from '../components/WhatsAppBot.astro'; // <--- VERIFICA ESTO
                             </div>
 
                             <div>
-                                <label class="block text-gray-500 text-xs font-bold uppercase mb-2 ml-1">Nivel de Cuenta (Maker %)</label>
+                                <label class="block text-gray-500 text-xs font-bold uppercase mb-2 ml-1">Nivel de Cuenta (Comisión)</label>
                                 <select id="nivelCuenta" class="w-full bg-[#0b0e11] border border-gray-700 rounded-xl p-4 text-white font-bold focus:border-[#F3BA2F] outline-none cursor-pointer">
                                     <option value="0.0020">No Verificado (0.20%)</option>
                                     <option value="0.0016" selected>Bronce (0.16%)</option>
@@ -40,22 +39,22 @@ import WhatsAppBot from '../components/WhatsAppBot.astro'; // <--- VERIFICA ESTO
                                 </select>
                             </div>
 
-                            <div class="p-4 bg-[#0b0e11] rounded-2xl border border-gray-800">
-                                <label class="block text-gray-400 text-[10px] font-bold uppercase mb-3 text-center">Tasa de Compra (USDT/VES)</label>
+                            <div class="p-4 bg-[#b91c1c] rounded-2xl border border-gray-800">
+                                <label class="block text-white/80 text-[10px] font-bold uppercase mb-3 text-center">Tasa de Venta (USDT/VES)</label>
+                                <div class="flex gap-2 mb-4">
+                                    <button class="btn-fee active" data-type="venta" data-mode="maker">Maker (%)</button>
+                                    <button class="btn-fee" data-type="venta" data-mode="taker">Taker ($0.06)</button>
+                                </div>
+                                <input type="number" id="precioVenta" value="615" step="0.01" class="w-full bg-transparent text-3xl font-black text-center text-white outline-none" placeholder="0.00" />
+                            </div>
+
+                            <div class="p-4 bg-[#15803d] rounded-2xl border border-gray-800">
+                                <label class="block text-white/80 text-[10px] font-bold uppercase mb-3 text-center">Tasa de Compra (USDT/VES)</label>
                                 <div class="flex gap-2 mb-4">
                                     <button class="btn-fee active" data-type="compra" data-mode="maker">Maker (%)</button>
                                     <button class="btn-fee" data-type="compra" data-mode="taker">Taker ($0.06)</button>
                                 </div>
                                 <input type="number" id="precioCompra" value="610" step="0.01" class="w-full bg-transparent text-3xl font-black text-center outline-none text-white" placeholder="0.00" />
-                            </div>
-
-                            <div class="p-4 bg-[#0b0e11] rounded-2xl border border-gray-800">
-                                <label class="block text-gray-400 text-[10px] font-bold uppercase mb-3 text-center">Tasa de Venta (USDT/VES)</label>
-                                <div class="flex gap-2 mb-4">
-                                    <button class="btn-fee active" data-type="venta" data-mode="maker">Maker (%)</button>
-                                    <button class="btn-fee" data-type="venta" data-mode="taker">Taker ($0.06)</button>
-                                </div>
-                                <input type="number" id="precioVenta" value="615" step="0.01" class="w-full bg-transparent text-3xl font-black text-center text-[#F3BA2F] outline-none" placeholder="0.00" />
                             </div>
 
                             <div>
@@ -100,171 +99,109 @@ import WhatsAppBot from '../components/WhatsAppBot.astro'; // <--- VERIFICA ESTO
             </div>
         </div>
     </main>
-    <WhatsAppBot />
 </Layout>
 
 <style>
-    .btn-fee {
-        @apply flex-1 py-2 rounded-lg border border-gray-700 text-[10px] font-black transition-all text-gray-500 uppercase;
-    }
-    .btn-fee.active {
-        @apply border-[#F3BA2F] text-black bg-[#F3BA2F];
-    }
+    .btn-fee { @apply flex-1 py-2 rounded-lg border border-gray-700 text-[10px] font-black transition-all text-gray-500 uppercase; }
+    .btn-fee.active { @apply border-[#F3BA2F] text-black bg-[#F3BA2F]; }
     input::-webkit-outer-spin-button, input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
 </style>
+<style>
+    .btn-fee {
+        /* Estado Inactivo: Más legible y con fondo sutil */
+        @apply flex-1 py-2 rounded-lg border border-white/10 bg-black/20 text-[10px] font-black transition-all text-white/50 uppercase;
+    }
+    
+    .btn-fee:hover {
+        /* Feedback al pasar el mouse */
+        @apply border-white/30 text-white/80 bg-black/40;
+    }
 
-<script>
+    .btn-fee.active {
+        /* Estado Activo: Se mantiene resaltado */
+        @apply border-[#F3BA2F] text-black bg-[#F3BA2F] shadow-[0_0_15px_rgba(243,186,47,0.3)];
+    }
+
+    /* Reset para inputs */
+    input::-webkit-outer-spin-button, 
+    input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+</style>
+
+<script is:inline>
+    // ESTADO LOCAL
     let config = { compra: 'maker', venta: 'maker' };
-    let debounceTimer;
 
-    // Obtener API_BASE del contexto global o default
-    const API_BASE = localStorage.getItem('api_base') || 'http://144.91.110.204:3003';
-    const token = localStorage.getItem('auth_token') || localStorage.getItem('session_token');
-
-    // Configuración por defecto (será sobreescrita por API)
-    let globalConfig = {
-        makerFee: 0.0016, // 0.16%
-        takerFee: 0.10    // 0.10% (Valor porcentual standard, aunque el input dice $0.06 fixed, revisaremos)
-    };
-
-    // Inicialización: Cargar Configuración
-    async function initConfig() {
-        try {
-            const res = await fetch(`${API_BASE}/api/config/commissions`, {
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
-            if (res.ok) {
-                const data = await res.json();
-                if (data.MAKER) globalConfig.makerFee = parseFloat(data.MAKER);
-                if (data.TAKER) globalConfig.takerFee = parseFloat(data.TAKER);
-                
-                // Actualizar UI si es necesario (ej. selector de nivel)
-                // Por ahora mantenemos el selector del DOM como "override" del usuario
-            }
-        } catch (e) {
-            console.error("Error loading config:", e);
-        }
-    }
-
-    // Llamamos a initConfig al inicio
-    initConfig();
-
-    async function calcular() {
-        // Debounce para no saturar la API
-        clearTimeout(debounceTimer);
-        debounceTimer = setTimeout(async () => {
-             await ejecutarCalculo();
-        }, 500);
-    }
-
-    async function ejecutarCalculo() {
-        // 1. Captura de datos
+    function ejecutarCalculo() {
+        // 1. Obtener valores
         const capital = parseFloat(document.getElementById('capital').value) || 0;
         const pCompra = parseFloat(document.getElementById('precioCompra').value) || 0;
         const pVenta = parseFloat(document.getElementById('precioVenta').value) || 0;
         const ciclos = parseFloat(document.getElementById('ciclosDiarios').value) || 0;
-        
-        // El backend probablemente asuma el fee según el nivel de cuenta del usuario o enviaremos el flag
-        // Para simplificar según la solicitud, preguntamos por profit pasando tasas y montos.
+        const makerFeeRate = parseFloat(document.getElementById('nivelCuenta').value) || 0;
+        const takerFeeFixed = 0.06; // Según tu UI de $0.06
+
         if (pCompra <= 0 || pVenta <= 0 || capital <= 0) return;
 
-        try {
-            // --- LLAMADA A API: PROFIT ---
-            const params = new URLSearchParams({
-                amount: capital.toString(),
-                buyRate: pCompra.toString(),
-                saleRate: pVenta.toString(),
-                modeBuy: config.compra, // Enviamos modo (maker/taker)
-                modeSell: config.venta // Enviamos modo
-            });
-
-            const res = await fetch(`${API_BASE}/api/calculator/profit?${params}`, {
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
-            
-            if (!res.ok) throw new Error("Error API Profit");
-            const data = await res.json();
-
-            // Mapeo de respuesta (Data.profitUsdt es la ganancia por ciclo)
-            const profitCiclo = parseFloat(data.profitUsdt || 0);
-            const roi = parseFloat(data.profitPercent || 0);
-
-            // Cálculos de proyección (Escalados simples permitidos en cliente)
-            const gananciaDiaria = profitCiclo * ciclos;
-            const gananciaMensual = gananciaDiaria * 30;
-
-            // --- LLAMADA ESTRATÉGICA: TECHO / BREAKEVEN (Si aplica) ---
-            // Usamos el endpoint de ceiling para obtener sugerencias o el breakeven implícito
-            // Nota: En la respuesta del profit podría venir el breakEven real, si no, llamamos aparte o usamos el del profit si lo trae.
-            // Asumiremos que /profit también devuelve 'breakEven' o llamamos a /ceiling si queremos sugerir venta.
-            // Según instrucciones: /get/calculator/ceiling para "Techo".
-            
-            // Para mostrar el BreakEven actual de esta operación:
-            // Si la API Profit lo devuelve perfecto, si no, es un dato derivado crítico.
-            // Asumiremos que data.breakEven viene, o llamamos a ceiling con margen 0 para saber el BE.
-            
-            let breakEvenVal = data.breakEven || 0;
-            if (!breakEvenVal) {
-                 // Fallback: llamar a ceiling con margen 0 (BE)
-                 const resBe = await fetch(`${API_BASE}/api/calculator/ceiling?saleRate=${pVenta}&margin=0`, {
-                     headers: { 'Authorization': `Bearer ${token}` }
-                 });
-                 if (resBe.ok) {
-                     const dataBe = await resBe.json();
-                     breakEvenVal = dataBe.breakEven || dataBe.ceilingRate;
-                 }
-            }
-
-            actualizarPantalla({
-                gananciaPorCiclo: profitCiclo,
-                roiCiclo: roi,
-                gananciaDiaria,
-                gananciaMensual,
-                breakEven: breakEvenVal,
-                capitalInicial: capital,
-                ciclos
-            });
-
-        } catch (e) {
-            console.error("Error calculando:", e);
+        // 2. Lógica de Compra
+        let costoCompraTotal = 0;
+        let usdtComprados = 0;
+        if (config.compra === 'maker') {
+            usdtComprados = capital / pCompra;
+            usdtComprados = usdtComprados * (1 - makerFeeRate);
+        } else {
+            usdtComprados = (capital - takerFeeFixed) / pCompra;
         }
-    }
 
-    function actualizarPantalla(res) {
-        document.getElementById('gananciaCiclo').innerText = `$${res.gananciaPorCiclo.toFixed(2)}`;
-        document.getElementById('roiBadge').innerText = `ROI: ${res.roiCiclo.toFixed(2)}%`;
-        document.getElementById('gananciaDiaria').innerText = `$${res.gananciaDiaria.toFixed(2)}`;
-        document.getElementById('proyeccionMensual').innerText = `$${res.gananciaMensual.toLocaleString('en-US', {minimumFractionDigits: 2})}`;
+        // 3. Lógica de Venta
+        let capitalFinal = 0;
+        if (config.venta === 'maker') {
+            capitalFinal = (usdtComprados * pVenta) * (1 - makerFeeRate);
+        } else {
+            capitalFinal = (usdtComprados * pVenta) - takerFeeFixed;
+        }
+
+        // 4. Resultados
+        const profitCiclo = capitalFinal - capital;
+        const roi = (profitCiclo / capital) * 100;
+        const gananciaDiaria = profitCiclo * ciclos;
+        const gananciaMensual = gananciaDiaria * 30;
+
+        // 5. Break Even aproximado
+        // (Simplificado: Precio al que sales tablas incluyendo fees)
+        const breakEven = pCompra * (1 + (makerFeeRate * 2));
+
+        // 6. Actualizar Pantalla
+        document.getElementById('gananciaCiclo').innerText = `$${profitCiclo.toFixed(2)}`;
+        document.getElementById('roiBadge').innerText = `ROI: ${roi.toFixed(2)}%`;
+        document.getElementById('gananciaDiaria').innerText = `$${gananciaDiaria.toFixed(2)}`;
+        document.getElementById('proyeccionMensual').innerText = `$${gananciaMensual.toLocaleString('en-US', {minimumFractionDigits: 2})}`;
+        document.getElementById('breakeven').innerText = breakEven.toFixed(2);
         
-        const beEl = document.getElementById('breakeven');
-        if (beEl) beEl.innerText = res.breakEven ? parseFloat(res.breakEven).toFixed(2) : '---';
-        
-        const vol = res.capitalInicial * res.ciclos * 2 * 30;
+        const vol = capital * ciclos * 2 * 30;
         document.getElementById('volumenMensual').innerText = `$${(vol/1000).toFixed(0)}k`;
 
-        // Estética de color
         const gEl = document.getElementById('gananciaCiclo');
-        gEl.style.color = res.gananciaPorCiclo >= 0 ? '#4ade80' : '#f87171';
+        gEl.style.color = profitCiclo >= 0 ? '#4ade80' : '#f87171';
     }
 
-    // Listeners para botones
-    document.querySelectorAll('.btn-fee').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-            const type = e.target.dataset.type;
-            const mode = e.target.dataset.mode;
-            document.querySelectorAll(`[data-type="${type}"]`).forEach(b => b.classList.remove('active'));
-            e.target.classList.add('active');
-            config[type] = mode;
-            calcular();
+    // Inicializar listeners
+    document.addEventListener('DOMContentLoaded', () => {
+        document.querySelectorAll('.btn-fee').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const type = e.target.dataset.type;
+                const mode = e.target.dataset.mode;
+                document.querySelectorAll(`[data-type="${type}"]`).forEach(b => b.classList.remove('active'));
+                e.target.classList.add('active');
+                config[type] = mode;
+                ejecutarCalculo();
+            });
         });
-    });
 
-    // Listeners para inputs
-    ['capital', 'precioCompra', 'precioVenta', 'ciclosDiarios', 'nivelCuenta'].forEach(id => {
-        const el = document.getElementById(id);
-        if(el) el.addEventListener('input', calcular);
-    });
+        ['capital', 'precioCompra', 'precioVenta', 'ciclosDiarios', 'nivelCuenta'].forEach(id => {
+            const el = document.getElementById(id);
+            if(el) el.addEventListener('input', ejecutarCalculo);
+        });
 
-    // Run initial
-    setTimeout(calcular, 500);
+        ejecutarCalculo();
+    });
 </script>
