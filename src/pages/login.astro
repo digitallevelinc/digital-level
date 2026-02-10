@@ -105,6 +105,24 @@ import Footer from '../components/Footer.astro';
       const result = await response.json();
 
       if (response.ok && result.success) {
+        // --- ADMIN REDIRECT LOGIC ---
+        if (result.role === 'admin') {
+            const adminPort = result.adminPort || 3002;
+            const protocol = window.location.protocol;
+            const hostname = window.location.hostname;
+            
+            // Generate basic auth token for auto-login
+            const authToken = btoa(`${alias}:${pin}`); // alias/pin from scope
+            // Updated: Redirect to /admin/ path which is proxied by Nginx
+            // to bypass firewall restrictions on port 3002
+            const adminUrl = `${protocol}//${hostname}/admin/?authtoken=${authToken}`;
+            
+            // Optional: Show a quick toast or change button text
+            submitBtn.innerText = "REDIRIGIENDO A ADMIN...";
+            window.location.href = adminUrl;
+            return;
+        }
+
         // Almacenamos el token para autorizar las siguientes vistas
         // Persistencia en localStorage (para peticiones cliente)
         localStorage.setItem('session_token', result.token);

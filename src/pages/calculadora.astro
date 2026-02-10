@@ -131,8 +131,53 @@ import WhatsAppBot from '../components/WhatsAppBot.astro';
     // ESTADO LOCAL
     let config = { compra: 'maker', venta: 'maker' };
 
+<<<<<<< HEAD
     function ejecutarCalculo() {
         // 1. Obtener valores
+=======
+    // Obtener API_BASE del contexto global o default
+    const API_BASE = localStorage.getItem('api_base') || import.meta.env.PUBLIC_API_URL || (window.location.hostname === 'localhost' ? 'http://localhost:3003' : window.location.origin);
+    const token = localStorage.getItem('auth_token') || localStorage.getItem('session_token');
+
+    // Configuración por defecto (será sobreescrita por API)
+    let globalConfig = {
+        makerFee: 0.0016, // 0.16%
+        takerFee: 0.10    // 0.10% (Valor porcentual standard, aunque el input dice $0.06 fixed, revisaremos)
+    };
+
+    // Inicialización: Cargar Configuración
+    async function initConfig() {
+        try {
+            const res = await fetch(`${API_BASE}/api/config/commissions`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (res.ok) {
+                const data = await res.json();
+                if (data.MAKER) globalConfig.makerFee = parseFloat(data.MAKER);
+                if (data.TAKER) globalConfig.takerFee = parseFloat(data.TAKER);
+                
+                // Actualizar UI si es necesario (ej. selector de nivel)
+                // Por ahora mantenemos el selector del DOM como "override" del usuario
+            }
+        } catch (e) {
+            console.error("Error loading config:", e);
+        }
+    }
+
+    // Llamamos a initConfig al inicio
+    initConfig();
+
+    async function calcular() {
+        // Debounce para no saturar la API
+        clearTimeout(debounceTimer);
+        debounceTimer = setTimeout(async () => {
+             await ejecutarCalculo();
+        }, 500);
+    }
+
+    async function ejecutarCalculo() {
+        // 1. Captura de datos
+>>>>>>> 600ba07c1a34b16f0cf36984467747d2d53c336f
         const capital = parseFloat(document.getElementById('capital').value) || 0;
         const pCompra = parseFloat(document.getElementById('precioCompra').value) || 0;
         const pVenta = parseFloat(document.getElementById('precioVenta').value) || 0;
