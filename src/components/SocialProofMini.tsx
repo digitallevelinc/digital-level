@@ -14,7 +14,7 @@ const getSubscriptionsCount = () => Math.floor(Math.random() * (70 - 40 + 1)) + 
 const SocialProofMini: React.FC = () => {
     const [current, setCurrent] = useState(0);
     const [isVisible, setIsVisible] = useState(false);
-    const ROTATION_TIME = 7000; // Actualizado a 7 segundos
+    const ROTATION_TIME = 14000; // Actualizado a 14 segundos
 
     const mockRecent = [
         { name: "Andrés M.", plan: "Business Pro", time: "1h ago" },
@@ -64,7 +64,7 @@ const SocialProofMini: React.FC = () => {
     ];
 
     useEffect(() => {
-        const showTimer = setTimeout(() => setIsVisible(true), 4000);
+        const showTimer = setTimeout(() => setIsVisible(true), 14000);
         
         const interval = setInterval(() => {
             setCurrent(prev => (prev + 1) % slides.length);
