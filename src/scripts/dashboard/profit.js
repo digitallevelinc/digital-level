@@ -27,10 +27,14 @@ export function updateProfitUI(kpis = {}, bankInsights = []) {
     // A. Balance Teórico
     inject('theoretical-balance', fUSDT(theoreticalTotal));
 
-    // B. Balance Real (Consistencia con valores de auditoría si existen)
-    // B. Balance Real (Consistencia con valores de auditoría si existen)
-    // Fallback: Si no viene realBalance explícito, usamos balanceTotal (que suele ser el real reportado por API)
-    const realBinance = parseFloat(audit.realBalance || critical.realBalance || critical.balanceTotal || 0);
+    // B. Balance Real (debe ser independiente del filtro temporal).
+    // Nunca usar critical.balanceTotal aquí porque ese valor representa el capital del periodo.
+    const realBinanceSource =
+        audit.realBalance ??
+        kpis.metrics?.totalBalance ??
+        critical.realBalance ??
+        0;
+    const realBinance = parseFloat(realBinanceSource || 0);
     inject('real-binance-balance', fUSDT(realBinance));
 
     // C. Discrepancia / GAP (Ahora debería venir del backend, usamos fallback visual si no viene)

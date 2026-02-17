@@ -15,11 +15,16 @@ export function updateSidebarMonitor(kpis = {}, bankInsights = []) {
     const profit = parseFloat(critical.profitTotalUSDT || summary.totalProfit || 0);
 
     // BALANCES: Prioridad Mirror
-    // El 'teorico' es lo que el sistema dice que deberíamos tener (Balance Dinámico del Back)
-    const teorico = parseFloat(critical.balanceTotal || 0);
+    // El 'teorico' es el capital inicial del periodo seleccionado.
+    const teorico = parseFloat(audit.currentBalanceEstimate || critical.balanceTotal || 0);
 
-    // El 'binance' es el real verificado (si no hay, espejamos teorico para balance cuadrado)
-    const binance = parseFloat(critical.realBalance || audit.realBalance || critical.balanceTotal || 0);
+    // El 'binance' es el saldo real actual y NO debe depender del filtro.
+    const binanceSource =
+        audit.realBalance ??
+        summary.totalBalance ??
+        critical.realBalance ??
+        0;
+    const binance = parseFloat(binanceSource || 0);
 
     // La diferencia/gap
     const diferencia = critical.balanceGap !== undefined ? parseFloat(critical.balanceGap) : (binance - teorico);
