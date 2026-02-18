@@ -28,8 +28,40 @@
       </div>
       <div class="text-[10px] text-white-500 uppercase font-bold tracking-widest mt-1">Acumulado disponible</div>
     </div>
-    
-    
+
+    <!-- Registro de Retiro por Numero de Orden (Auditoria) -->
+    <div class="pt-4 border-t border-white/5">
+      <div class="flex items-center justify-between gap-3">
+        <div class="text-[9px] font-black uppercase tracking-[0.22em] text-white-500">Retiro por Orden</div>
+        <div class="text-[9px] font-black uppercase tracking-[0.22em] text-white-600">Descuenta Profit Share</div>
+      </div>
+
+      <div class="grid grid-cols-[1fr_auto] gap-2 mt-2 items-center">
+        <div class="relative">
+          <input
+            id="payroll-withdrawal-order"
+            inputmode="numeric"
+            autocomplete="off"
+            placeholder="Pega el Numero de Orden..."
+            class="w-full bg-black/25 border border-white/10 rounded-md px-3 py-2.5 text-[12px] font-mono font-black text-white placeholder:text-white/25 focus:outline-none focus:border-[#F3BA2F]/45 focus:bg-black/35 transition-colors"
+          />
+          <div class="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-black text-white/20 select-none">#</div>
+        </div>
+        <button
+          id="payroll-withdrawal-save"
+          class="shrink-0 h-[38px] px-3.5 rounded-md border border-[#F3BA2F]/25 bg-[#F3BA2F]/10 text-[10px] font-black uppercase tracking-[0.22em] text-[#F3BA2F] hover:bg-[#F3BA2F]/15 hover:border-[#F3BA2F]/45 transition-all"
+        >
+          Agregar
+        </button>
+      </div>
+
+      <div class="mt-1.5 text-[9px] font-bold uppercase tracking-widest text-white-600 opacity-70">
+        Solo VENTA (P2P_SELL) + SUCCESS
+      </div>
+
+      <div id="payroll-withdrawal-feedback" class="mt-2 hidden"></div>
+      <div class="mt-3 space-y-2 max-h-44 overflow-auto pr-1" id="payroll-withdrawal-log"></div>
+    </div>
   </div>
 
   <div class="flex justify-between items-center opacity-50 mt-1">

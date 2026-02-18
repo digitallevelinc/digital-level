@@ -57,9 +57,9 @@ export function updateCiclosUI(kpis = {}, bankInsights = []) {
     });
 
     // 3. CÁLCULO DE KPIS SUPERIORES
-    const profitPorCiclo = kpis.critical?.averageCycleProfit ?? (totalCyclesAllBanks > 0
+    const profitPorCiclo = totalCyclesAllBanks > 0
         ? (totalProfitNetoAcumulado / totalCyclesAllBanks)
-        : 0);
+        : (kpis.critical?.averageCycleProfit ?? 0);
 
     inject('kpi-cycle-value', `≈ ${fUSDT(profitPorCiclo)}`);
     inject('cycle-count', totalCyclesAllBanks.toString().padStart(2, '0'));

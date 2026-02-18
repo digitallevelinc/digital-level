@@ -10,6 +10,7 @@ import { updateFiatSection } from './dashboard/fiat.js';
 import { updateCiclosUI } from './dashboard/ciclos.js';
 import { updateProfitUI } from './dashboard/profit.js';
 import { updateComisionOperadorUI } from './dashboard/comisionOp.js';
+import { initPayrollWithdrawalsUI, refreshPayrollSummary, refreshPayrollWithdrawalHistory, setPayrollRange } from './dashboard/payrollWithdrawals.js';
 import { updateProyeccionesUI } from './dashboard/proyecciones.js';
 import { updateComisionesUI } from './dashboard/comisiones.js';
 import { updateOperacionesUI } from './dashboard/operaciones.js';
@@ -68,6 +69,7 @@ export async function initDashboard() {
     setupDatePickers();
 
     await updateDashboard(API_BASE, token, alias, currentRange);
+    initPayrollWithdrawalsUI(API_BASE, token);
 
     // --- FAVORITES HANDLER (Global connection for Astro onClick) ---
     window.handleToggleFavorite = async (bankName) => {
@@ -168,6 +170,8 @@ export async function updateDashboard(API_BASE, token, alias, range = {}) {
     if (!token) return;
 
     try {
+        setPayrollRange(range || {});
+
         const params = new URLSearchParams();
         if (range?.from) params.set('from', range.from);
         if (range?.to) params.set('to', range.to);
@@ -182,6 +186,16 @@ export async function updateDashboard(API_BASE, token, alias, range = {}) {
             throw new Error('Fallo en la respuesta de la API');
         }
         const kpis = await kpiRes.json();
+
+        // Payroll summary follows the active KPI range (Hoy/semana/mes/etc).
+        // Attach it to root so updateComisionOperadorUI uses this instead of critical.payroll.
+        try {
+            const payroll = await refreshPayrollSummary(API_BASE, token);
+            if (payroll) kpis.payroll = payroll;
+            await refreshPayrollWithdrawalHistory(API_BASE, token);
+        } catch (e) {
+            // Non-fatal: keep the rest of the dashboard working.
+        }
 
         // --- PREPARACIÓN DE DATOS (API V2 - Source of Truth) ---
         const metrics = kpis.metrics || {};
@@ -249,6 +263,18 @@ export async function updateDashboard(API_BASE, token, alias, range = {}) {
                 });
             }
         });
+
+        // ---------------------------------------------------------
+        // PROFIT TOTAL = SUMA DE PROFITS POR BANCO (Fuente: bankInsights)
+        // ---------------------------------------------------------
+        // El backend puede calcular profit por ciclos (Judge) y eso puede no coincidir
+        // con lo que el usuario espera como "profit" diario/por periodo.
+        // Para la UI, forzamos el Profit Total a ser la suma de los profits por banco.
+        const bankProfitSum = bankData.reduce((sum, b) => sum + Number(b.profit || 0), 0);
+        if (!kpis.critical) kpis.critical = {};
+        kpis.critical.profitTotalUSDT = bankProfitSum;
+        if (!kpis.metrics) kpis.metrics = metrics;
+        kpis.metrics.totalProfit = bankProfitSum;
 
         // --- ACTUALIZACIÓN DE MÉTRICAS BASE ---
         updateMainKpis(kpis);

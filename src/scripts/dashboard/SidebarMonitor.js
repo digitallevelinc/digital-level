@@ -35,15 +35,16 @@ export function updateSidebarMonitor(kpis = {}, bankInsights = []) {
 
     bankInsights.forEach(b => {
         const cycles = Number(b.completedCycles ?? b.countSell ?? b.sellCount ?? 0);
-        const fees = Number(b.feeBuy || 0) + Number(b.feeSell || 0);
         const rawProfit = b.totalProfitUSDT ?? b.profit ?? 0;
-        const net = Number(rawProfit) - fees;
+        const net = Number(rawProfit);
 
         totalCycles += cycles;
         totalNetProfit += net;
     });
 
-    const avg = kpis.critical?.averageCycleProfit ?? (totalCycles > 0 ? (totalNetProfit / totalCycles) : 0);
+    const avg = totalCycles > 0
+        ? (totalNetProfit / totalCycles)
+        : (kpis.critical?.averageCycleProfit ?? 0);
 
     // 3. Inyectar en los IDs del Sidebar
     inject('side-teorico', fUSDT(teorico));
