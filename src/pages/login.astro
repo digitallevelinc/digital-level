@@ -108,6 +108,27 @@ import Footer from '../components/Footer.astro';
     }
   }
 
+  function isRetryableStatus(status: number): boolean {
+    return status >= 500 || status === 404 || status === 429;
+  }
+
+  async function attemptLoginCandidate(
+    candidate: { url: string; timeoutMs: number },
+    requestInit: RequestInit
+  ): Promise<{ response: Response; result: any }> {
+    const response = await fetchWithTimeout(candidate.url, requestInit, candidate.timeoutMs);
+    const result = await parseJsonSafe(response);
+
+    if (isRetryableStatus(response.status)) {
+      const err: any = new Error(`retryable_status_${response.status}`);
+      err.response = response;
+      err.result = result;
+      throw err;
+    }
+
+    return { response, result };
+  }
+
   loginForm?.addEventListener('submit', async (e) => {
     e.preventDefault();
 
@@ -154,31 +175,34 @@ import Footer from '../components/Footer.astro';
 
       let response: Response | null = null;
       let result: any = null;
-      let lastError: unknown = null;
 
-      for (let i = 0; i < apiCandidates.length; i++) {
-        const candidate = apiCandidates[i];
-        try {
-          response = await fetchWithTimeout(candidate.url, requestInit, candidate.timeoutMs);
-          result = await parseJsonSafe(response);
-
-          const hasNextCandidate = i < apiCandidates.length - 1;
-          const shouldFallback =
-            !response.ok &&
-            hasNextCandidate &&
-            (response.status >= 500 || response.status === 404 || response.status === 429);
-
-          if (shouldFallback) {
-            continue;
-          }
-          break;
-        } catch (error) {
-          lastError = error;
+      try {
+        if (apiCandidates.length === 1) {
+          const single = await attemptLoginCandidate(apiCandidates[0], requestInit);
+          response = single.response;
+          result = single.result;
+        } else {
+          const winner = await Promise.any(
+            apiCandidates.map((candidate) => attemptLoginCandidate(candidate, requestInit))
+          );
+          response = winner.response;
+          result = winner.result;
         }
-      }
-
-      if (!response) {
-        throw lastError || new Error("No se pudo conectar con la API de login");
+      } catch (error: any) {
+        if (error instanceof AggregateError) {
+          const errorWithResponse = error.errors?.find((item: any) => item?.response);
+          if (errorWithResponse?.response) {
+            response = errorWithResponse.response;
+            result = errorWithResponse.result ?? null;
+          } else {
+            throw new Error("No se pudo conectar con la API de login");
+          }
+        } else if (error?.response) {
+          response = error.response;
+          result = error.result ?? null;
+        } else {
+          throw error;
+        }
       }
 
       if (response.ok && result?.success) {
