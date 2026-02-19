@@ -152,6 +152,7 @@ import Footer from '../components/Footer.astro';
       const host = window.location.hostname.toLowerCase();
       const isLocal = host === 'localhost' || host === '127.0.0.1';
       const sameOriginApi = "/api/auth/login";
+      const sameOriginPortalApi = "/portal/api/auth/login";
       const alternateOrigin =
         host === "www.digitalevel.com"
           ? `${window.location.protocol}//digitalevel.com`
@@ -162,8 +163,12 @@ import Footer from '../components/Footer.astro';
         ? [{ url: "http://localhost:3003/api/auth/login", timeoutMs: LOCAL_LOGIN_TIMEOUT_MS }]
         : [
             { url: sameOriginApi, timeoutMs: PRIMARY_LOGIN_TIMEOUT_MS },
+            { url: sameOriginPortalApi, timeoutMs: PRIMARY_LOGIN_TIMEOUT_MS },
             ...(alternateOrigin
-              ? [{ url: `${alternateOrigin}/api/auth/login`, timeoutMs: FALLBACK_LOGIN_TIMEOUT_MS }]
+              ? [
+                  { url: `${alternateOrigin}/api/auth/login`, timeoutMs: FALLBACK_LOGIN_TIMEOUT_MS },
+                  { url: `${alternateOrigin}/portal/api/auth/login`, timeoutMs: FALLBACK_LOGIN_TIMEOUT_MS }
+                ]
               : [])
           ];
 
