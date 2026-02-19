@@ -73,7 +73,9 @@ import Footer from '../components/Footer.astro';
 </Base>
 
 <script>
-  const LOGIN_TIMEOUT_MS = 12000;
+  const LOCAL_LOGIN_TIMEOUT_MS = 8000;
+  const PRIMARY_LOGIN_TIMEOUT_MS = 4500;
+  const FALLBACK_LOGIN_TIMEOUT_MS = 2500;
   const DEFAULT_SUBMIT_TEXT = "ACCEDER AL SISTEMA";
   const VERIFYING_TEXT = "VERIFICANDO...";
 
@@ -130,8 +132,11 @@ import Footer from '../components/Footer.astro';
       const sameOriginApi = "/api/auth/login";
       const directApi = `${window.location.protocol}//${window.location.hostname}:3003/api/auth/login`;
       const apiCandidates = isLocal
-        ? ["http://localhost:3003/api/auth/login"]
-        : [sameOriginApi, directApi];
+        ? [{ url: "http://localhost:3003/api/auth/login", timeoutMs: LOCAL_LOGIN_TIMEOUT_MS }]
+        : [
+            { url: sameOriginApi, timeoutMs: PRIMARY_LOGIN_TIMEOUT_MS },
+            { url: directApi, timeoutMs: FALLBACK_LOGIN_TIMEOUT_MS }
+          ];
 
       const requestInit: RequestInit = {
         method: "POST",
@@ -143,10 +148,21 @@ import Footer from '../components/Footer.astro';
       let result: any = null;
       let lastError: unknown = null;
 
-      for (const apiUrl of apiCandidates) {
+      for (let i = 0; i < apiCandidates.length; i++) {
+        const candidate = apiCandidates[i];
         try {
-          response = await fetchWithTimeout(apiUrl, requestInit, LOGIN_TIMEOUT_MS);
+          response = await fetchWithTimeout(candidate.url, requestInit, candidate.timeoutMs);
           result = await parseJsonSafe(response);
+
+          const hasNextCandidate = i < apiCandidates.length - 1;
+          const shouldFallback =
+            !response.ok &&
+            hasNextCandidate &&
+            (response.status >= 500 || response.status === 404);
+
+          if (shouldFallback) {
+            continue;
+          }
           break;
         } catch (error) {
           lastError = error;
