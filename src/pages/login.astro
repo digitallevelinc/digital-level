@@ -74,8 +74,8 @@ import Footer from '../components/Footer.astro';
 
 <script>
   const LOCAL_LOGIN_TIMEOUT_MS = 8000;
-  const PRIMARY_LOGIN_TIMEOUT_MS = 12000;
-  const FALLBACK_LOGIN_TIMEOUT_MS = 8000;
+  const PRIMARY_LOGIN_TIMEOUT_MS = 45000;
+  const FALLBACK_LOGIN_TIMEOUT_MS = 20000;
   const DEFAULT_SUBMIT_TEXT = "ACCEDER AL SISTEMA";
   const VERIFYING_TEXT = "VERIFICANDO...";
 
@@ -180,34 +180,29 @@ import Footer from '../components/Footer.astro';
 
       let response: Response | null = null;
       let result: any = null;
+      let lastError: unknown = null;
 
-      try {
-        if (apiCandidates.length === 1) {
-          const single = await attemptLoginCandidate(apiCandidates[0], requestInit);
-          response = single.response;
-          result = single.result;
-        } else {
-          const winner = await Promise.any(
-            apiCandidates.map((candidate) => attemptLoginCandidate(candidate, requestInit))
-          );
-          response = winner.response;
-          result = winner.result;
-        }
-      } catch (error: any) {
-        if (error instanceof AggregateError) {
-          const errorWithResponse = error.errors?.find((item: any) => item?.response);
-          if (errorWithResponse?.response) {
-            response = errorWithResponse.response;
-            result = errorWithResponse.result ?? null;
-          } else {
-            throw new Error("No se pudo conectar con la API de login");
+      for (let i = 0; i < apiCandidates.length; i++) {
+        const candidate = apiCandidates[i];
+        try {
+          const attempt = await attemptLoginCandidate(candidate, requestInit);
+          response = attempt.response;
+          result = attempt.result;
+          break;
+        } catch (error: any) {
+          if (error?.response) {
+            response = error.response;
+            result = error.result ?? null;
+            const hasNextCandidate = i < apiCandidates.length - 1;
+            if (!hasNextCandidate) break;
+            continue;
           }
-        } else if (error?.response) {
-          response = error.response;
-          result = error.result ?? null;
-        } else {
-          throw error;
+          lastError = error;
         }
+      }
+
+      if (!response) {
+        throw lastError || new Error("No se pudo conectar con la API de login");
       }
 
       if (response.ok && result?.success) {
