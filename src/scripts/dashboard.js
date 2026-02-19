@@ -17,9 +17,11 @@ import { updateOperacionesUI } from './dashboard/operaciones.js';
 import { updateBancosUI } from './dashboard/bancos.js';
 import { updateSidebarMonitor } from './dashboard/SidebarMonitor.js';
 const KPI_REQUEST_TIMEOUT_MS = 12000;
+const KPI_APPLY_BUTTON_TEXT = "Actualizar Reporte";
 let dashboardIntervalId = null;
 let dashboardAbortController = null;
 let dashboardRequestSeq = 0;
+let kpiLoadingRequestSeq = 0;
 
 
 /**
@@ -60,20 +62,26 @@ export async function initDashboard() {
         window.location.href = '/login';
     });
 
-    let currentRange = getPresetRange('today');
+    // Inicializar Flatpickr antes de sincronizar el rango en inputs.
+    setupDatePickers();
+
+    let currentRange = normalizeRange(getPresetRange('today'));
+    syncRangeInputs(currentRange);
     updateKpiFilterLabel(currentRange.label);
     highlightPreset('today');
 
-    setupKpiFilters((range) => {
-        currentRange = range;
-        updateKpiFilterLabel(range.label);
-        void updateDashboard(API_BASE, token, alias, range);
+    setupKpiFilters((range, meta = {}) => {
+        const nextRange = normalizeRange(range);
+        const shouldForce = Boolean(meta.force);
+        if (!shouldForce && isSameRange(currentRange, nextRange)) {
+            return;
+        }
+        currentRange = nextRange;
+        updateKpiFilterLabel(nextRange.label);
+        void updateDashboard(API_BASE, token, alias, nextRange, { showLoading: true });
     });
 
-    // Inicializar Flatpickr
-    setupDatePickers();
-
-    await updateDashboard(API_BASE, token, alias, currentRange);
+    await updateDashboard(API_BASE, token, alias, currentRange, { showLoading: true });
     initPayrollWithdrawalsUI(API_BASE, token);
 
     // --- FAVORITES HANDLER (Global connection for Astro onClick) ---
@@ -136,7 +144,7 @@ export async function initDashboard() {
                 // Recargamos datos para ver el cambio de orden
                 // NOTA: Como ya actualizamos la estrella, el usuario ve respuesta inmediata.
                 // La recarga reordenará las tarjetas (si hay lógica de ordenamiento).
-                await updateDashboard(API_BASE, token, alias, currentRange);
+                await updateDashboard(API_BASE, token, alias, currentRange, { showLoading: false });
             } else {
                 console.error("Error toggling favorite:", data);
                 // Revert optimistic update
@@ -170,7 +178,7 @@ export async function initDashboard() {
     }
     dashboardIntervalId = setInterval(() => {
         if (document.hidden) return;
-        void updateDashboard(API_BASE, token, alias, currentRange, { preserveInFlight: true });
+        void updateDashboard(API_BASE, token, alias, currentRange, { preserveInFlight: true, showLoading: false });
     }, 30000);
 }
 
@@ -180,7 +188,7 @@ export async function initDashboard() {
 export async function updateDashboard(API_BASE, token, alias, range = {}, opts = {}) {
     if (!token) return;
 
-    const { preserveInFlight = false } = opts || {};
+    const { preserveInFlight = false, showLoading = false } = opts || {};
     if (preserveInFlight && dashboardAbortController) {
         return;
     }
@@ -190,6 +198,10 @@ export async function updateDashboard(API_BASE, token, alias, range = {}, opts =
     }
     dashboardAbortController = new AbortController();
     const requestSeq = ++dashboardRequestSeq;
+    if (showLoading) {
+        kpiLoadingRequestSeq = requestSeq;
+        setKpiFilterLoading(true);
+    }
 
     const requestTimeout = setTimeout(() => {
         if (dashboardAbortController) {
@@ -370,6 +382,9 @@ export async function updateDashboard(API_BASE, token, alias, range = {}, opts =
         if (requestSeq === dashboardRequestSeq) {
             dashboardAbortController = null;
         }
+        if (showLoading && requestSeq === kpiLoadingRequestSeq) {
+            setKpiFilterLoading(false);
+        }
     }
 }
 
@@ -392,10 +407,13 @@ function getWeekRange(date) {
 
 function getPresetRange(preset) {
     const today = new Date();
+    const yesterday = new Date(today);
+    yesterday.setDate(today.getDate() - 1);
     const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
     const startOfYear = new Date(today.getFullYear(), 0, 1);
     switch (preset) {
         case 'today': return { label: 'Hoy', from: toYmd(today), to: toYmd(today) };
+        case 'yesterday': return { label: 'Ayer', from: toYmd(yesterday), to: toYmd(yesterday) };
         case 'this_week': { const r = getWeekRange(today); return { label: 'Esta semana', ...r }; }
         case 'last_7': {
             const from = new Date(today);
@@ -421,21 +439,27 @@ function setupKpiFilters(onApply) {
     const applyBtn = document.getElementById('kpi-apply-range');
 
     presetGroup?.addEventListener('click', (e) => {
-        const btn = e.target.closest('.kpi-preset-btn');
+        const btn = e.target?.closest?.('.kpi-preset-btn');
         if (!btn) return;
         const preset = btn.getAttribute('data-preset');
         const range = getPresetRange(preset);
-        if (range.from) updateDateInput(fromEl, range.from);
-        if (range.to) updateDateInput(toEl, range.to);
+        syncRangeInputs(range);
         highlightPreset(preset);
-        onApply(range);
+        onApply(range, { source: 'preset', preset, force: false });
     });
 
     applyBtn?.addEventListener('click', () => {
-        const from = fromEl?.value || undefined;
-        const to = toEl?.value || undefined;
+        let from = sanitizeDateValue(fromEl?.value);
+        let to = sanitizeDateValue(toEl?.value);
+
+        // UX guard: si el usuario invierte fechas, corregimos en UI y request.
+        if (from && to && from > to) {
+            [from, to] = [to, from];
+            syncRangeInputs({ from, to });
+        }
+
         highlightPreset('custom');
-        onApply({ label: 'Personalizado', from, to });
+        onApply({ label: 'Personalizado', from, to }, { source: 'custom', force: true });
     });
 }
 
@@ -496,7 +520,7 @@ function setupDatePickers() {
         dateFormat: "Y-m-d",
         altInput: true,
         altFormat: "d F, Y",
-        disableMobile: "true",
+        disableMobile: true,
         allowInput: true
     };
 
@@ -506,11 +530,49 @@ function setupDatePickers() {
 
 function updateDateInput(el, value) {
     if (!el) return;
+    const dateValue = sanitizeDateValue(value);
     if (el._flatpickr) {
-        el._flatpickr.setDate(value);
+        if (!dateValue) {
+            el._flatpickr.clear();
+            return;
+        }
+        el._flatpickr.setDate(dateValue, false, "Y-m-d");
     } else {
-        el.value = value;
+        el.value = dateValue || '';
     }
+}
+
+function syncRangeInputs(range = {}) {
+    const fromEl = document.getElementById('kpi-date-from');
+    const toEl = document.getElementById('kpi-date-to');
+    updateDateInput(fromEl, range?.from);
+    updateDateInput(toEl, range?.to);
+}
+
+function sanitizeDateValue(value) {
+    const trimmed = String(value ?? '').trim();
+    return trimmed || undefined;
+}
+
+function normalizeRange(range = {}) {
+    return {
+        label: range?.label || 'Personalizado',
+        from: sanitizeDateValue(range?.from),
+        to: sanitizeDateValue(range?.to)
+    };
+}
+
+function isSameRange(a = {}, b = {}) {
+    return sanitizeDateValue(a?.from) === sanitizeDateValue(b?.from)
+        && sanitizeDateValue(a?.to) === sanitizeDateValue(b?.to);
+}
+
+function setKpiFilterLoading(isLoading) {
+    const applyBtn = document.getElementById('kpi-apply-range');
+    if (!applyBtn) return;
+    applyBtn.textContent = isLoading ? 'Actualizando...' : KPI_APPLY_BUTTON_TEXT;
+    applyBtn.disabled = isLoading;
+    applyBtn.classList.toggle('opacity-70', isLoading);
 }
 
 

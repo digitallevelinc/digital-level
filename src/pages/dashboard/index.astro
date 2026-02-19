@@ -78,16 +78,20 @@ import 'flatpickr/dist/themes/dark.css';
     </div>
 
     <div class="flex overflow-x-auto pb-4 gap-3 mb-8 scrollbar-hide" id="kpi-preset-group">
-      {['today', 'this_week', 'last_7', 'this_month', 'last_30', 'all'].map((preset) => (
+      {[
+        { id: 'today', label: 'Hoy' },
+        { id: 'yesterday', label: 'Ayer' },
+        { id: 'this_week', label: 'Esta semana' },
+        { id: 'last_7', label: 'Últimos 7 días' },
+        { id: 'this_month', label: 'Mes actual' },
+        { id: 'last_30', label: 'Últimos 30 días' },
+        { id: 'all', label: 'Todo' }
+      ].map((preset) => (
         <button 
           class="kpi-preset-btn whitespace-nowrap px-6 py-3 rounded-xl text-[11px] font-black uppercase border border-gray-800 bg-white/5 hover:border-[#F3BA2F]/60 hover:text-[#F3BA2F] transition-all shadow-md" 
-          data-preset={preset}
+          data-preset={preset.id}
         >
-          {preset === 'today' ? 'Hoy' : 
-           preset === 'this_week' ? 'Esta semana' : 
-           preset === 'last_7' ? 'Últimos 7 días' : 
-           preset === 'this_month' ? 'Mes actual' : 
-           preset === 'last_30' ? 'Últimos 30 días' : 'Todo'}
+          {preset.label}
         </button>
       ))}
     </div>
