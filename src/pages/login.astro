@@ -73,105 +73,138 @@ import Footer from '../components/Footer.astro';
 </Base>
 
 <script>
+  const LOGIN_TIMEOUT_MS = 12000;
+  const DEFAULT_SUBMIT_TEXT = "ACCEDER AL SISTEMA";
+  const VERIFYING_TEXT = "VERIFICANDO...";
+
   const loginForm = document.getElementById('loginForm') as HTMLFormElement;
   const errorContainer = document.getElementById('error-container');
   const submitBtn = document.getElementById('submitBtn') as HTMLButtonElement;
 
+  function setSubmitState(disabled: boolean, text: string) {
+    if (!submitBtn) return;
+    submitBtn.disabled = disabled;
+    submitBtn.innerText = text;
+  }
+
+  async function fetchWithTimeout(url: string, init: RequestInit, timeoutMs: number): Promise<Response> {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+    try {
+      return await fetch(url, { ...init, signal: controller.signal });
+    } finally {
+      clearTimeout(timeoutId);
+    }
+  }
+
+  async function parseJsonSafe(response: Response): Promise<any> {
+    try {
+      return await response.json();
+    } catch {
+      return null;
+    }
+  }
+
   loginForm?.addEventListener('submit', async (e) => {
     e.preventDefault();
-    
-    submitBtn.disabled = true;
-    submitBtn.innerText = "VERIFICANDO...";
-    
+
+    setSubmitState(true, VERIFYING_TEXT);
     if (errorContainer) errorContainer.classList.add('hidden');
 
     const formData = new FormData(loginForm);
-    const alias = formData.get('user');
-    const pin = formData.get('password');
+    const alias = String(formData.get('user') || '').trim();
+    const pin = String(formData.get('password') || '').trim();
+
+    if (!alias || !pin) {
+      if (errorContainer) {
+        errorContainer.innerText = "Debes ingresar usuario y PIN.";
+        errorContainer.classList.remove('hidden');
+      }
+      setSubmitState(false, DEFAULT_SUBMIT_TEXT);
+      return;
+    }
 
     try {
-      // LLAMADA AL PUERTO 3003 (Portal de Operadores)
-      // UPDATED TO LOCALHOST FOR DEV
-      const apiUrl = window.location.hostname === 'localhost' 
-        ? "http://localhost:3003/api/auth/login" 
-        : "/api/auth/login";
+      const isLocal = window.location.hostname === 'localhost';
+      const sameOriginApi = "/api/auth/login";
+      const directApi = `${window.location.protocol}//${window.location.hostname}:3003/api/auth/login`;
+      const apiCandidates = isLocal
+        ? ["http://localhost:3003/api/auth/login"]
+        : [sameOriginApi, directApi];
 
-      const response = await fetch(apiUrl, {
+      const requestInit: RequestInit = {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ alias, pin }) // El motor espera 'alias' y 'pin'
-      });
+        body: JSON.stringify({ alias, pin })
+      };
 
-      const result = await response.json();
+      let response: Response | null = null;
+      let result: any = null;
+      let lastError: unknown = null;
 
-      if (response.ok && result.success) {
-        // --- ADMIN REDIRECT LOGIC ---
+      for (const apiUrl of apiCandidates) {
+        try {
+          response = await fetchWithTimeout(apiUrl, requestInit, LOGIN_TIMEOUT_MS);
+          result = await parseJsonSafe(response);
+          break;
+        } catch (error) {
+          lastError = error;
+        }
+      }
+
+      if (!response) {
+        throw lastError || new Error("No se pudo conectar con la API de login");
+      }
+
+      if (response.ok && result?.success) {
         if (result.role === 'admin') {
-            const adminPort = result.adminPort || 3002;
-            const protocol = window.location.protocol;
-            const hostname = window.location.hostname;
-            
-            // Generate basic auth token for auto-login
-            const authToken = btoa(`${alias}:${pin}`); // alias/pin from scope
-            // Updated: Redirect to /admin/ path which is proxied by Nginx
-            // to bypass firewall restrictions on port 3002
-            const adminUrl = `${protocol}//${hostname}/admin/?authtoken=${authToken}`;
-            
-            // Optional: Show a quick toast or change button text
-            submitBtn.innerText = "REDIRIGIENDO A ADMIN...";
-            window.location.href = adminUrl;
-            return;
+          const protocol = window.location.protocol;
+          const hostname = window.location.hostname;
+          const authToken = btoa(`${alias}:${pin}`);
+          const adminUrl = `${protocol}//${hostname}/admin/?authtoken=${authToken}`;
+          setSubmitState(true, "REDIRIGIENDO A ADMIN...");
+          window.location.href = adminUrl;
+          return;
         }
 
-        // Almacenamos el token para autorizar las siguientes vistas
-        // Persistencia en localStorage (para peticiones cliente)
         localStorage.setItem('session_token', result.token);
         localStorage.setItem('auth_token', result.token);
-        
-        // --- MULTI-ROL (OPERADOR / INVERSOR) ---
-        const role = result.role || 'operator'; // Fallback legacy
+
+        const role = result.role || 'operator';
         const user = role === 'investor' ? result.investor : (result.operator || {});
-        
         localStorage.setItem('user_role', role);
         localStorage.setItem('user_info', JSON.stringify(user));
-        
-        // Compatibilidad Legacy
+
         if (user.alias) {
           localStorage.setItem('operator_alias', user.alias);
         }
 
-        // Base de la API (puerto 3003 del VPS)
-        // Update API Base as well based on environment
-        const apiBase = window.location.hostname === 'localhost'
-            ? 'http://localhost:3003'
-            : window.location.origin;
+        const apiBase = isLocal ? 'http://localhost:3003' : window.location.origin;
         localStorage.setItem('api_base', apiBase);
 
-        // Persistencia en cookie (para middleware de Astro)
         const maxAgeDays = 7;
-        const maxAge = maxAgeDays * 24 * 60 * 60; // 7 días
+        const maxAge = maxAgeDays * 24 * 60 * 60;
         document.cookie = `session_token=${result.token}; Path=/; Max-Age=${maxAge}; SameSite=Lax`;
-        
-        if (role === 'investor') {
-            window.location.href = "/investor";
-        } else {
-            window.location.href = "/dashboard";
-        }
-      } else {
-        if (errorContainer) {
-          errorContainer.innerText = result.error || "Credenciales inválidas";
-          errorContainer.classList.remove('hidden');
-        }
-        submitBtn.disabled = false;
-        submitBtn.innerText = "ACCEDER AL SISTEMA";
+
+        window.location.href = role === 'investor' ? "/investor" : "/dashboard";
+        return;
       }
-    } catch (error) {
+
       if (errorContainer) {
-        errorContainer.innerText = "Error: El motor Sentinel no responde en el puerto 3003 (Local o Remoto).";
+        errorContainer.innerText = result?.error || "Credenciales invalidas";
         errorContainer.classList.remove('hidden');
       }
-      submitBtn.disabled = false;
-      submitBtn.innerText = "ACCEDER AL SISTEMA";
+      setSubmitState(false, DEFAULT_SUBMIT_TEXT);
+    } catch (error: any) {
+      const isTimeout = error?.name === 'AbortError';
+      if (errorContainer) {
+        errorContainer.innerText = isTimeout
+          ? "Tiempo de espera agotado verificando login. Intenta de nuevo."
+          : "Error: El motor Sentinel no responde (proxy/API).";
+        errorContainer.classList.remove('hidden');
+      }
+      setSubmitState(false, DEFAULT_SUBMIT_TEXT);
     }
   });
 </script>
