@@ -16,6 +16,11 @@ import { updateComisionesUI } from './dashboard/comisiones.js';
 import { updateOperacionesUI } from './dashboard/operaciones.js';
 import { updateBancosUI } from './dashboard/bancos.js';
 import { updateSidebarMonitor } from './dashboard/SidebarMonitor.js';
+const KPI_REQUEST_TIMEOUT_MS = 12000;
+let dashboardIntervalId = null;
+let dashboardAbortController = null;
+let dashboardRequestSeq = 0;
+
 
 /**
  * 2. FUNCIÓN DE INICIALIZACIÓN
@@ -62,7 +67,7 @@ export async function initDashboard() {
     setupKpiFilters((range) => {
         currentRange = range;
         updateKpiFilterLabel(range.label);
-        updateDashboard(API_BASE, token, alias, range);
+        void updateDashboard(API_BASE, token, alias, range);
     });
 
     // Inicializar Flatpickr
@@ -160,14 +165,37 @@ export async function initDashboard() {
         }
     };
 
-    setInterval(() => updateDashboard(API_BASE, token, alias, currentRange), 30000);
+    if (dashboardIntervalId) {
+        clearInterval(dashboardIntervalId);
+    }
+    dashboardIntervalId = setInterval(() => {
+        if (document.hidden) return;
+        void updateDashboard(API_BASE, token, alias, currentRange, { preserveInFlight: true });
+    }, 30000);
 }
 
 /**
  * 3. FUNCIÓN DE ACTUALIZACIÓN GLOBAL (Auditoría de integridad)
  */
-export async function updateDashboard(API_BASE, token, alias, range = {}) {
+export async function updateDashboard(API_BASE, token, alias, range = {}, opts = {}) {
     if (!token) return;
+
+    const { preserveInFlight = false } = opts || {};
+    if (preserveInFlight && dashboardAbortController) {
+        return;
+    }
+
+    if (dashboardAbortController) {
+        dashboardAbortController.abort();
+    }
+    dashboardAbortController = new AbortController();
+    const requestSeq = ++dashboardRequestSeq;
+
+    const requestTimeout = setTimeout(() => {
+        if (dashboardAbortController) {
+            dashboardAbortController.abort();
+        }
+    }, KPI_REQUEST_TIMEOUT_MS);
 
     try {
         setPayrollRange(range || {});
@@ -177,8 +205,12 @@ export async function updateDashboard(API_BASE, token, alias, range = {}) {
         if (range?.to) params.set('to', range.to);
         const url = `${API_BASE}/api/kpis${params.toString() ? `?${params.toString()}` : ''}`;
 
+        const updateEl = document.getElementById('last-update');
+        if (updateEl) updateEl.textContent = "Sincronizando con Sentinel...";
+
         const kpiRes = await fetch(url, {
-            headers: { 'Authorization': `Bearer ${token}` }
+            headers: { 'Authorization': `Bearer ${token}` },
+            signal: dashboardAbortController.signal
         });
 
         if (!kpiRes.ok) {
@@ -186,15 +218,8 @@ export async function updateDashboard(API_BASE, token, alias, range = {}) {
             throw new Error('Fallo en la respuesta de la API');
         }
         const kpis = await kpiRes.json();
-
-        // Payroll summary follows the active KPI range (Hoy/semana/mes/etc).
-        // Attach it to root so updateComisionOperadorUI uses this instead of critical.payroll.
-        try {
-            const payroll = await refreshPayrollSummary(API_BASE, token);
-            if (payroll) kpis.payroll = payroll;
-            await refreshPayrollWithdrawalHistory(API_BASE, token);
-        } catch (e) {
-            // Non-fatal: keep the rest of the dashboard working.
+        if (requestSeq !== dashboardRequestSeq) {
+            return;
         }
 
         // --- PREPARACIÓN DE DATOS (API V2 - Source of Truth) ---
@@ -315,13 +340,36 @@ export async function updateDashboard(API_BASE, token, alias, range = {}) {
         const aliasEl = document.getElementById('operator-alias');
         if (aliasEl) aliasEl.textContent = alias;
 
-        const updateEl = document.getElementById('last-update');
         if (updateEl) updateEl.textContent = `Sincronizado: ${new Date().toLocaleTimeString()}`;
 
+        // Payroll loading moved to background so filter changes feel snappier.
+        // Keep it non-blocking and ignore late responses from stale requests.
+        void (async () => {
+            try {
+                const payroll = await refreshPayrollSummary(API_BASE, token);
+                if (requestSeq !== dashboardRequestSeq) return;
+                if (payroll) {
+                    const kpisWithPayroll = { ...kpis, payroll };
+                    updateComisionOperadorUI(kpisWithPayroll, bankData);
+                }
+                await refreshPayrollWithdrawalHistory(API_BASE, token);
+            } catch (_e) {
+                // Non-fatal: dashboard remains usable even if payroll endpoints fail.
+            }
+        })();
+
     } catch (err) {
+        if (err?.name === 'AbortError') {
+            return;
+        }
         console.error("Error en sincronización de Sentinel:", err);
         const updateEl = document.getElementById('last-update');
         if (updateEl) updateEl.textContent = "Error de conexión con Sentinel";
+    } finally {
+        clearTimeout(requestTimeout);
+        if (requestSeq === dashboardRequestSeq) {
+            dashboardAbortController = null;
+        }
     }
 }
 
@@ -464,3 +512,5 @@ function updateDateInput(el, value) {
         el.value = value;
     }
 }
+
+
