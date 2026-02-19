@@ -74,8 +74,8 @@ import Footer from '../components/Footer.astro';
 
 <script>
   const LOCAL_LOGIN_TIMEOUT_MS = 8000;
-  const PRIMARY_LOGIN_TIMEOUT_MS = 4500;
-  const FALLBACK_LOGIN_TIMEOUT_MS = 2500;
+  const PRIMARY_LOGIN_TIMEOUT_MS = 12000;
+  const FALLBACK_LOGIN_TIMEOUT_MS = 8000;
   const DEFAULT_SUBMIT_TEXT = "ACCEDER AL SISTEMA";
   const VERIFYING_TEXT = "VERIFICANDO...";
 
@@ -128,14 +128,22 @@ import Footer from '../components/Footer.astro';
     }
 
     try {
-      const isLocal = window.location.hostname === 'localhost';
+      const host = window.location.hostname.toLowerCase();
+      const isLocal = host === 'localhost' || host === '127.0.0.1';
       const sameOriginApi = "/api/auth/login";
-      const directApi = `${window.location.protocol}//${window.location.hostname}:3003/api/auth/login`;
+      const alternateOrigin =
+        host === "www.digitalevel.com"
+          ? `${window.location.protocol}//digitalevel.com`
+          : host === "digitalevel.com"
+            ? `${window.location.protocol}//www.digitalevel.com`
+            : "";
       const apiCandidates = isLocal
         ? [{ url: "http://localhost:3003/api/auth/login", timeoutMs: LOCAL_LOGIN_TIMEOUT_MS }]
         : [
             { url: sameOriginApi, timeoutMs: PRIMARY_LOGIN_TIMEOUT_MS },
-            { url: directApi, timeoutMs: FALLBACK_LOGIN_TIMEOUT_MS }
+            ...(alternateOrigin
+              ? [{ url: `${alternateOrigin}/api/auth/login`, timeoutMs: FALLBACK_LOGIN_TIMEOUT_MS }]
+              : [])
           ];
 
       const requestInit: RequestInit = {
@@ -158,7 +166,7 @@ import Footer from '../components/Footer.astro';
           const shouldFallback =
             !response.ok &&
             hasNextCandidate &&
-            (response.status >= 500 || response.status === 404);
+            (response.status >= 500 || response.status === 404 || response.status === 429);
 
           if (shouldFallback) {
             continue;
