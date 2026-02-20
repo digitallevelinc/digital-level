@@ -67,16 +67,19 @@ export function updateProfitUI(kpis = {}, bankInsights = []) {
     inject('channel-p2p', fUSDT(wallets.balanceP2P || 0));
     inject('channel-pay', fUSDT(wallets.balancePay || 0));
 
-    // Lógica visual del GAP (Estado)
+        // Lógica visual del GAP (Estado)
     const gapStatus = document.getElementById('balance-gap-status');
     const gapContainer = document.getElementById('balance-gap-container');
     if (gapStatus && gapContainer) {
         if (Math.abs(gap) < 2.0) {
             gapStatus.textContent = "Sin Movimiento (Neutro)";
             gapContainer.className = "bg-emerald-500/5 p-4 rounded-lg border border-emerald-500/20 flex flex-col justify-center";
-        } else {
-            gapStatus.textContent = gap < 0 ? "Pérdida (Drawdown)" : "Profit Positivo";
+        } else if (gap < 0) {
+            gapStatus.textContent = "Diferencia Negativa";
             gapContainer.className = "bg-rose-500/5 p-4 rounded-lg border border-rose-500/20 flex flex-col justify-center";
+        } else {
+            gapStatus.textContent = "Diferencia Positiva";
+            gapContainer.className = "bg-emerald-500/5 p-4 rounded-lg border border-emerald-500/20 flex flex-col justify-center";
         }
     }
 
@@ -244,3 +247,5 @@ function renderProfitChart(chartData = []) {
         }
     });
 }
+
+
