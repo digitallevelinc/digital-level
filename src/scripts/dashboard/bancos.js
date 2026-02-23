@@ -82,7 +82,16 @@ export function updateBancosUI(insights = []) {
 
         // 3. Datos Pago Móvil
         // Usamos el objeto .pm directo
-        const pm = b.pm || { sellCount: 0, buyCount: 0, sellVol: 0, buyVol: 0, sellFee: 0, buyFee: 0 };
+        const pm = b.pm || {
+            sellCount: 0,
+            buyCount: 0,
+            sellVol: 0,
+            buyVol: 0,
+            sellFee: 0,
+            buyFee: 0,
+            avgBuyRate: 0,
+            avgSellRate: 0
+        };
 
         // --- BINDING DE ELEMENTOS UI ---
 
@@ -105,13 +114,16 @@ export function updateBancosUI(insights = []) {
         // 2. Sección Pago Móvil (PM)
         if (ui.pmOps) ui.pmOps.textContent = `${pm.buyCount + pm.sellCount} OPS`;
 
+        const pmSellRate = safeFloat(pm.avgSellRate || pm.sellRate || 0);
+        const pmBuyRate = safeFloat(pm.avgBuyRate || pm.buyRate || 0);
+
         // PM Ventas
-        if (ui.sellPM) ui.sellPM.textContent = pm.sellCount.toString();
+        if (ui.sellPM) ui.sellPM.textContent = pmSellRate > 0 ? pmSellRate.toFixed(2) : '---';
         if (ui.volSellPM) ui.volSellPM.textContent = fVES(pm.sellVol);
         if (ui.feeSellPM) ui.feeSellPM.textContent = pm.sellFee.toFixed(2);
 
         // PM Compras
-        if (ui.buyPM) ui.buyPM.textContent = pm.buyCount.toString();
+        if (ui.buyPM) ui.buyPM.textContent = pmBuyRate > 0 ? pmBuyRate.toFixed(2) : '---';
         if (ui.volBuyPM) ui.volBuyPM.textContent = fVES(pm.buyVol);
         if (ui.feeBuyPM) ui.feeBuyPM.textContent = pm.buyFee.toFixed(2);
 
