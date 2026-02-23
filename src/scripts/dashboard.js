@@ -62,15 +62,18 @@ function resolveApiBase() {
     const fromEnv = normalizeApiBase(import.meta.env.PUBLIC_API_URL);
     const sameOrigin = normalizeApiBase(window.location.origin);
     const isLocalHost = isLocalHostName(window.location.hostname);
+    const safeStored = isLocalHost
+        ? (stored && isLocalApiBase(stored) ? stored : '')
+        : (stored && !isLocalApiBase(stored) ? stored : '');
 
     const candidates = isLocalHost
         ? uniqueNonEmpty([
-            stored && isLocalApiBase(stored) ? stored : '',
+            safeStored,
             fromEnv,
             LOCAL_API_FALLBACK,
             sameOrigin
         ])
-        : uniqueNonEmpty([stored, fromEnv, sameOrigin]);
+        : uniqueNonEmpty([safeStored, fromEnv, sameOrigin]);
 
     const selected = candidates[0] || sameOrigin || LOCAL_API_FALLBACK;
     localStorage.setItem('api_base', selected);
@@ -424,7 +427,7 @@ export async function updateDashboard(API_BASE, token, alias, range = {}, opts =
         // Sincronizamos la comisión
         updateComisionOperadorUI(kpis, bankData);
 
-        updateProyeccionesUI(kpis);
+        updateProyeccionesUI(kpis, range);
 
         // --- SECCIONES DE CARTERAS (LOGÍSTICA) ---
         updateRedSection(kpis);
