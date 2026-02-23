@@ -18,10 +18,78 @@ import { updateBancosUI } from './dashboard/bancos.js';
 import { updateSidebarMonitor } from './dashboard/SidebarMonitor.js';
 const KPI_REQUEST_TIMEOUT_MS = 12000;
 const KPI_APPLY_BUTTON_TEXT = "Actualizar Reporte";
+const LOCAL_API_FALLBACK = "http://localhost:3003";
 let dashboardIntervalId = null;
 let dashboardAbortController = null;
 let dashboardRequestSeq = 0;
 let kpiLoadingRequestSeq = 0;
+let authRedirecting = false;
+
+function normalizeApiBase(value) {
+    const raw = String(value || '').trim();
+    if (!raw) return '';
+    return raw.replace(/\/+$/, '');
+}
+
+function isLocalHostName(host) {
+    const normalized = String(host || '').toLowerCase();
+    return normalized === 'localhost' || normalized === '127.0.0.1';
+}
+
+function isLocalApiBase(url) {
+    try {
+        const parsed = new URL(url);
+        return isLocalHostName(parsed.hostname);
+    } catch {
+        return false;
+    }
+}
+
+function uniqueNonEmpty(values = []) {
+    const out = [];
+    const seen = new Set();
+    values.forEach((value) => {
+        const normalized = normalizeApiBase(value);
+        if (!normalized || seen.has(normalized)) return;
+        seen.add(normalized);
+        out.push(normalized);
+    });
+    return out;
+}
+
+function resolveApiBase() {
+    const stored = normalizeApiBase(localStorage.getItem('api_base'));
+    const fromEnv = normalizeApiBase(import.meta.env.PUBLIC_API_URL);
+    const sameOrigin = normalizeApiBase(window.location.origin);
+    const isLocalHost = isLocalHostName(window.location.hostname);
+
+    const candidates = isLocalHost
+        ? uniqueNonEmpty([
+            stored && isLocalApiBase(stored) ? stored : '',
+            fromEnv,
+            LOCAL_API_FALLBACK,
+            sameOrigin
+        ])
+        : uniqueNonEmpty([stored, fromEnv, sameOrigin]);
+
+    const selected = candidates[0] || sameOrigin || LOCAL_API_FALLBACK;
+    localStorage.setItem('api_base', selected);
+    return selected;
+}
+
+function handleExpiredSession() {
+    if (authRedirecting) return;
+    authRedirecting = true;
+
+    localStorage.removeItem('auth_token');
+    localStorage.removeItem('session_token');
+    localStorage.removeItem('user_role');
+    localStorage.removeItem('user_info');
+    localStorage.removeItem('operator_alias');
+
+    document.cookie = "session_token=; Path=/; Max-Age=0; SameSite=Lax";
+    window.location.href = '/login';
+}
 
 
 /**
@@ -30,7 +98,7 @@ let kpiLoadingRequestSeq = 0;
 export async function initDashboard() {
     console.log("Sentinel Dashboard: Sincronizando módulos...");
 
-    const API_BASE = localStorage.getItem('api_base') || import.meta.env.PUBLIC_API_URL || window.location.origin;
+    const API_BASE = resolveApiBase();
     const token = localStorage.getItem('auth_token') || localStorage.getItem('session_token');
 
     // Recuperar alias con soporte Multi-Rol
@@ -215,19 +283,36 @@ export async function updateDashboard(API_BASE, token, alias, range = {}, opts =
         const params = new URLSearchParams();
         if (range?.from) params.set('from', range.from);
         if (range?.to) params.set('to', range.to);
+        params.set('_ts', String(Date.now()));
         const url = `${API_BASE}/api/kpis${params.toString() ? `?${params.toString()}` : ''}`;
 
         const updateEl = document.getElementById('last-update');
         if (updateEl) updateEl.textContent = "Sincronizando con Sentinel...";
 
         const kpiRes = await fetch(url, {
-            headers: { 'Authorization': `Bearer ${token}` },
+            headers: {
+                'Authorization': `Bearer ${token}`
+            },
+            cache: 'no-store',
             signal: dashboardAbortController.signal
         });
 
         if (!kpiRes.ok) {
+            if (kpiRes.status === 401 || kpiRes.status === 403) {
+                handleExpiredSession();
+                return;
+            }
+
+            let backendError = '';
+            try {
+                const errData = await kpiRes.json();
+                backendError = errData?.error || '';
+            } catch {
+                // Ignore parsing errors and keep generic fallback.
+            }
+
             console.error(`API Error: ${kpiRes.status} ${kpiRes.statusText}`);
-            throw new Error('Fallo en la respuesta de la API');
+            throw new Error(backendError || `Fallo en la respuesta de la API (${kpiRes.status})`);
         }
         const kpis = await kpiRes.json();
         if (requestSeq !== dashboardRequestSeq) {

@@ -27,7 +27,8 @@ function fmtDate(d) {
   try {
     const dt = new Date(d);
     if (Number.isNaN(dt.getTime())) return '---';
-    return dt.toLocaleString('es-VE', { year: 'numeric', month: '2-digit', day: '2-digit' });
+    const pad = (n) => String(n).padStart(2, '0');
+    return `${pad(dt.getDate())}/${pad(dt.getMonth() + 1)}/${dt.getFullYear()} ${pad(dt.getHours())}:${pad(dt.getMinutes())}`;
   } catch {
     return '---';
   }
@@ -68,7 +69,7 @@ function renderHistory(items = []) {
 
   if (!items || items.length === 0) {
     list.innerHTML = `
-      <div class="text-[9px] font-black uppercase tracking-[0.22em] text-white-600 opacity-60">
+      <div class="text-[11px] font-black uppercase tracking-[0.14em] text-white-600 opacity-70">
         Sin retiros aplicados
       </div>`;
     return;
@@ -78,22 +79,24 @@ function renderHistory(items = []) {
     const order = escapeHtml(row.orderNumber || '-');
     const amount = Number(row.amount || 0);
     const asset = escapeHtml(row.asset || 'USDT');
-    const date = fmtDate(row.timestamp || row.appliedAt);
+    const soldDate = fmtDate(row.timestamp);
+    const payrollAddedDate = fmtDate(row.appliedAt || row.timestamp);
     const status = escapeHtml(row.status || 'SUCCESS');
     const amt = fUSDT(Math.abs(amount));
 
     return `
-      <div class="grid grid-cols-[1fr_auto] items-center gap-3 rounded-md border border-white/7 bg-black/20 px-3 py-2">
+      <div class="grid grid-cols-1 sm:grid-cols-[1fr_auto] items-start sm:items-center gap-3 rounded-lg border border-white/10 bg-black/20 px-3.5 py-3">
         <div class="min-w-0">
-          <div class="text-[9px] font-black uppercase tracking-[0.22em] text-white-500">Orden</div>
-          <div class="text-[11px] font-mono font-black text-white truncate">${order}</div>
-          <div class="text-[9px] font-black uppercase tracking-[0.18em] text-white-600 mt-0.5">${escapeHtml(date)}</div>
+          <div class="text-[10px] sm:text-[11px] font-black uppercase tracking-[0.14em] text-white-500">Orden</div>
+          <div class="text-[13px] sm:text-[14px] font-mono font-black text-white break-all leading-tight">${order}</div>
+          <div class="text-[11px] sm:text-[12px] font-semibold text-white/75 mt-1 leading-tight">Venta: ${escapeHtml(soldDate)}</div>
+          <div class="text-[11px] sm:text-[12px] font-semibold text-white/75 mt-1 leading-tight">Agregada a Payroll: ${escapeHtml(payrollAddedDate)}</div>
         </div>
-        <div class="text-right">
-          <div class="text-[11px] font-mono font-black text-rose-300">-${amt}</div>
-          <div class="mt-0.5 flex items-center justify-end gap-2">
-            <span class="text-[9px] font-black uppercase tracking-[0.18em] text-white-600">${asset}</span>
-            <span class="text-[9px] font-black uppercase tracking-[0.18em] ${status === 'SUCCESS' ? 'text-emerald-300' : 'text-white-500'}">${status}</span>
+        <div class="text-left sm:text-right">
+          <div class="text-[13px] sm:text-[14px] font-mono font-black text-rose-300">-${amt}</div>
+          <div class="mt-1.5 flex flex-wrap items-center justify-start sm:justify-end gap-1.5">
+            <span class="inline-flex px-2 py-0.5 rounded-md border border-white/10 bg-white/5 text-[10px] sm:text-[11px] font-black uppercase tracking-[0.1em] text-white/75">${asset}</span>
+            <span class="inline-flex px-2 py-0.5 rounded-md border text-[10px] sm:text-[11px] font-black uppercase tracking-[0.1em] ${status === 'SUCCESS' ? 'border-emerald-400/30 bg-emerald-500/10 text-emerald-300' : 'border-white/10 bg-white/5 text-white/65'}">${status}</span>
           </div>
         </div>
       </div>
@@ -130,7 +133,7 @@ export async function refreshPayrollSummary(API_BASE, token) {
 }
 
 export async function refreshPayrollWithdrawalHistory(API_BASE, token) {
-  const url = withRange(`${API_BASE}/api/payroll/withdrawals?limit=8`);
+  const url = withRange(`${API_BASE}/api/payroll/withdrawals?page=1&pageSize=200`);
   const { ok, data } = await authedFetchJson(url, token, { method: 'GET' });
   if (!ok) return;
   renderHistory(data?.history || []);

@@ -7,20 +7,20 @@ import Footer from '../components/Footer.astro';
 <Base title="Acceso Operadores | Digital Level">
   <Navbar client:load />
 
-  <main class="relative pt-32 pb-20 bg-[#0b0e11] overflow-hidden">
-    <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-[#F3BA2F]/5 rounded-full blur-[120px] pointer-events-none"></div>
+  <main class="relative pt-24 sm:pt-32 pb-14 sm:pb-20 bg-[#0b0e11] overflow-hidden">
+    <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[320px] h-[320px] sm:w-[500px] sm:h-[500px] bg-[#F3BA2F]/5 rounded-full blur-[120px] pointer-events-none"></div>
 
-    <div class="flex items-center justify-center min-h-[60vh] px-6 relative z-10">
-      <div class="w-full max-w-md bg-[#161a1e]/80 backdrop-blur-xl border border-gray-800 p-8 rounded-3xl shadow-[0_20px_50px_rgba(0,0,0,0.5)]">
+    <div class="flex items-center justify-center min-h-[60vh] px-4 sm:px-6 relative z-10">
+      <div class="w-full max-w-md bg-[#161a1e]/80 backdrop-blur-xl border border-gray-800 p-5 sm:p-8 rounded-2xl sm:rounded-3xl shadow-[0_20px_50px_rgba(0,0,0,0.5)]">
         
         <div class="text-center mb-8">
-          <div class="inline-flex p-3 rounded-2xl bg-[#F3BA2F]/10 mb-4 border border-[#F3BA2F]/20">
-            <img src="/img/logo.png" alt="Digital Level Logo" class="w-12 h-12 object-contain" />
+          <div class="inline-flex p-2.5 sm:p-3 rounded-2xl bg-[#F3BA2F]/10 mb-4 border border-[#F3BA2F]/20">
+            <img src="/img/logo.png" alt="Digital Level Logo" class="w-10 h-10 sm:w-12 sm:h-12 object-contain" />
           </div>
-          <h2 class="text-3xl font-black text-white tracking-tighter uppercase">
+          <h2 class="text-2xl sm:text-3xl font-black text-white tracking-tighter uppercase leading-tight">
             DigitaLevel<span class="text-[#F3BA2F]"> Ecosystem</span>
           </h2>
-          <p class="text-gray-400 text-sm mt-2 font-medium uppercase tracking-widest">Unified Management Hub</p>
+          <p class="text-gray-400 text-xs sm:text-sm mt-2 font-medium uppercase tracking-[0.12em] sm:tracking-widest">Unified Management Hub</p>
         </div>
 
         <form id="loginForm" class="space-y-5">
@@ -35,7 +35,7 @@ import Footer from '../components/Footer.astro';
               id="user"
               required 
               placeholder="Ej: admin"
-              class="w-full bg-[#0b0e11] border border-gray-700 rounded-2xl p-4 text-white focus:border-[#F3BA2F] focus:ring-1 focus:ring-[#F3BA2F] transition-all outline-none placeholder:text-gray-600"
+              class="w-full bg-[#0b0e11] border border-gray-700 rounded-2xl p-3.5 sm:p-4 text-white focus:border-[#F3BA2F] focus:ring-1 focus:ring-[#F3BA2F] transition-all outline-none placeholder:text-gray-600"
             />
           </div>
           <div>
@@ -47,7 +47,7 @@ import Footer from '../components/Footer.astro';
               required 
               inputmode="numeric"
               placeholder="••••••••"
-              class="w-full bg-[#0b0e11] border border-gray-800 rounded-2xl p-4 text-white focus:border-[#F3BA2F] focus:ring-1 focus:ring-[#F3BA2F] transition-all outline-none"
+              class="w-full bg-[#0b0e11] border border-gray-800 rounded-2xl p-3.5 sm:p-4 text-white focus:border-[#F3BA2F] focus:ring-1 focus:ring-[#F3BA2F] transition-all outline-none"
             />
           </div>
 
@@ -55,14 +55,14 @@ import Footer from '../components/Footer.astro';
             <button 
               type="submit" 
               id="submitBtn"
-              class="w-full bg-[#F3BA2F] hover:bg-[#ffdb4d] text-black font-black py-4 rounded-2xl transition-all transform hover:scale-[1.02] shadow-[0_10px_20px_rgba(243,186,47,0.15)] active:scale-95 uppercase text-sm tracking-widest"
+              class="w-full bg-[#F3BA2F] hover:bg-[#ffdb4d] text-black font-black py-3.5 sm:py-4 rounded-2xl transition-all transform hover:scale-[1.02] shadow-[0_10px_20px_rgba(243,186,47,0.15)] active:scale-95 uppercase text-xs sm:text-sm tracking-[0.15em] sm:tracking-widest"
             >
               Acceder al Sistema
             </button>
           </div>
         </form>
 
-        <p class="text-center mt-8 text-[10px] text-gray-500 uppercase font-bold tracking-widest">
+        <p class="text-center mt-7 sm:mt-8 text-[9px] sm:text-[10px] text-gray-500 uppercase font-bold tracking-[0.12em] sm:tracking-widest">
             Protocolo de Seguridad <span class="text-white">AES-256 (Sentinel Node)</span>
         </p>
       </div>

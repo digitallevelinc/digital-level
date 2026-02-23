@@ -3,10 +3,10 @@ import { useState, useEffect } from 'react'
 import { Dialog, Transition, Disclosure } from '@headlessui/react'
 import { Bars3Icon, XMarkIcon, ChevronDownIcon } from '@heroicons/react/24/outline'
 import { 
-  FaCalculator, FaRocket, FaBtc, FaSyncAlt, FaShieldAlt 
+  FaCalculator, FaRocket, FaBtc, FaShieldAlt 
 } from 'react-icons/fa'
 
-// Definición de tipos
+// Definicion de tipos
 interface NavItem {
   name: string;
   href: string;
@@ -23,7 +23,7 @@ const services: NavItem[] = [
     description: 'Calcula tus arbitrajes en tiempo real.', 
     badge: 'FREE' 
   },
-  { name: 'Guías Oficiales Binance', href: '/#guias', icon: FaBtc, description: 'Lo que todo comerciante debe tener.' },
+  { name: 'Guias Oficiales Binance', href: '/#guias', icon: FaBtc, description: 'Lo que todo comerciante debe tener.' },
 ]
 
 const company: NavItem[] = [{ name: 'Sobre Nosotros', href: '/#nosotros', icon: FaRocket }]
@@ -38,7 +38,7 @@ export default function NavbarReact() {
   const [isToolsOpen, setIsToolsOpen] = useState(false)
   const [isCompanyOpen, setIsCompanyOpen] = useState(false)
 
-  // Lógica de fecha dinámica para Mobile
+  // Logica de fecha dinamica para Mobile
   const startYear = 2025;
   const now = new Date();
   const currentYear = now.getFullYear();
@@ -152,35 +152,42 @@ export default function NavbarReact() {
           </div>
         </nav>
 
-        {/* MÓVIL */}
+        {/* MOVIL */}
         <Dialog as="div" className="lg:hidden" open={mobileMenuOpen} onClose={setMobileMenuOpen}>
-          <div className="fixed inset-0 z-[110] bg-[#0b0e11]/90 backdrop-blur-xl" />
-          <Dialog.Panel className="fixed inset-y-0 right-0 z-[110] w-full bg-[#0b0e11] px-6 py-6 overflow-y-auto">
-            <div className="flex items-center justify-between mb-12">
-              <div className="flex items-center gap-3">
-                <img src="/img/logo.png" alt="Logo" className="h-8 w-auto" />
-                <span className="text-xl font-black text-white uppercase tracking-tighter italic">
-                  <span className="text-[#F3BA2F]">Level</span>
-                </span>
+          <div className="fixed inset-0 z-[100100] bg-[#0b0e11]/90 backdrop-blur-xl" />
+          <Dialog.Panel className="fixed inset-y-0 right-0 z-[100101] w-full bg-[#0b0e11] px-6 py-6 overflow-y-auto">
+            <div className="flex items-start justify-between mb-10">
+              <div className="flex items-center gap-3 min-w-0 pr-2">
+                <img src="/img/logo.png" alt="Logo Digital Level" className="h-10 w-10 shrink-0 object-contain rounded-full ring-1 ring-[#F3BA2F]/30" />
+                <div className="min-w-0 leading-tight">
+                  <p className="text-[clamp(16px,5.4vw,21px)] font-black text-white uppercase tracking-[0.08em]">
+                    DIGITAL <span className="text-[#F3BA2F]">LEVEL</span>
+                  </p>
+                  <p className="mt-1 text-[10px] uppercase font-black tracking-[0.16em] text-gray-500">
+                    Sentinel Core v2.0
+                  </p>
+                </div>
               </div>
-              <button onClick={() => setMobileMenuOpen(false)} className="text-gray-400 p-2"><XMarkIcon className="h-8 w-8" /></button>
+              <button onClick={() => setMobileMenuOpen(false)} className="text-gray-400 p-2 ml-1 shrink-0 hover:text-white transition-colors">
+                <XMarkIcon className="h-8 w-8" />
+              </button>
             </div>
             
             <div className="space-y-4">
               <Disclosure as="div">
                 {({ open }) => (
                   <>
-                    <Disclosure.Button className="flex w-full items-center justify-between rounded-xl py-4 px-4 text-xl font-black text-white hover:bg-white/5 uppercase">
+                    <Disclosure.Button className="flex w-full items-center justify-between rounded-xl py-4 px-4 text-lg sm:text-xl font-black text-white hover:bg-white/5 uppercase">
                       Herramientas <ChevronDownIcon className={classNames(open ? 'rotate-180' : '', 'h-6 w-6 text-[#F3BA2F]')} />
                     </Disclosure.Button>
                     <Disclosure.Panel className="mt-2 space-y-1 px-4 border-l-2 border-[#F3BA2F]/20 ml-4">
-                      {services.map((item) => ( <a key={item.name} href={item.href} onClick={(e) => handleNavigation(e, item.href)} className="block py-3 text-gray-400 font-bold text-lg">{item.name}</a> ))}
+                      {services.map((item) => ( <a key={item.name} href={item.href} onClick={(e) => handleNavigation(e, item.href)} className="block py-3 text-gray-400 font-bold text-base sm:text-lg">{item.name}</a> ))}
                     </Disclosure.Panel>
                   </>
                 )}
               </Disclosure>
-              <a href="/#precios" onClick={(e) => handleNavigation(e, '/#precios')} className="block py-4 px-4 text-xl font-black text-white uppercase tracking-tight">Precios</a>
-              <a href="/login" className="block py-4 px-4 text-xl font-black text-white uppercase tracking-tight">Iniciar Sesión</a>
+              <a href="/#precios" onClick={(e) => handleNavigation(e, '/#precios')} className="block py-4 px-4 text-lg sm:text-xl font-black text-white uppercase tracking-tight">Precios</a>
+              <a href="/login" onClick={(e) => handleNavigation(e, '/login')} className="block py-4 px-4 text-lg sm:text-xl font-black text-white uppercase tracking-tight rounded-xl border border-[#F3BA2F]/20 bg-[#F3BA2F]/5">Iniciar Sesion</a>
             </div>
 
             <div className="mt-16 py-8 border-t border-gray-800/50 text-center">

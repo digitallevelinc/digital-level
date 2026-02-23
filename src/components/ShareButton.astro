@@ -115,10 +115,14 @@
     object-fit: contain;
   }
   
+  @media (max-width: 1024px) {
+    .share-drawer-container { display: none; }
+  }
+
   @media (max-width: 768px) {
     .share-tab-btn { padding: 12px 6px; }
     .tab-text { font-size: 9px; }
-    .share-drawer-container { top: 40%; } /* Un poco más arriba en móvil */
+    .share-drawer-container { top: 40%; } /* Un poco mas arriba en movil */
   }
 </style>
 
