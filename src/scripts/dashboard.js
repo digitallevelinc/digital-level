@@ -19,6 +19,7 @@ import { updateSidebarMonitor } from './dashboard/SidebarMonitor.js';
 const KPI_REQUEST_TIMEOUT_MS = 12000;
 const KPI_APPLY_BUTTON_TEXT = "Actualizar Reporte";
 const LOCAL_API_FALLBACK = "http://localhost:3003";
+const CARACAS_TZ = "America/Caracas";
 let dashboardIntervalId = null;
 let dashboardAbortController = null;
 let dashboardRequestSeq = 0;
@@ -440,7 +441,12 @@ export async function updateDashboard(API_BASE, token, alias, range = {}, opts =
         const aliasEl = document.getElementById('operator-alias');
         if (aliasEl) aliasEl.textContent = alias;
 
-        if (updateEl) updateEl.textContent = `Sincronizado: ${new Date().toLocaleTimeString()}`;
+        if (updateEl) {
+            const syncTime = new Date().toLocaleTimeString('es-VE', {
+                timeZone: CARACAS_TZ
+            });
+            updateEl.textContent = `Sincronizado: ${syncTime}`;
+        }
 
         // Payroll loading moved to background so filter changes feel snappier.
         // Keep it non-blocking and ignore late responses from stale requests.
@@ -480,43 +486,85 @@ export async function updateDashboard(API_BASE, token, alias, range = {}, opts =
  * 4. FUNCIONES AUXILIARES
  */
 function pad(n) { return String(n).padStart(2, '0'); }
-function toYmd(date) { return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`; }
 
-function getWeekRange(date) {
-    const d = new Date(date);
-    const day = d.getDay();
+function getCaracasDateParts(date = new Date()) {
+    const parts = new Intl.DateTimeFormat("en-US", {
+        timeZone: CARACAS_TZ,
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit"
+    }).formatToParts(date);
+
+    const year = Number(parts.find(p => p.type === "year")?.value);
+    const month = Number(parts.find(p => p.type === "month")?.value);
+    const day = Number(parts.find(p => p.type === "day")?.value);
+    return { year, month, day };
+}
+
+function toYmdFromParts(parts) {
+    return `${parts.year}-${pad(parts.month)}-${pad(parts.day)}`;
+}
+
+function parseDateKeyAsUtc(dateKey) {
+    const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(dateKey || '').trim());
+    if (!match) return null;
+    return new Date(Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3])));
+}
+
+function formatUtcDateKey(date) {
+    return `${date.getUTCFullYear()}-${pad(date.getUTCMonth() + 1)}-${pad(date.getUTCDate())}`;
+}
+
+function shiftDateKey(dateKey, deltaDays) {
+    const date = parseDateKeyAsUtc(dateKey);
+    if (!date) return undefined;
+    date.setUTCDate(date.getUTCDate() + deltaDays);
+    return formatUtcDateKey(date);
+}
+
+function getWeekRangeFromDateKey(todayKey) {
+    const date = parseDateKeyAsUtc(todayKey);
+    if (!date) return { from: undefined, to: undefined };
+
+    const day = date.getUTCDay();
     const diffToMonday = (day === 0 ? -6 : 1 - day);
-    const start = new Date(d);
-    start.setDate(d.getDate() + diffToMonday);
-    const end = new Date(start);
-    end.setDate(start.getDate() + 6);
-    return { from: toYmd(start), to: toYmd(end) };
+    const from = shiftDateKey(todayKey, diffToMonday);
+    const to = shiftDateKey(from, 6);
+    return { from, to };
 }
 
 function getPresetRange(preset) {
-    const today = new Date();
-    const yesterday = new Date(today);
-    yesterday.setDate(today.getDate() - 1);
-    const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
-    const startOfYear = new Date(today.getFullYear(), 0, 1);
+    const todayParts = getCaracasDateParts(new Date());
+    const today = toYmdFromParts(todayParts);
+    const yesterday = shiftDateKey(today, -1);
+    const startOfMonth = `${todayParts.year}-${pad(todayParts.month)}-01`;
+    const startOfYear = `${todayParts.year}-01-01`;
+
     switch (preset) {
-        case 'today': return { label: 'Hoy', from: toYmd(today), to: toYmd(today) };
-        case 'yesterday': return { label: 'Ayer', from: toYmd(yesterday), to: toYmd(yesterday) };
-        case 'this_week': { const r = getWeekRange(today); return { label: 'Esta semana', ...r }; }
+        case 'today':
+            return { label: 'Hoy', from: today, to: today };
+        case 'yesterday':
+            return { label: 'Ayer', from: yesterday, to: yesterday };
+        case 'this_week': {
+            const r = getWeekRangeFromDateKey(today);
+            return { label: 'Esta semana', ...r };
+        }
         case 'last_7': {
-            const from = new Date(today);
-            from.setDate(today.getDate() - 6);
-            return { label: 'Últimos 7 días', from: toYmd(from), to: toYmd(today) };
+            const from = shiftDateKey(today, -6);
+            return { label: 'Ultimos 7 dias', from, to: today };
         }
-        case 'this_month': return { label: 'Mes actual', from: toYmd(startOfMonth), to: toYmd(today) };
+        case 'this_month':
+            return { label: 'Mes actual', from: startOfMonth, to: today };
         case 'last_30': {
-            const from = new Date(today);
-            from.setDate(today.getDate() - 29);
-            return { label: 'Últimos 30 días', from: toYmd(from), to: toYmd(today) };
+            const from = shiftDateKey(today, -29);
+            return { label: 'Ultimos 30 dias', from, to: today };
         }
-        case 'ytd': return { label: 'YTD', from: toYmd(startOfYear), to: toYmd(today) };
-        case 'all': return { label: 'Todo', from: undefined, to: undefined };
-        default: return { label: 'Personalizado' };
+        case 'ytd':
+            return { label: 'YTD', from: startOfYear, to: today };
+        case 'all':
+            return { label: 'Todo', from: undefined, to: undefined };
+        default:
+            return { label: 'Personalizado' };
     }
 }
 
