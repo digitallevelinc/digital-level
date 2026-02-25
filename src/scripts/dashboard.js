@@ -16,6 +16,8 @@ import { updateComisionesUI } from './dashboard/comisiones.js';
 import { updateOperacionesUI } from './dashboard/operaciones.js';
 import { updateBancosUI } from './dashboard/bancos.js';
 import { updateSidebarMonitor } from './dashboard/SidebarMonitor.js';
+import { refreshActiveAds } from './dashboard/activeAds.js';
+import { initCardHelpTooltips } from './dashboard/cardHelp.js';
 const KPI_REQUEST_TIMEOUT_MS = 12000;
 const KPI_APPLY_BUTTON_TEXT = "Actualizar Reporte";
 const LOCAL_API_FALLBACK = "http://localhost:3003";
@@ -101,6 +103,7 @@ function handleExpiredSession() {
  */
 export async function initDashboard() {
     console.log("Sentinel Dashboard: Sincronizando módulos...");
+    initCardHelpTooltips();
 
     const API_BASE = resolveApiBase();
     const token = localStorage.getItem('auth_token') || localStorage.getItem('session_token');
@@ -436,6 +439,10 @@ export async function updateDashboard(API_BASE, token, alias, range = {}, opts =
         updateSwitchSection(kpis);
         updateP2PSection(kpis);
         updateFiatSection(kpis, bankData);
+        await refreshActiveAds(API_BASE, token, {
+            signal: dashboardAbortController?.signal,
+            onAuthError: handleExpiredSession
+        });
 
         // --- UI ESTADO ---
         const aliasEl = document.getElementById('operator-alias');

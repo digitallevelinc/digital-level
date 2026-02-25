@@ -14,6 +14,8 @@ import Ciclos from '../../components/dashboard/ciclos.astro';
 import Profit from '../../components/dashboard/profit.astro';
 import ComisionOperador from '../../components/dashboard/ComisionOperador.astro'; 
 import ProyeccionGanancias from '../../components/dashboard/ProyeccionGanancias.astro';
+import AnunciosActivos from '../../components/dashboard/anunciosActivos.astro';
+import CardHelp from '../../components/dashboard/CardHelp.astro';
 import 'flatpickr/dist/flatpickr.min.css';
 import 'flatpickr/dist/themes/dark.css';
 ---
@@ -162,6 +164,13 @@ import 'flatpickr/dist/themes/dark.css';
   </div>
 
   <section class="mb-12">
+    <h2 class="text-[#F3BA2F] text-[14px] font-black uppercase tracking-[0.24em] mb-6 italic flex items-center gap-3 px-2">
+      <span class="w-1.5 h-4 bg-[#F3BA2F]"></span> MONITOR DE ANUNCIOS P2P ACTIVOS
+    </h2>
+    <AnunciosActivos />
+  </section>
+
+  <section class="mb-12">
     
     <h2 class="text-[#F3BA2F] text-[12px] font-black uppercase tracking-[0.3em] mb-6 italic flex items-center gap-3 px-2">
       <span class="w-1.5 h-4 bg-[#F3BA2F]"></span> 3. LOGISTICA DE CARTERAS (BALANCES INTERNOS)
@@ -176,11 +185,21 @@ import 'flatpickr/dist/themes/dark.css';
   </section>
 
   <section class="pb-28">
-    <h2 class="sentinel-label mb-6 italic px-2 flex items-center gap-2">
-      <h2 class="text-[#F3BA2F] text-[12px] font-black uppercase tracking-[0.3em] mb-6 italic flex items-center gap-3 px-2">
-      <span class="w-1.5 h-4 bg-[#F3BA2F]"></span> 5. PANEL DE BANCOS (CONTROL DE VOLUMEN)
-    </h2>
+    <div class="mb-6 px-2 flex items-start justify-between gap-3">
+      <h2 class="text-[#F3BA2F] text-[12px] font-black uppercase tracking-[0.3em] italic flex items-center gap-3">
+        <span class="w-1.5 h-4 bg-[#F3BA2F]"></span> 5. PANEL DE BANCOS (CONTROL DE VOLUMEN)
       </h2>
+      <CardHelp
+        title="Panel de Bancos"
+        description="Todos los bancos comparten la misma estructura y logica de lectura."
+        calculation="Cada fila consolida balance FIAT/USDT, tasas, transferencias, pago movil, progreso de recompra y margen. Profit por banco se obtiene del flujo neto del periodo."
+        notes={[
+          "Puedes abrir cada banco para ver su desglose completo.",
+          "El comparativo entre bancos usa el mismo criterio de calculo."
+        ]}
+        align="left"
+      />
+    </div>
     <div class="w-full">
         <Bancos />
     </div>

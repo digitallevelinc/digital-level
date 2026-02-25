@@ -1,5 +1,6 @@
 ---
 // src/components/dashboard/ComisionOperador.astro
+import CardHelp from './CardHelp.astro';
 ---
 <div class="p-6 rounded-xl border border-[#F3BA2F]/20 bg-[#161a1e] hover:border-[#F3BA2F]/40 transition-all shadow-xl relative overflow-hidden group">
   <div class="absolute -right-4 -top-4 w-20 h-20 bg-[#F3BA2F]/5 rounded-full blur-2xl group-hover:bg-[#F3BA2F]/10 transition-all"></div>
@@ -15,8 +16,19 @@
         <span class="text-[10px] text-white-500 uppercase font-black tracking-widest">Profit Share</span>
       </div>
     </div>
-    <div class="p-2 bg-white/5 rounded-lg border border-white/5">
-        <i class="fas fa-hand-holding-dollar text-[#F3BA2F] text-sm"></i>
+    <div class="flex items-center gap-2">
+      <CardHelp
+        title="Payroll Operativo"
+        description="Muestra el acumulado disponible para el operador en el periodo."
+        calculation="Monto disponible = participacion configurada sobre profit neto elegible del periodo. Los retiros registrados descuentan ese acumulado."
+        notes={[
+          "El porcentaje se define en configuracion de operador.",
+          "La seccion de retiro por orden mantiene trazabilidad."
+        ]}
+      />
+      <div class="p-2 bg-white/5 rounded-lg border border-white/5">
+          <i class="fas fa-hand-holding-dollar text-[#F3BA2F] text-sm"></i>
+      </div>
     </div>
   </div>
 

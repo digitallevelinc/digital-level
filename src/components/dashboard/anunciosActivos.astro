@@ -1,0 +1,101 @@
+---
+import CardHelp from './CardHelp.astro';
+---
+<div
+  id="active-ads-card"
+  class="bg-[#161a1e] border border-white/10 rounded-2xl p-7 shadow-lg transition-all hover:border-[#F3BA2F]/20"
+>
+  <div class="flex flex-col gap-5">
+    <div class="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
+      <div class="flex items-center gap-3">
+        <div class="p-2 rounded-lg bg-[#F3BA2F]/10 border border-[#F3BA2F]/20">
+          <i class="fas fa-bullhorn text-[#F3BA2F] text-sm"></i>
+        </div>
+        <div>
+          <p class="sentinel-label text-white !text-sm font-bold">
+            Anuncios P2P Activos
+          </p>
+          <p class="text-[12px] text-white/65 uppercase font-black tracking-[0.18em] mt-1">
+            Estado en tiempo real por operador
+          </p>
+        </div>
+        <CardHelp
+          title="Anuncios P2P Activos"
+          description="Lista anuncios que Binance detecta activos para el operador."
+          calculation="Activos = cantidad de anuncios con estado operativo. Si no hay respuesta directa, el sistema infiere estado usando historial reciente de ordenes."
+          notes={[
+            "Se muestra fuente de deteccion: directo o inferido.",
+            "La tabla incluye precio, liquidez, metodos y estado."
+          ]}
+          align="left"
+        />
+      </div>
+
+      <div class="flex items-center gap-2">
+        <span class="text-[12px] uppercase font-black tracking-[0.18em] text-white/70">
+          Activos:
+        </span>
+        <span
+          id="active-ads-count"
+          class="text-xl font-mono font-bold text-[#F3BA2F] bg-[#F3BA2F]/10 px-3 py-1 rounded-lg border border-[#F3BA2F]/20"
+        >
+          0
+        </span>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <div class="bg-black/20 p-3 rounded-xl border border-white/5 flex flex-col gap-1">
+        <span class="sentinel-label !text-[11px] text-white/70">Metodo de deteccion</span>
+        <span id="active-ads-source" class="sentinel-value-md !text-lg text-white tracking-normal">
+          --
+        </span>
+      </div>
+      <div class="bg-black/20 p-3 rounded-xl border border-white/5 flex flex-col gap-1">
+        <span class="sentinel-label !text-[11px] text-white/70">Historial analizado</span>
+        <span id="active-ads-window" class="sentinel-value-md !text-lg text-white tracking-normal">
+          --
+        </span>
+      </div>
+      <div class="bg-black/20 p-3 rounded-xl border border-white/5 flex flex-col gap-1">
+        <span class="sentinel-label !text-[11px] text-white/70">Ultima revision</span>
+        <span id="active-ads-updated" class="sentinel-value-md !text-lg text-white tracking-normal">
+          --
+        </span>
+      </div>
+    </div>
+
+    <p class="text-[12px] text-white/60">
+      Directo: Binance reporta anuncios activos. Inferido: se estima por historial de ordenes recientes.
+    </p>
+
+    <p
+      id="active-ads-warning"
+      class="hidden text-[13px] rounded-xl px-3 py-2 border"
+    ></p>
+
+    <div class="overflow-x-auto rounded-xl border border-white/5 bg-black/20">
+      <table class="w-full min-w-[900px] text-left text-[14px]">
+        <thead class="bg-black/40 text-white/75 uppercase text-[11px] tracking-[0.2em]">
+          <tr>
+            <th class="px-3 py-2 font-black">Anuncio</th>
+            <th class="px-3 py-2 font-black">Tipo</th>
+            <th class="px-3 py-2 font-black">Par</th>
+            <th class="px-3 py-2 font-black">Precio</th>
+            <th class="px-3 py-2 font-black">Liquidez</th>
+            <th class="px-3 py-2 font-black">Metodos</th>
+            <th class="px-3 py-2 font-black">Ordenes</th>
+            <th class="px-3 py-2 font-black">Estado</th>
+          </tr>
+        </thead>
+        <tbody id="active-ads-table-body" class="text-white/90">
+          <tr class="border-t border-white/5">
+            <td class="px-3 py-3 text-white/50" colspan="8">
+              Sin datos de anuncios activos.
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>

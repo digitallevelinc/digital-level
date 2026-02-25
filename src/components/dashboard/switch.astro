@@ -1,10 +1,24 @@
+---
+import CardHelp from './CardHelp.astro';
+---
 <div id="wallet-switch" class="relative group min-h-[160px] bg-gray-900/50 rounded-xl p-4 border border-white/5">
     <div class="flex justify-between items-start mb-4">
         <div>
             <p class="text-[12px] text-white500 font-black uppercase tracking-widest">BALANCE SWITCH</p>
             <h3 id="switch-balance-total" class="text-4xl font-bold text-white mt-1">0.00 USDT</h3>
         </div>
-        <i class="fas fa-exchange-alt text-white/80"></i>
+        <div class="flex items-center gap-2">
+            <CardHelp
+                title="Balance SWITCH"
+                description="Muestra transferencias internas entre Spot y Fondos."
+                calculation="Total operaciones = movimientos Spot a Fondos + movimientos Fondos a Spot. Los volumenes muestran USDT movido por direccion."
+                notes={[
+                    "No representa compra/venta a mercado, solo traspaso interno.",
+                    "Util para validar reposicion de capital operativo."
+                ]}
+            />
+            <i class="fas fa-exchange-alt text-white/80"></i>
+        </div>
         
     </div>
 

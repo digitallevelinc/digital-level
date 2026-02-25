@@ -1,10 +1,24 @@
+---
+import CardHelp from './CardHelp.astro';
+---
 <div id="wallet-red" class="relative group min-h-[160px] bg-gray-900/50 rounded-xl p-4 border border-white/5">
     <div class="flex justify-between items-start mb-4">
         <div>
             <p class="text-[12px] text-white-500 font-black uppercase tracking-widest">Balance RED</p>
             <h3 id="red-balance-total" class="text-4xl font-bold text-white mt-1">0.00 USDT</h3>
         </div>
-        <i class="fas fa-network-wired  text-white/80"></i>
+        <div class="flex items-center gap-2">
+            <CardHelp
+                title="Balance RED"
+                description="Controla el saldo de RED con sus entradas y salidas del periodo."
+                calculation="Total operaciones = movimientos de entrada + movimientos de salida. Los volumenes son la suma USDT por tipo."
+                notes={[
+                    "Entradas elevan saldo RED; salidas lo reducen.",
+                    "Sirve para monitorear distribucion interna de liquidez."
+                ]}
+            />
+            <i class="fas fa-network-wired  text-white/80"></i>
+        </div>
         
     </div>
 

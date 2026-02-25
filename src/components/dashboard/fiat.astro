@@ -1,5 +1,6 @@
 ---
 // fiat.astro
+import CardHelp from './CardHelp.astro';
 ---
 <div id="fiat-balance-card" class="relative group min-h-[160px] bg-gray-900/50 rounded-xl p-4 border border-white/5 overflow-hidden">
     <div class="absolute -top-10 -right-10 w-32 h-32 bg-emerald-500/5 rounded-full blur-3xl group-hover:bg-emerald-500/10 transition-all duration-700"></div>
@@ -14,7 +15,18 @@
                 <span id="fiat-amount-usd" class="text-ls font-mono font-medium text-white-300 tracking-tight">0.00 USD</span>
             </div>
         </div>
+        <div class="flex items-center gap-2">
+            <CardHelp
+                title="FIAT Balance"
+                description="Consolida el balance FIAT de bancos y su equivalente aproximado en USD."
+                calculation="Balance FIAT = saldo bancario actual del periodo. Volumen vendido y comprado se obtiene sumando montos FIAT de ventas y compras."
+                notes={[
+                    "El equivalente USD es referencial para comparar contra USDT.",
+                    "Total operaciones sigue la suma compras + ventas."
+                ]}
+            />
             <i class="fas fa-university text-white/80"></i>
+        </div>
         
     </div>
 

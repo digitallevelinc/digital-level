@@ -1,5 +1,6 @@
 ---
 // src/components/dashboard/ciclos.astro
+import CardHelp from './CardHelp.astro';
 ---
 <div class="bg-[#161a1e] border border-gray-800 rounded-2xl p-6 shadow-lg transition-all hover:border-emerald-500/30 group">
     <div class="flex justify-between items-start mb-6">
@@ -10,7 +11,16 @@
                 
             </div>
         </div>
-        
+        <CardHelp
+            title="Ganancia Promedio / Ciclo"
+            description="Mide cuanto profit neto deja cada vuelta completada."
+            calculation="Promedio por ciclo = profit neto acumulado de bancos operando dividido entre ciclos totales completados."
+            notes={[
+                "Ciclos totales cuenta cierres de venta por banco.",
+                "Bancos activos incluyen historial o recompra en curso."
+            ]}
+            align="left"
+        />
     </div>
 
     <div class="grid grid-cols-2 gap-4 mb-6">

@@ -1,10 +1,24 @@
-    <div id="wallet-pay" class="relative group min-h-[160px] bg-gray-900/50 rounded-xl p-4 border border-white/5">
+---
+import CardHelp from './CardHelp.astro';
+---
+<div id="wallet-pay" class="relative group min-h-[160px] bg-gray-900/50 rounded-xl p-4 border border-white/5">
     <div class="flex justify-between items-start mb-4">
         <div>
         <p class="text-[12px] text-white-500 font-black uppercase tracking-widest">BALANCE PAY</p>
         <h3 id="pay-balance-total" class="text-4xl font-bold text-white mt-1">0.00 USDT</h3>
         </div>
-        <i class="fas fa-wallet text-white/80"></i>
+        <div class="flex items-center gap-2">
+            <CardHelp
+                title="Balance PAY"
+                description="Mide el saldo de la cartera PAY y los movimientos enviados/recibidos."
+                calculation="Total operaciones = enviados + recibidos. Los volumenes muestran la suma USDT movida en cada direccion."
+                notes={[
+                    "La card es de logistica interna, no de profit.",
+                    "Ayuda a detectar cuellos de botella entre wallets."
+                ]}
+            />
+            <i class="fas fa-wallet text-white/80"></i>
+        </div>
     </div>
     
     <div id="pay-details" class="space-y-3 border-t border-white/5 pt-4">

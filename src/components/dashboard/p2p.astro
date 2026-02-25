@@ -1,11 +1,24 @@
-    <div id="wallet-p2p-logic" class="relative group min-h-[160px] bg-gray-900/50 rounded-xl p-4 border border-white/5">
+---
+import CardHelp from './CardHelp.astro';
+---
+<div id="wallet-p2p-logic" class="relative group min-h-[160px] bg-gray-900/50 rounded-xl p-4 border border-white/5">
     <div class="flex justify-between items-start mb-4">
         <div>
         <p class="text-[12px] text-white-500 font-black uppercase tracking-widest">BALANCE P2P</p>
         <h3 id="p2p-balance-total" class="text-4xl font-bold text-white mt-1">0.00 USDT</h3>
         </div>
-        
-        <i class="fas fa-retweet text-white/80"></i>
+        <div class="flex items-center gap-2">
+            <CardHelp
+                title="Balance P2P"
+                description="Resume el saldo actual de la cartera P2P y el flujo de compras/ventas del periodo."
+                calculation="Total operaciones = cantidad de ventas + cantidad de compras. Los volumenes son la suma USDT ejecutada por cada lado."
+                notes={[
+                    "El saldo principal refleja estado actual de la wallet P2P.",
+                    "Usalo para validar ritmo de rotacion de capital."
+                ]}
+            />
+            <i class="fas fa-retweet text-white/80"></i>
+        </div>
     </div>
     
     <div id="p2p-details" class="space-y-3 border-t border-white/5 pt-4">

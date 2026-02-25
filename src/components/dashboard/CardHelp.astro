@@ -1,0 +1,43 @@
+---
+interface Props {
+  title: string;
+  description: string;
+  calculation: string;
+  notes?: string[];
+  align?: 'left' | 'right';
+}
+
+const {
+  title,
+  description,
+  calculation,
+  notes = [],
+  align = 'right'
+} = Astro.props;
+---
+
+<div
+  class={`card-help ${align === 'left' ? 'card-help--left' : ''}`}
+  data-card-help
+  data-open="false"
+  onclick="event.stopPropagation()"
+>
+  <button
+    type="button"
+    class="card-help-trigger"
+    aria-label={`Ayuda: ${title}`}
+    aria-expanded="false"
+  >
+    ?
+  </button>
+  <div class="card-help-popover" role="tooltip">
+    <p class="card-help-title">{title}</p>
+    <p class="card-help-text">{description}</p>
+    <p class="card-help-calc"><strong>Calculo:</strong> {calculation}</p>
+    {notes.length > 0 && (
+      <ul class="card-help-list">
+        {notes.map((note) => <li>{note}</li>)}
+      </ul>
+    )}
+  </div>
+</div>
