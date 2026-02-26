@@ -264,6 +264,7 @@ export async function updateDashboard(API_BASE, token, alias, range = {}, opts =
     if (!token) return;
 
     const { preserveInFlight = false, showLoading = false } = opts || {};
+    let requestTimeoutCleared = false;
     if (preserveInFlight && dashboardAbortController) {
         return;
     }
@@ -322,6 +323,8 @@ export async function updateDashboard(API_BASE, token, alias, range = {}, opts =
             throw new Error(backendError || `Fallo en la respuesta de la API (${kpiRes.status})`);
         }
         const kpis = await kpiRes.json();
+        clearTimeout(requestTimeout);
+        requestTimeoutCleared = true;
         if (requestSeq !== dashboardRequestSeq) {
             return;
         }
@@ -479,7 +482,9 @@ export async function updateDashboard(API_BASE, token, alias, range = {}, opts =
         const updateEl = document.getElementById('last-update');
         if (updateEl) updateEl.textContent = "Error de conexión con Sentinel";
     } finally {
-        clearTimeout(requestTimeout);
+        if (!requestTimeoutCleared) {
+            clearTimeout(requestTimeout);
+        }
         if (requestSeq === dashboardRequestSeq) {
             dashboardAbortController = null;
         }

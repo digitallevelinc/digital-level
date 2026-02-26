@@ -107,7 +107,7 @@ function translateWarning(value) {
     "Direct ads endpoint returned no data (unsupported or no permission)":
       "El endpoint directo no devolvio datos (sin soporte o sin permisos para esta cuenta).",
     "No inferred active ads found in current history window":
-      "No se detectaron anuncios activos en la ventana de historial actual.",
+      "No se detectaron anuncios activos por historial. En modo inferido, solo aparecen anuncios con ordenes recientes/en curso.",
     "Operator has no Binance API credentials configured":
       "El operador no tiene credenciales API de Binance configuradas.",
     "P2P client unavailable":
@@ -266,7 +266,9 @@ export async function refreshActiveAds(
 
   try {
     const params = new URLSearchParams();
-    params.set("mode", "auto");
+    // The direct ads endpoint currently returns 404 for this deployment.
+    // Force inferred mode to avoid repeated direct-fallback failures.
+    params.set("mode", "inferred");
     params.set("days", "7");
     params.set("_ts", String(Date.now()));
 

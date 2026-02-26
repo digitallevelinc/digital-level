@@ -1,5 +1,5 @@
 // src/scripts/dashboard/switch.js
-import { fUSDT, buildSheetLink } from './utils.js';
+import { fUSDT, setSheetLinkState } from './utils.js';
 
 export const updateSwitchSection = (kpis) => {
     const container = document.getElementById('wallet-switch');
@@ -47,7 +47,10 @@ export const updateSwitchSection = (kpis) => {
     }
 
     if (sheetLink) {
-        sheetLink.href = buildSheetLink(kpis.config?.googleSheetId, "1474172895");
-        sheetLink.style.opacity = kpis.config?.googleSheetId ? "1" : "0.3";
+        setSheetLinkState(sheetLink, {
+            sheetId: kpis.config?.googleSheetId,
+            gid: "1474172895",
+            enabledTitle: "Abrir Google Sheet SWITCH"
+        });
     }
 };

@@ -1,4 +1,4 @@
-import { fUSDT, buildSheetLink } from './utils.js';
+import { fUSDT, setSheetLinkState } from './utils.js';
 
 export const updatePaySection = (kpis) => {
     const container = document.getElementById('wallet-pay');
@@ -48,7 +48,10 @@ export const updatePaySection = (kpis) => {
         ui.totalOps.textContent = total.toString();
     }
     if (sheetLink) {
-        sheetLink.href = buildSheetLink(kpis.config?.googleSheetId, "0");
-        sheetLink.style.opacity = kpis.config?.googleSheetId ? "1" : "0.3";
+        setSheetLinkState(sheetLink, {
+            sheetId: kpis.config?.googleSheetId,
+            gid: "0",
+            enabledTitle: "Abrir Google Sheet PAY"
+        });
     }
 };

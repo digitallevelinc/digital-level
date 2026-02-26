@@ -20,3 +20,41 @@ export const buildSheetLink = (id, gid = null) => {
     if (!id) return "#";
     return `https://docs.google.com/spreadsheets/d/${id}${gid ? '/edit#gid=' + gid : ''}`;
 };
+
+export const setSheetLinkState = (
+    linkEl,
+    {
+        sheetId,
+        gid = null,
+        customUrl = null,
+        enabledTitle = "Abrir Google Sheet",
+        disabledTitle = "Este usuario no tiene Google Sheet configurado."
+    } = {}
+) => {
+    if (!linkEl) return;
+
+    const cleanCustomUrl = String(customUrl || "").trim();
+    const cleanSheetId = String(sheetId || "").trim();
+    const hasConfig = Boolean(cleanCustomUrl || cleanSheetId);
+    const href = cleanCustomUrl || buildSheetLink(cleanSheetId, gid);
+
+    linkEl.href = hasConfig ? href : "#";
+    linkEl.style.opacity = hasConfig ? "1" : "0.35";
+    linkEl.style.cursor = hasConfig ? "pointer" : "not-allowed";
+    linkEl.setAttribute("aria-disabled", hasConfig ? "false" : "true");
+    linkEl.setAttribute("title", hasConfig ? enabledTitle : disabledTitle);
+
+    if (!linkEl.dataset.sheetGuardBound) {
+        linkEl.addEventListener("click", (event) => {
+            if (linkEl.getAttribute("aria-disabled") === "true") {
+                event.preventDefault();
+                event.stopPropagation();
+                const statusEl = document.getElementById("last-update");
+                if (statusEl) {
+                    statusEl.textContent = disabledTitle;
+                }
+            }
+        });
+        linkEl.dataset.sheetGuardBound = "1";
+    }
+};

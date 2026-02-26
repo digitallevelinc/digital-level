@@ -1,4 +1,4 @@
-import { fVES, fUSDT, buildSheetLink } from './utils.js';
+import { fVES, fUSDT, setSheetLinkState } from './utils.js';
 
 const formatNumber = (num, decimals = 2) => {
     return Number(num || 0).toLocaleString('es-VE', { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
@@ -73,8 +73,10 @@ export function updateFiatSection(kpis = {}, bankInsights = []) {
 
     // 4. Link Sheet
     if (ui.sheetLink) {
-        const url = kpis.config?.fiatSheetUrl || buildSheetLink(kpis.config?.googleSheetId);
-        ui.sheetLink.href = url;
-        ui.sheetLink.style.opacity = url ? "1" : "0.3";
+        setSheetLinkState(ui.sheetLink, {
+            customUrl: kpis.config?.fiatSheetUrl,
+            sheetId: kpis.config?.googleSheetId,
+            enabledTitle: "Abrir Google Sheet FIAT"
+        });
     }
 }
