@@ -266,9 +266,10 @@ export async function refreshActiveAds(
 
   try {
     const params = new URLSearchParams();
-    // The direct ads endpoint currently returns 404 for this deployment.
-    // Force inferred mode to avoid repeated direct-fallback failures.
-    params.set("mode", "inferred");
+    // Use auto mode:
+    // 1) direct active ads detection first
+    // 2) inferred history fallback only when direct has no active results
+    params.set("mode", "auto");
     params.set("days", "7");
     params.set("_ts", String(Date.now()));
 
