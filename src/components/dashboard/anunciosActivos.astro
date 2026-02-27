@@ -13,19 +13,19 @@ import CardHelp from './CardHelp.astro';
         </div>
         <div>
           <p class="sentinel-label text-white !text-sm font-bold">
-            Anuncios P2P Activos
+            Ordenes P2P Activas
           </p>
           <p class="text-[12px] text-white/65 uppercase font-black tracking-[0.18em] mt-1">
             Estado en tiempo real por operador
           </p>
         </div>
         <CardHelp
-          title="Anuncios P2P Activos"
-          description="Lista anuncios que Binance detecta activos para el operador."
-          calculation="Activos = cantidad de anuncios con estado operativo. Si no hay respuesta directa, el sistema infiere estado usando historial reciente de ordenes."
+          title="Ordenes P2P Activas"
+          description="Lista ordenes/anuncios que Binance detecta activos para el operador."
+          calculation="Activos = cantidad de ordenes/anuncios con estado operativo. Si no hay respuesta directa, el sistema infiere estado usando historial reciente de ordenes."
           notes={[
             "Se muestra fuente de deteccion: directo o inferido.",
-            "La tabla incluye precio, liquidez, metodos y estado."
+            "La tabla incluye precio, cantidad, liquidez en Bs, metodos y estado."
           ]}
           align="left"
         />
@@ -44,7 +44,7 @@ import CardHelp from './CardHelp.astro';
       </div>
     </div>
 
-    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
       <div class="bg-black/20 p-3 rounded-xl border border-white/5 flex flex-col gap-1">
         <span class="sentinel-label !text-[11px] text-white/70">Metodo de deteccion</span>
         <span id="active-ads-source" class="sentinel-value-md !text-lg text-white tracking-normal">
@@ -63,10 +63,16 @@ import CardHelp from './CardHelp.astro';
           --
         </span>
       </div>
+      <div class="bg-black/20 p-3 rounded-xl border border-white/5 flex flex-col gap-1">
+        <span class="sentinel-label !text-[11px] text-white/70">Liquidez total (Bs)</span>
+        <span id="active-ads-total-fiat" class="sentinel-value-md !text-lg text-white tracking-normal">
+          --
+        </span>
+      </div>
     </div>
 
     <p class="text-[12px] text-white/60">
-      Directo: Binance reporta anuncios activos. Inferido: se estima por historial de ordenes recientes.
+      Directo: Binance reporta ordenes P2P activas. Inferido: se estima por historial de ordenes recientes.
     </p>
 
     <p
@@ -82,7 +88,7 @@ import CardHelp from './CardHelp.astro';
             <th class="px-3 py-2 font-black">Tipo</th>
             <th class="px-3 py-2 font-black">Par</th>
             <th class="px-3 py-2 font-black">Precio</th>
-            <th class="px-3 py-2 font-black">Liquidez</th>
+            <th class="px-3 py-2 font-black">Cantidad / Liquidez Bs</th>
             <th class="px-3 py-2 font-black">Metodos</th>
             <th class="px-3 py-2 font-black">Ordenes</th>
             <th class="px-3 py-2 font-black">Estado</th>
@@ -91,7 +97,7 @@ import CardHelp from './CardHelp.astro';
         <tbody id="active-ads-table-body" class="text-white/90">
           <tr class="border-t border-white/5">
             <td class="px-3 py-3 text-white/50" colspan="8">
-              Sin datos de anuncios activos.
+              Sin datos de ordenes P2P activas.
             </td>
           </tr>
         </tbody>

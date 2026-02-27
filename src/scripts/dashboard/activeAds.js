@@ -37,6 +37,42 @@ function formatRemaining(amount, asset) {
     : formatNumber(amount, 2);
 }
 
+function getFiatLiquidityValue(ad) {
+  const remaining = Number(ad?.remainingAmount);
+  const price = Number(ad?.price);
+  if (!Number.isFinite(remaining) || !Number.isFinite(price)) return null;
+  return remaining * price;
+}
+
+function formatFiatLiquidity(ad) {
+  const value = getFiatLiquidityValue(ad);
+  if (!Number.isFinite(value)) return "--";
+  const fiatText = String(ad?.fiat || "").trim().toUpperCase();
+  if (fiatText === "VES") return `${formatNumber(value, 2)} Bs`;
+  return fiatText
+    ? `${formatNumber(value, 2)} ${fiatText}`
+    : formatNumber(value, 2);
+}
+
+function formatAmountAndLiquidity(ad) {
+  const amountText = formatRemaining(ad?.remainingAmount, ad?.asset);
+  const fiatLiquidityText = formatFiatLiquidity(ad);
+
+  if (amountText === "--") return fiatLiquidityText;
+  if (fiatLiquidityText === "--") return amountText;
+  return `${amountText} | ${fiatLiquidityText}`;
+}
+
+function calculateTotalBolivarLiquidity(activeAds) {
+  const rows = Array.isArray(activeAds) ? activeAds : [];
+  return rows.reduce((sum, ad) => {
+    const fiatText = String(ad?.fiat || "").trim().toUpperCase();
+    if (fiatText !== "VES") return sum;
+    const value = getFiatLiquidityValue(ad);
+    return Number.isFinite(value) ? sum + value : sum;
+  }, 0);
+}
+
 function formatDateTime(isoValue) {
   if (!isoValue) return "--";
   const date = new Date(isoValue);
@@ -103,11 +139,11 @@ function translateWarning(value) {
 
   const exactMap = {
     "Direct ads endpoint returned no active ads, using inferred mode from order history":
-      "No se detectaron anuncios activos en modo directo. Se uso modo inferido por historial de ordenes.",
+      "No se detectaron ordenes P2P activas en modo directo. Se uso modo inferido por historial de ordenes.",
     "Direct ads endpoint returned no data (unsupported or no permission)":
       "El endpoint directo no devolvio datos (sin soporte o sin permisos para esta cuenta).",
     "No inferred active ads found in current history window":
-      "No se detectaron anuncios activos por historial. En modo inferido, solo aparecen anuncios con ordenes recientes/en curso.",
+      "No se detectaron ordenes P2P activas por historial. En modo inferido, solo aparecen ordenes con actividad reciente/en curso.",
     "Operator has no Binance API credentials configured":
       "El operador no tiene credenciales API de Binance configuradas.",
     "P2P client unavailable":
@@ -187,7 +223,7 @@ function renderRows(activeAds) {
     const td = document.createElement("td");
     td.className = "px-3 py-3 text-white/50";
     td.colSpan = 8;
-    td.textContent = "No hay anuncios activos en este momento.";
+    td.textContent = "No hay ordenes P2P activas en este momento.";
     tr.appendChild(td);
     tbody.appendChild(tr);
     return;
@@ -237,7 +273,7 @@ function renderRows(activeAds) {
     );
     tr.appendChild(makeCell(pair));
     tr.appendChild(makeCell(formatPrice(ad?.price, ad?.fiat)));
-    tr.appendChild(makeCell(formatRemaining(ad?.remainingAmount, ad?.asset)));
+    tr.appendChild(makeCell(formatAmountAndLiquidity(ad)));
     tr.appendChild(makeCell(payMethods || "--"));
     tr.appendChild(makeCell(ordersText));
     tr.appendChild(makeCell(stateParts.join(" | ") || "--", "text-white/70"));
@@ -249,6 +285,7 @@ function renderRows(activeAds) {
 function renderError(message) {
   setText("active-ads-count", "0");
   setText("active-ads-source", "Error");
+  setText("active-ads-total-fiat", "--");
   setText("active-ads-updated", "--");
   renderWarnings([message]);
   renderRows([]);
@@ -297,7 +334,7 @@ export async function refreshActiveAds(
         // ignore parse errors
       }
       throw new Error(
-        backendError || `No se pudieron consultar anuncios activos (${res.status})`,
+        backendError || `No se pudieron consultar ordenes P2P activas (${res.status})`,
       );
     }
 
@@ -314,6 +351,10 @@ export async function refreshActiveAds(
 
     setText("active-ads-count", String(activeAds.length));
     setText("active-ads-source", source);
+    setText(
+      "active-ads-total-fiat",
+      `${formatNumber(calculateTotalBolivarLiquidity(activeAds), 2)} Bs`,
+    );
     setText("active-ads-window", windowLabel);
     setText("active-ads-updated", updatedAt);
 
