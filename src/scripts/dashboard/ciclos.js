@@ -1,5 +1,12 @@
 import { fUSDT, fVES, inject } from './utils.js';
 
+function setHidden(id, hidden) {
+    const el = document.getElementById(id);
+    if (el) {
+        el.classList.toggle('hidden', hidden);
+    }
+}
+
 function resolveOperatorMode(kpis = {}) {
     const configMode = String(kpis.config?.operatorMode || '').trim().toUpperCase();
     if (configMode === 'PRINCIPAL' || configMode === 'LOCAL' || configMode === 'MIXTO') {
@@ -27,6 +34,8 @@ export function updateCiclosUI(kpis = {}, bankInsights = []) {
     const promisedUsdt = Number(dispersor.promisedUsdt || 0);
     const pendingUsdt = Number(dispersor.pendingUsdt || 0);
     const cycleCardTitle = document.getElementById('cycle-card-title');
+    const compactTitle = document.getElementById('cycle-compact-title');
+    const compactCopy = document.getElementById('cycle-compact-copy');
 
     if (cycleCardTitle) {
         cycleCardTitle.textContent = operatorMode === 'LOCAL'
@@ -97,8 +106,30 @@ export function updateCiclosUI(kpis = {}, bankInsights = []) {
 
     const contextBanner = document.getElementById('cycle-context-banner');
     const contextCopy = document.getElementById('cycle-context-copy');
+    const activeList = processedBanks.filter(b => b.ciclosCompletados > 0 || b.estaRecomprando);
+    const useCompactEmptyState = operatorMode !== 'LOCAL' && activeList.length === 0;
+
+    setHidden('cycle-detail-section', useCompactEmptyState);
+    setHidden('cycle-compact-empty', !useCompactEmptyState);
+
+    if (useCompactEmptyState) {
+        if (compactTitle) {
+            compactTitle.textContent = promisedUsdt > 0.01
+                ? 'Sin ciclos locales activos'
+                : 'Sin actividad local en este rango';
+        }
+
+        if (compactCopy) {
+            compactCopy.textContent = promisedUsdt > 0.01
+                ? pendingUsdt > 0.01
+                    ? 'El principal no tiene recompras locales abiertas en este rango. La lectura operativa relevante vive en la card del dispersor mientras el lote siga fuera del P2P.'
+                    : 'La promesa dispersada ya regreso al flujo local, pero en este rango no quedaron ciclos abiertos para mostrar en detalle.'
+                : 'No se detectaron ciclos locales abiertos en este rango. Esta vista queda en modo resumen para no ocupar espacio innecesario.';
+        }
+    }
+
     if (contextBanner) {
-        if (operatorMode !== 'LOCAL' && promisedUsdt > 0.01) {
+        if (!useCompactEmptyState && operatorMode !== 'LOCAL' && promisedUsdt > 0.01) {
             contextBanner.classList.remove('hidden');
             if (contextCopy) {
                 contextCopy.textContent = pendingUsdt > 0.01
@@ -113,8 +144,6 @@ export function updateCiclosUI(kpis = {}, bankInsights = []) {
     // 4. RENDERIZADO DE LA LISTA
     const insightsContainer = document.getElementById('cycle-banks-insights');
     if (insightsContainer) {
-        const activeList = processedBanks.filter(b => b.ciclosCompletados > 0 || b.estaRecomprando);
-
         if (activeList.length === 0) {
             insightsContainer.innerHTML = `
                 <div class="flex flex-col items-center justify-center py-8 opacity-30">

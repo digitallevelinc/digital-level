@@ -31,77 +31,125 @@ import CardHelp from './CardHelp.astro';
         />
       </div>
 
-      <div class="flex items-center gap-2">
-        <span class="text-[12px] uppercase font-black tracking-[0.18em] text-white/70">
-          Activos:
-        </span>
-        <span
-          id="active-ads-count"
-          class="text-xl font-mono font-bold text-[#F3BA2F] bg-[#F3BA2F]/10 px-3 py-1 rounded-lg border border-[#F3BA2F]/20"
+      <div class="flex items-center gap-3 self-start md:self-center">
+        <div class="flex items-center gap-2">
+          <span class="text-[12px] uppercase font-black tracking-[0.18em] text-white/70">
+            Activos:
+          </span>
+          <span
+            id="active-ads-count"
+            class="text-xl font-mono font-bold text-[#F3BA2F] bg-[#F3BA2F]/10 px-3 py-1 rounded-lg border border-[#F3BA2F]/20"
+          >
+            0
+          </span>
+        </div>
+        <button
+          id="active-ads-toggle"
+          type="button"
+          aria-expanded="false"
+          aria-controls="active-ads-content"
+          class="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-white/10 bg-black/20 text-[11px] font-black uppercase tracking-[0.18em] text-white/70 hover:border-[#F3BA2F]/30 hover:text-[#F3BA2F] transition-all"
         >
-          0
-        </span>
+          <span id="active-ads-toggle-label">Expandir</span>
+          <svg
+            id="active-ads-toggle-icon"
+            class="w-4 h-4 transition-transform duration-300"
+            viewBox="0 0 20 20"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            aria-hidden="true"
+          >
+            <path stroke-linecap="round" stroke-linejoin="round" d="M6 8l4 4 4-4"></path>
+          </svg>
+        </button>
       </div>
     </div>
 
-    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+    <div
+      id="active-ads-collapsed-summary"
+      class="hidden grid grid-cols-1 sm:grid-cols-3 gap-3"
+    >
       <div class="bg-black/20 p-3 rounded-xl border border-white/5 flex flex-col gap-1">
-        <span class="sentinel-label !text-[11px] text-white/70">Metodo de deteccion</span>
-        <span id="active-ads-source" class="sentinel-value-md !text-lg text-white tracking-normal">
-          --
-        </span>
-      </div>
-      <div class="bg-black/20 p-3 rounded-xl border border-white/5 flex flex-col gap-1">
-        <span class="sentinel-label !text-[11px] text-white/70">Historial analizado</span>
-        <span id="active-ads-window" class="sentinel-value-md !text-lg text-white tracking-normal">
+        <span class="sentinel-label !text-[11px] text-white/70">Deteccion</span>
+        <span id="active-ads-collapsed-source" class="sentinel-value-md !text-base text-white tracking-normal">
           --
         </span>
       </div>
       <div class="bg-black/20 p-3 rounded-xl border border-white/5 flex flex-col gap-1">
         <span class="sentinel-label !text-[11px] text-white/70">Ultima revision</span>
-        <span id="active-ads-updated" class="sentinel-value-md !text-lg text-white tracking-normal">
+        <span id="active-ads-collapsed-updated" class="sentinel-value-md !text-base text-white tracking-normal">
           --
         </span>
       </div>
       <div class="bg-black/20 p-3 rounded-xl border border-white/5 flex flex-col gap-1">
-        <span class="sentinel-label !text-[11px] text-white/70">Liquidez total (Bs)</span>
-        <span id="active-ads-total-fiat" class="sentinel-value-md !text-lg text-white tracking-normal">
+        <span class="sentinel-label !text-[11px] text-white/70">Liquidez total</span>
+        <span id="active-ads-collapsed-total-fiat" class="sentinel-value-md !text-base text-white tracking-normal">
           --
         </span>
       </div>
     </div>
 
-    <p class="text-[12px] text-white/60">
-      Directo: Binance reporta ordenes P2P activas. Inferido: se estima por historial de ordenes recientes.
-    </p>
+    <div id="active-ads-content" class="flex flex-col gap-5">
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div class="bg-black/20 p-3 rounded-xl border border-white/5 flex flex-col gap-1">
+          <span class="sentinel-label !text-[11px] text-white/70">Metodo de deteccion</span>
+          <span id="active-ads-source" class="sentinel-value-md !text-lg text-white tracking-normal">
+            --
+          </span>
+        </div>
+        <div class="bg-black/20 p-3 rounded-xl border border-white/5 flex flex-col gap-1">
+          <span class="sentinel-label !text-[11px] text-white/70">Historial analizado</span>
+          <span id="active-ads-window" class="sentinel-value-md !text-lg text-white tracking-normal">
+            --
+          </span>
+        </div>
+        <div class="bg-black/20 p-3 rounded-xl border border-white/5 flex flex-col gap-1">
+          <span class="sentinel-label !text-[11px] text-white/70">Ultima revision</span>
+          <span id="active-ads-updated" class="sentinel-value-md !text-lg text-white tracking-normal">
+            --
+          </span>
+        </div>
+        <div class="bg-black/20 p-3 rounded-xl border border-white/5 flex flex-col gap-1">
+          <span class="sentinel-label !text-[11px] text-white/70">Liquidez total (Bs)</span>
+          <span id="active-ads-total-fiat" class="sentinel-value-md !text-lg text-white tracking-normal">
+            --
+          </span>
+        </div>
+      </div>
 
-    <p
-      id="active-ads-warning"
-      class="hidden text-[13px] rounded-xl px-3 py-2 border"
-    ></p>
+      <p class="text-[12px] text-white/60">
+        Directo: Binance reporta ordenes P2P activas. Inferido: se estima por historial de ordenes recientes.
+      </p>
 
-    <div class="overflow-x-auto rounded-xl border border-white/5 bg-black/20">
-      <table class="w-full min-w-[900px] text-left text-[14px]">
-        <thead class="bg-black/40 text-white/75 uppercase text-[11px] tracking-[0.2em]">
-          <tr>
-            <th class="px-3 py-2 font-black">Anuncio</th>
-            <th class="px-3 py-2 font-black">Tipo</th>
-            <th class="px-3 py-2 font-black">Par</th>
-            <th class="px-3 py-2 font-black">Precio</th>
-            <th class="px-3 py-2 font-black">Cantidad / Liquidez Bs</th>
-            <th class="px-3 py-2 font-black">Metodos</th>
-            <th class="px-3 py-2 font-black">Ordenes</th>
-            <th class="px-3 py-2 font-black">Estado</th>
-          </tr>
-        </thead>
-        <tbody id="active-ads-table-body" class="text-white/90">
-          <tr class="border-t border-white/5">
-            <td class="px-3 py-3 text-white/50" colspan="8">
-              Sin datos de ordenes P2P activas.
-            </td>
-          </tr>
-        </tbody>
-      </table>
+      <p
+        id="active-ads-warning"
+        class="hidden text-[13px] rounded-xl px-3 py-2 border"
+      ></p>
+
+      <div class="overflow-x-auto rounded-xl border border-white/5 bg-black/20">
+        <table class="w-full min-w-[900px] text-left text-[14px]">
+          <thead class="bg-black/40 text-white/75 uppercase text-[11px] tracking-[0.2em]">
+            <tr>
+              <th class="px-3 py-2 font-black">Anuncio</th>
+              <th class="px-3 py-2 font-black">Tipo</th>
+              <th class="px-3 py-2 font-black">Par</th>
+              <th class="px-3 py-2 font-black">Precio</th>
+              <th class="px-3 py-2 font-black">Cantidad / Liquidez Bs</th>
+              <th class="px-3 py-2 font-black">Metodos</th>
+              <th class="px-3 py-2 font-black">Ordenes</th>
+              <th class="px-3 py-2 font-black">Estado</th>
+            </tr>
+          </thead>
+          <tbody id="active-ads-table-body" class="text-white/90">
+            <tr class="border-t border-white/5">
+              <td class="px-3 py-3 text-white/50" colspan="8">
+                Sin datos de ordenes P2P activas.
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
     </div>
   </div>
 </div>

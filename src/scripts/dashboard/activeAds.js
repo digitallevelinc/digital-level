@@ -1,4 +1,6 @@
 const CARACAS_TZ = "America/Caracas";
+const ACTIVE_ADS_COLLAPSED_KEY = "sentinel_active_ads_collapsed";
+let activeAdsToggleInitialized = false;
 
 function getEl(id) {
   return document.getElementById(id);
@@ -8,6 +10,65 @@ function setText(id, value) {
   const el = getEl(id);
   if (!el) return;
   el.textContent = String(value ?? "--");
+}
+
+function readCollapsedPreference() {
+  try {
+    return localStorage.getItem(ACTIVE_ADS_COLLAPSED_KEY) !== "0";
+  } catch {
+    return true;
+  }
+}
+
+function writeCollapsedPreference(collapsed) {
+  try {
+    localStorage.setItem(ACTIVE_ADS_COLLAPSED_KEY, collapsed ? "1" : "0");
+  } catch {
+    // Ignore storage failures.
+  }
+}
+
+function applyCollapsedState(collapsed) {
+  const content = getEl("active-ads-content");
+  const summary = getEl("active-ads-collapsed-summary");
+  const toggle = getEl("active-ads-toggle");
+  const label = getEl("active-ads-toggle-label");
+  const icon = getEl("active-ads-toggle-icon");
+
+  if (content) {
+    content.classList.toggle("hidden", collapsed);
+  }
+
+  if (summary) {
+    summary.classList.toggle("hidden", !collapsed);
+  }
+
+  if (toggle) {
+    toggle.setAttribute("aria-expanded", collapsed ? "false" : "true");
+  }
+
+  if (label) {
+    label.textContent = collapsed ? "Expandir" : "Ocultar";
+  }
+
+  if (icon) {
+    icon.classList.toggle("rotate-180", !collapsed);
+  }
+}
+
+export function initActiveAdsToggle() {
+  const toggle = getEl("active-ads-toggle");
+  if (!toggle || activeAdsToggleInitialized) return;
+
+  activeAdsToggleInitialized = true;
+  let collapsed = readCollapsedPreference();
+  applyCollapsedState(collapsed);
+
+  toggle.addEventListener("click", () => {
+    collapsed = !collapsed;
+    writeCollapsedPreference(collapsed);
+    applyCollapsedState(collapsed);
+  });
 }
 
 function formatNumber(value, digits = 2) {
@@ -287,6 +348,9 @@ function renderError(message) {
   setText("active-ads-source", "Error");
   setText("active-ads-total-fiat", "--");
   setText("active-ads-updated", "--");
+  setText("active-ads-collapsed-source", "Error");
+  setText("active-ads-collapsed-updated", "--");
+  setText("active-ads-collapsed-total-fiat", "--");
   renderWarnings([message]);
   renderRows([]);
 }
@@ -351,12 +415,18 @@ export async function refreshActiveAds(
 
     setText("active-ads-count", String(activeAds.length));
     setText("active-ads-source", source);
+    setText("active-ads-collapsed-source", source);
     setText(
       "active-ads-total-fiat",
       `${formatNumber(calculateTotalBolivarLiquidity(activeAds), 2)} Bs`,
     );
+    setText(
+      "active-ads-collapsed-total-fiat",
+      `${formatNumber(calculateTotalBolivarLiquidity(activeAds), 2)} Bs`,
+    );
     setText("active-ads-window", windowLabel);
     setText("active-ads-updated", updatedAt);
+    setText("active-ads-collapsed-updated", updatedAt);
 
     renderWarnings(warnings);
     renderRows(activeAds);

@@ -2,7 +2,7 @@
 // src/components/dashboard/ciclos.astro
 import CardHelp from './CardHelp.astro';
 ---
-<div class="bg-[#161a1e] border border-gray-800 rounded-2xl p-6 shadow-lg transition-all hover:border-emerald-500/30 group">
+<div id="cycle-card" class="bg-[#161a1e] border border-gray-800 rounded-2xl p-6 shadow-lg transition-all hover:border-emerald-500/30 group">
     <div class="flex justify-between items-start mb-6">
         <div>
             <p id="cycle-card-title" class="text-[12px] text-white-500 font-black uppercase tracking-[0.2em]">Ganancia Promedio / Ciclo Local</p>
@@ -23,7 +23,7 @@ import CardHelp from './CardHelp.astro';
         />
     </div>
 
-    <div class="grid grid-cols-2 gap-4 mb-6">
+    <div id="cycle-metrics-grid" class="grid grid-cols-2 gap-4 mb-6">
         <div class="bg-black/30 p-4 rounded-2xl border border-white/[0.03] shadow-inner">
             <span class="text-[12px] text-white-500 uppercase font-black tracking-widest mb-1.5 block opacity-70">Ciclos Totales</span>
             <div class="flex items-baseline gap-1.5">
@@ -47,7 +47,22 @@ import CardHelp from './CardHelp.astro';
         </p>
     </div>
 
-    <div class="space-y-4">
+    <div id="cycle-compact-empty" class="hidden rounded-2xl border border-white/5 bg-black/20 px-5 py-4">
+        <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+            <div>
+                <p class="text-[10px] text-white/45 uppercase font-black tracking-[0.22em]">Ciclo local del principal</p>
+                <h4 id="cycle-compact-title" class="text-lg font-black text-white tracking-tight mt-2">Sin ciclos locales activos</h4>
+                <p id="cycle-compact-copy" class="text-[12px] text-white/62 leading-relaxed mt-2">
+                    No hay recompras locales abiertas en este rango. El seguimiento operativo relevante vive en la card del dispersor.
+                </p>
+            </div>
+            <div class="inline-flex items-center px-3 py-1.5 rounded-full border border-emerald-500/15 bg-emerald-500/8 text-[10px] font-black uppercase tracking-[0.18em] text-emerald-300">
+                Esperando recompra local
+            </div>
+        </div>
+    </div>
+
+    <div id="cycle-detail-section" class="space-y-4">
         <div class="flex justify-between items-center border-b border-white/5 pb-2.5 sticky top-0 bg-[#161a1e] z-10">
             <p class="text-[12px] text-white-400 font-black uppercase tracking-[0.1em]">Desglose Operativo</p>
             <div class="px-2.5 py-1 rounded-md bg-emerald-500/5">
