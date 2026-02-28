@@ -1,8 +1,38 @@
 import { fUSDT, fVES, inject } from './utils.js';
 
+function resolveOperatorMode(kpis = {}) {
+    const configMode = String(kpis.config?.operatorMode || '').trim().toUpperCase();
+    if (configMode === 'PRINCIPAL' || configMode === 'LOCAL' || configMode === 'MIXTO') {
+        return configMode;
+    }
+
+    try {
+        const stored = JSON.parse(localStorage.getItem('user_info') || '{}');
+        const storedMode = String(stored.operatorMode || '').trim().toUpperCase();
+        if (storedMode === 'PRINCIPAL' || storedMode === 'LOCAL' || storedMode === 'MIXTO') {
+            return storedMode;
+        }
+    } catch (_error) {
+        return 'MIXTO';
+    }
+
+    return 'MIXTO';
+}
+
 export function updateCiclosUI(kpis = {}, bankInsights = []) {
     // 1. CONFIGURACIÓN INICIAL
     const CAPITAL_TRABAJO = kpis.config?.capitalTrabajo || kpis.capitalTrabajo || 500;
+    const dispersor = kpis.judge?.dispersor || kpis.dispersor || {};
+    const operatorMode = resolveOperatorMode(kpis);
+    const promisedUsdt = Number(dispersor.promisedUsdt || 0);
+    const pendingUsdt = Number(dispersor.pendingUsdt || 0);
+    const cycleCardTitle = document.getElementById('cycle-card-title');
+
+    if (cycleCardTitle) {
+        cycleCardTitle.textContent = operatorMode === 'LOCAL'
+            ? 'Ganancia Promedio / Ciclo'
+            : 'Ganancia Promedio / Ciclo Local';
+    }
 
     let totalCyclesAllBanks = 0;
     let totalProfitNetoAcumulado = 0;
@@ -64,6 +94,21 @@ export function updateCiclosUI(kpis = {}, bankInsights = []) {
     inject('kpi-cycle-value', `≈ ${fUSDT(profitPorCiclo)}`);
     inject('cycle-count', totalCyclesAllBanks.toString().padStart(2, '0'));
     inject('active-banks-count', countBancosOperando.toString().padStart(2, '0'));
+
+    const contextBanner = document.getElementById('cycle-context-banner');
+    const contextCopy = document.getElementById('cycle-context-copy');
+    if (contextBanner) {
+        if (operatorMode !== 'LOCAL' && promisedUsdt > 0.01) {
+            contextBanner.classList.remove('hidden');
+            if (contextCopy) {
+                contextCopy.textContent = pendingUsdt > 0.01
+                    ? 'Esta card sigue midiendo cierres por P2P local. El lote principal aun tiene capital circulando fuera del P2P, por eso la lectura completa vive en la card de Operador Principal / Dispersor.'
+                    : 'Esta lectura sigue siendo local, pero la promesa dispersada ya regreso al flujo del operador principal y el desfase del ciclo deberia estar resuelto.'
+            }
+        } else {
+            contextBanner.classList.add('hidden');
+        }
+    }
 
     // 4. RENDERIZADO DE LA LISTA
     const insightsContainer = document.getElementById('cycle-banks-insights');

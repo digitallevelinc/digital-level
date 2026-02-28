@@ -5,19 +5,19 @@ import CardHelp from './CardHelp.astro';
 <div class="bg-[#161a1e] border border-gray-800 rounded-2xl p-6 shadow-lg transition-all hover:border-emerald-500/30 group">
     <div class="flex justify-between items-start mb-6">
         <div>
-            <p class="text-[12px] text-white-500 font-black uppercase tracking-[0.2em]">Ganancia Promedio / Ciclo</p>
+            <p id="cycle-card-title" class="text-[12px] text-white-500 font-black uppercase tracking-[0.2em]">Ganancia Promedio / Ciclo Local</p>
             <div class="flex items-baseline gap-2 mt-2">
                 <h3 id="kpi-cycle-value" class="text-4xl font-bold text-emerald-400 tracking-tighter">≈ $0.00</h3>
                 
             </div>
         </div>
         <CardHelp
-            title="Ganancia Promedio / Ciclo"
-            description="Mide cuanto profit neto deja cada vuelta completada."
-            calculation="Promedio por ciclo = profit neto acumulado de bancos operando dividido entre ciclos totales completados."
+            title="Ganancia Promedio / Ciclo Local"
+            description="Mide cuanto profit neto deja cada vuelta cerrada dentro del flujo local P2P."
+            calculation="Promedio por ciclo local = profit neto acumulado de bancos operando dividido entre ciclos totales completados."
             notes={[
                 "Ciclos totales cuenta cierres de venta por banco.",
-                "Bancos activos incluyen historial o recompra en curso."
+                "Si operas como dispersor, la recompra externa debe leerse en su card dedicada."
             ]}
             align="left"
         />
@@ -38,6 +38,13 @@ import CardHelp from './CardHelp.astro';
                 <span class="text-[11px] text-[#F3BA2F]/40 font-black uppercase tracking-wide">Online</span>
             </div>
         </div>
+    </div>
+
+    <div id="cycle-context-banner" class="hidden mb-6 rounded-2xl border border-amber-500/15 bg-amber-500/8 px-4 py-3">
+        <p class="text-[10px] text-amber-300 uppercase font-black tracking-[0.22em] mb-1">Lectura de ciclo local</p>
+        <p id="cycle-context-copy" class="text-[12px] text-white/70 leading-relaxed">
+            Esta card mide cierres por P2P local. Si parte del lote fue dispersada fuera del P2P, usa el panel del operador principal para leer la cobertura real.
+        </p>
     </div>
 
     <div class="space-y-4">

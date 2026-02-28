@@ -1,0 +1,141 @@
+---
+import CardHelp from './CardHelp.astro';
+---
+<div class="bg-gradient-to-br from-[#12161b] via-[#101419] to-[#0c1014] border border-amber-500/20 rounded-2xl p-6 shadow-2xl shadow-black/40">
+    <div class="flex items-start justify-between gap-4 mb-6">
+        <div>
+            <div class="flex items-center gap-3 mb-3 flex-wrap">
+                <span class="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-amber-500/20 bg-amber-500/10 text-[10px] font-black uppercase tracking-[0.24em] text-amber-300">
+                    <span class="w-2 h-2 rounded-full bg-amber-400 shadow-[0_0_10px_rgba(251,191,36,0.55)]"></span>
+                    Parseo 2.0
+                </span>
+                <span id="dispersor-status-badge" class="inline-flex items-center px-3 py-1 rounded-full border border-white/10 bg-white/[0.04] text-[10px] font-black uppercase tracking-[0.22em] text-white/70">
+                    Sin dispersion activa
+                </span>
+            </div>
+            <p id="dispersor-card-eyebrow" class="text-[12px] text-white/55 font-black uppercase tracking-[0.22em]">Operador Principal / Dispersor</p>
+            <h3 class="text-3xl font-black tracking-tight text-white mt-2">
+                <span id="dispersor-coverage-value" class="text-amber-300">0.0%</span>
+            </h3>
+            <p id="dispersor-coverage-label" class="text-[11px] text-white/45 uppercase font-black tracking-[0.18em] mt-2">Cobertura local del lote principal</p>
+        </div>
+        <CardHelp
+            title="Lectura Operativa"
+            description="Explica si el operador se interpreta como principal, mixto o local y como debe leerse su seguimiento."
+            calculation="En principal/mixto: cobertura local = recompra local acumulada / promesa total. En local: la referencia operativa vive en Ciclos Locales."
+            notes={[
+                "El modo local evita leer al operador como dispersor cuando su trabajo se cierra dentro del flujo local.",
+                "El modo mixto o principal muestra cuanto del lote sigue fuera del P2P local."
+            ]}
+            align="left"
+        />
+    </div>
+
+    <div id="dispersor-detailed-sections">
+        <div class="rounded-2xl border border-white/5 bg-black/25 p-4 mb-6 shadow-inner">
+            <div class="flex items-center justify-between gap-3 text-[10px] uppercase font-black tracking-[0.2em] text-white/45 mb-3">
+                <span>Mapa del lote</span>
+                <span id="dispersor-bar-caption" class="text-amber-300">Local vs externo</span>
+            </div>
+            <div class="h-3 rounded-full overflow-hidden bg-white/5 border border-white/5 flex">
+                <div id="dispersor-local-bar" class="h-full bg-gradient-to-r from-emerald-500 to-emerald-300 transition-all duration-700 ease-out" style="width: 0%"></div>
+                <div id="dispersor-pending-bar" class="h-full bg-gradient-to-r from-amber-500 to-orange-400 transition-all duration-700 ease-out" style="width: 0%"></div>
+            </div>
+            <div class="grid grid-cols-2 gap-3 mt-3 text-[10px] uppercase font-black tracking-[0.16em]">
+                <div class="flex items-center gap-2 text-emerald-300">
+                    <span class="w-2.5 h-2.5 rounded-full bg-emerald-400"></span>
+                    <span>Recompra local</span>
+                </div>
+                <div class="flex items-center justify-end gap-2 text-amber-300">
+                    <span>Pendiente externo</span>
+                    <span class="w-2.5 h-2.5 rounded-full bg-amber-400"></span>
+                </div>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+            <div class="bg-white/[0.03] border border-white/5 rounded-2xl p-4">
+                <span class="block text-[10px] text-white/45 uppercase font-black tracking-[0.2em] mb-2">Promesa total</span>
+                <p id="dispersor-promised-usdt" class="text-2xl font-mono font-black text-white tracking-tight">$0.00</p>
+                <p id="dispersor-promised-fiat" class="text-[11px] text-white/45 font-bold uppercase tracking-[0.14em] mt-2">0.00 VES</p>
+            </div>
+            <div class="bg-emerald-500/8 border border-emerald-500/15 rounded-2xl p-4">
+                <span class="block text-[10px] text-emerald-300/70 uppercase font-black tracking-[0.2em] mb-2">Recompra local</span>
+                <p id="dispersor-recovered-usdt" class="text-2xl font-mono font-black text-emerald-300 tracking-tight">$0.00</p>
+                <p id="dispersor-recovered-fiat" class="text-[11px] text-emerald-300/60 font-bold uppercase tracking-[0.14em] mt-2">0.00 VES</p>
+            </div>
+            <div class="bg-amber-500/8 border border-amber-500/15 rounded-2xl p-4">
+                <span class="block text-[10px] text-amber-300/70 uppercase font-black tracking-[0.2em] mb-2">Pendiente externo</span>
+                <p id="dispersor-pending-usdt" class="text-2xl font-mono font-black text-amber-300 tracking-tight">$0.00</p>
+                <p id="dispersor-pending-fiat" class="text-[11px] text-amber-300/60 font-bold uppercase tracking-[0.14em] mt-2">0.00 VES</p>
+            </div>
+            <div class="bg-blue-500/8 border border-blue-500/15 rounded-2xl p-4">
+                <span class="block text-[10px] text-blue-300/70 uppercase font-black tracking-[0.2em] mb-2">Promesas activas</span>
+                <p id="dispersor-active-promises" class="text-2xl font-mono font-black text-blue-200 tracking-tight">0</p>
+                <p class="text-[11px] text-blue-300/45 font-bold uppercase tracking-[0.14em] mt-2">Lotes abiertos en seguimiento</p>
+            </div>
+        </div>
+
+        <div class="rounded-2xl border border-white/5 bg-black/20 p-4 mb-6">
+            <div class="flex items-center justify-between gap-3 mb-4">
+                <div>
+                    <p class="text-[10px] text-white/45 uppercase font-black tracking-[0.2em]">Pendiente por receptor</p>
+                    <p class="text-[12px] text-white/60 font-bold mt-1">A quien salio cada tramo del lote principal y cuanto falta por cubrir localmente.</p>
+                </div>
+                <span class="text-[10px] text-white/30 uppercase font-black tracking-[0.18em]">USDT</span>
+            </div>
+            <div id="dispersor-receivers-list" class="space-y-3 max-h-[320px] overflow-y-auto pr-1 custom-scrollbar">
+                <div class="py-8 text-center opacity-30">
+                    <p class="text-[10px] uppercase font-black tracking-[0.22em]">Esperando detalle de receptores</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="dispersor-local-mode-panel" class="hidden rounded-2xl border border-blue-500/15 bg-blue-500/8 p-5 mb-6">
+        <div class="flex items-start justify-between gap-4">
+            <div>
+                <p class="text-[10px] text-blue-200/70 uppercase font-black tracking-[0.22em]">Modo local</p>
+                <h4 id="dispersor-local-mode-title" class="text-xl font-black text-white tracking-tight mt-2">Este operador se interpreta como flujo local</h4>
+                <p id="dispersor-local-mode-copy" class="text-[13px] text-white/70 leading-relaxed mt-3">
+                    Sus ventas y recompras se leen desde la card de Ciclos Locales. No se mostrara como principal ni como dispersor mientras este modo siga activo.
+                </p>
+            </div>
+            <span class="inline-flex items-center px-3 py-1 rounded-full border border-blue-400/20 bg-blue-400/10 text-[10px] font-black uppercase tracking-[0.18em] text-blue-200">
+                Solo flujo local
+            </span>
+        </div>
+    </div>
+
+    <div class="rounded-2xl border border-white/5 bg-white/[0.02] p-4">
+        <div class="flex items-center justify-between gap-3">
+            <div>
+                <p id="dispersor-status-label" class="text-[10px] text-white/45 uppercase font-black tracking-[0.22em]">Lectura correcta del principal</p>
+                <h4 id="dispersor-status-title" class="text-lg font-black text-white tracking-tight mt-1">Sin promesas dispersas</h4>
+            </div>
+            <span class="text-[10px] uppercase font-black tracking-[0.18em] text-white/35">Sentinel Judge</span>
+        </div>
+        <p id="dispersor-status-note" class="text-[13px] text-white/62 leading-relaxed mt-3">
+            Cuando el lote no se recompra completo por P2P local, este panel evita interpretar el ciclo principal como roto.
+        </p>
+    </div>
+</div>
+
+<style>
+    .custom-scrollbar::-webkit-scrollbar {
+        width: 4px;
+    }
+
+    .custom-scrollbar::-webkit-scrollbar-track {
+        background: transparent;
+    }
+
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+        background: rgba(255, 255, 255, 0.08);
+        border-radius: 999px;
+    }
+
+    .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+        background: rgba(251, 191, 36, 0.3);
+    }
+</style>

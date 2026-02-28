@@ -8,6 +8,7 @@ import { updateSwitchSection } from './dashboard/switch.js';
 import { updateP2PSection } from './dashboard/p2p.js';
 import { updateFiatSection } from './dashboard/fiat.js';
 import { updateCiclosUI } from './dashboard/ciclos.js';
+import { updateDispersorUI } from './dashboard/dispersor.js';
 import { updateProfitUI } from './dashboard/profit.js';
 import { updateComisionOperadorUI } from './dashboard/comisionOp.js';
 import { initPayrollWithdrawalsUI, refreshPayrollSummary, refreshPayrollWithdrawalHistory, setPayrollRange } from './dashboard/payrollWithdrawals.js';
@@ -427,6 +428,8 @@ export async function updateDashboard(API_BASE, token, alias, range = {}, opts =
             updateBancosUI(bankData);
             updateCiclosUI(kpis, bankData);
         }
+
+        updateDispersorUI(kpis);
 
         // Sincronizamos el Profit UI (usando datos críticos del backend)
         updateProfitUI(kpis, bankData);
