@@ -9,6 +9,8 @@ const fUSDT = (val) => new Intl.NumberFormat('en-US', {
     minimumFractionDigits: 2
 }).format(val);
 
+const fSignedUSDT = (val) => `${val >= 0 ? '+' : '-'}${fUSDT(Math.abs(val))}`;
+
 const fPercent = (val) => new Intl.NumberFormat('en-US', {
     style: 'percent',
     minimumFractionDigits: 2
@@ -68,7 +70,22 @@ export async function updateInvestorDashboard(API_BASE, token) {
             grossProfit = Number(hub.grossProfit || 0);
             platformFee = Number(hub.platformFee || 0);
 
-            history = hub.history || [];
+            history = (hub.history || []).map((point) => {
+                const equity = Number(point.equity || 0);
+                const profit = Number(point.profit || 0);
+                const gross = Number(point.grossProfit || 0);
+                const capitalPoint = Number(point.capital ?? (equity - profit) ?? capitalBaseInversor);
+
+                return {
+                    date: point.date,
+                    equity,
+                    profit,
+                    grossProfit: gross,
+                    cycles: Number(point.cycles || 0),
+                    fees: Number((point.platformFee ?? (gross - profit)).toFixed(2)),
+                    capital: Number(capitalPoint.toFixed(2))
+                };
+            });
 
             // Mapear monthlyPerformance para que coincida con lo que espera la tabla (netProfit, fee)
             monthlyPerformance = (hub.monthlyPerformance || []).map(m => ({
@@ -110,7 +127,7 @@ export async function updateInvestorDashboard(API_BASE, token) {
         // --- KPIs Principales ---
         inject('inv-base-deposit', fUSDT(capitalBaseInversor));
         inject('inv-capital-total', fUSDT(equityTotal));
-        inject('inv-profit-neto', `+${fUSDT(gananciaNetaInversor)}`);
+        inject('inv-profit-neto', fSignedUSDT(gananciaNetaInversor));
         inject('inv-roi', fPercent(totalRoi));
 
         // --- Transparencia ---
