@@ -52,6 +52,7 @@ export async function updateInvestorDashboard(API_BASE, token) {
         let poolTotal = 0;
         let grossProfit = 0;
         let platformFee = 0;
+        let commissionPercentage = 0;
         let history = [];
         let monthlyPerformance = [];
 
@@ -69,6 +70,7 @@ export async function updateInvestorDashboard(API_BASE, token) {
 
             grossProfit = Number(hub.grossProfit || 0);
             platformFee = Number(hub.platformFee || 0);
+            commissionPercentage = Number(hub.commissionPercentage || 0);
 
             history = (hub.history || []).map((point) => {
                 const equity = Number(point.equity || 0);
@@ -137,6 +139,7 @@ export async function updateInvestorDashboard(API_BASE, token) {
         inject('inv-participation-percent', fPercent(participationRatio * 100)); // Paragraph text
         inject('inv-gross-profit', fUSDT(grossProfit));
         inject('inv-platform-fee', `-${fUSDT(platformFee)}`);
+        inject('inv-commission-rate', fPercent(commissionPercentage));
         inject('inv-net-profit-breakdown', fUSDT(gananciaNetaInversor));
 
         // Actualizar visuales complejas (Ring y Barra)

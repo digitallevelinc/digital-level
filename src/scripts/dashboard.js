@@ -262,6 +262,105 @@ export async function initDashboard() {
 /**
  * 3. FUNCIÓN DE ACTUALIZACIÓN GLOBAL (Auditoría de integridad)
  */
+function buildKpiUrl(API_BASE, range = {}) {
+    const params = new URLSearchParams();
+    if (range?.from) params.set('from', range.from);
+    if (range?.to) params.set('to', range.to);
+    params.set('_ts', String(Date.now()));
+    return `${API_BASE}/api/kpis${params.toString() ? `?${params.toString()}` : ''}`;
+}
+
+async function fetchDashboardKpis(API_BASE, token, range = {}, signal) {
+    const res = await fetch(buildKpiUrl(API_BASE, range), {
+        headers: {
+            'Authorization': `Bearer ${token}`
+        },
+        cache: 'no-store',
+        signal
+    });
+
+    if (!res.ok) {
+        if (res.status === 401 || res.status === 403) {
+            handleExpiredSession();
+            return null;
+        }
+
+        let backendError = '';
+        try {
+            const errData = await res.json();
+            backendError = errData?.error || '';
+        } catch {
+            // Ignore parsing errors and keep generic fallback.
+        }
+
+        console.error(`API Error: ${res.status} ${res.statusText}`);
+        throw new Error(backendError || `Fallo en la respuesta de la API (${res.status})`);
+    }
+
+    return await res.json();
+}
+
+function normalizeKpiBankData(kpis = {}) {
+    const metrics = kpis.metrics || {};
+    const bankData = (kpis.bankInsights || []).map(i => {
+        const trf = i.trf || {};
+        const pm = i.pm || {};
+
+        return {
+            ...i,
+            fiatBalance: Number(i.fiatBalance || 0),
+            usdtBalance: Number(i.usdtBalance || 0),
+            profit: Number(i.profit || 0),
+            buyVolUSDT: Number(i.buyVolUSDT || 0),
+            sellVolUSDT: Number(i.sellVolUSDT || 0),
+            feeBuy: Number(trf.buyFee || 0) + Number(pm.buyFee || 0),
+            feeSell: Number(trf.sellFee || 0) + Number(pm.sellFee || 0),
+            trf,
+            pm
+        };
+    });
+
+    const defaultBanks = ['Mercantil', 'Banesco', 'BNC', 'BBVA/Provincial', 'Bancamiga', 'BANK'];
+
+    defaultBanks.forEach(dbParams => {
+        const exists = bankData.find(b => {
+            const bId = (b.bank || '').toLowerCase().trim();
+            const dbId = dbParams.toLowerCase().trim();
+            if (bId === dbId) return true;
+            if (dbId.includes('provincial') && bId.includes('provincial')) return true;
+            return false;
+        });
+
+        if (!exists) {
+            const globalFavorites = kpis.favorites || [];
+            const isFav = globalFavorites.some(f => f.toLowerCase().trim() === dbParams.toLowerCase().trim());
+
+            bankData.push({
+                bank: dbParams,
+                bankName: dbParams,
+                fiatBalance: 0,
+                profit: 0,
+                weightedAvgBuyRate: 0,
+                weightedAvgSellRate: 0,
+                margin: 0,
+                buyVolUSDT: 0,
+                sellVolUSDT: 0,
+                trf: { buyCount: 0, sellCount: 0, buyVol: 0, sellVol: 0, buyFee: 0, sellFee: 0 },
+                pm: { buyCount: 0, sellCount: 0, buyVol: 0, sellVol: 0, buyFee: 0, sellFee: 0, avgBuyRate: 0, avgSellRate: 0 },
+                isFavorite: isFav
+            });
+        }
+    });
+
+    const bankProfitSum = bankData.reduce((sum, b) => sum + Number(b.profit || 0), 0);
+    if (!kpis.critical) kpis.critical = {};
+    kpis.critical.profitTotalUSDT = bankProfitSum;
+    if (!kpis.metrics) kpis.metrics = metrics;
+    kpis.metrics.totalProfit = bankProfitSum;
+
+    return { metrics, bankData, kpis };
+}
+
 export async function updateDashboard(API_BASE, token, alias, range = {}, opts = {}) {
     if (!token) return;
 
@@ -290,41 +389,23 @@ export async function updateDashboard(API_BASE, token, alias, range = {}, opts =
     try {
         setPayrollRange(range || {});
 
-        const params = new URLSearchParams();
-        if (range?.from) params.set('from', range.from);
-        if (range?.to) params.set('to', range.to);
-        params.set('_ts', String(Date.now()));
-        const url = `${API_BASE}/api/kpis${params.toString() ? `?${params.toString()}` : ''}`;
+        const mainRange = normalizeRange(range);
+        const sidebarRange = normalizeRange(getPresetRange('this_month'));
+        const shouldReuseMainForSidebar = isSameRange(mainRange, sidebarRange);
 
         const updateEl = document.getElementById('last-update');
         if (updateEl) updateEl.textContent = "Sincronizando con Sentinel...";
 
-        const kpiRes = await fetch(url, {
-            headers: {
-                'Authorization': `Bearer ${token}`
-            },
-            cache: 'no-store',
-            signal: dashboardAbortController.signal
-        });
+        const [kpis, sidebarKpisRaw] = await Promise.all([
+            fetchDashboardKpis(API_BASE, token, mainRange, dashboardAbortController.signal),
+            shouldReuseMainForSidebar
+                ? Promise.resolve(null)
+                : fetchDashboardKpis(API_BASE, token, sidebarRange, dashboardAbortController.signal)
+        ]);
 
-        if (!kpiRes.ok) {
-            if (kpiRes.status === 401 || kpiRes.status === 403) {
-                handleExpiredSession();
-                return;
-            }
-
-            let backendError = '';
-            try {
-                const errData = await kpiRes.json();
-                backendError = errData?.error || '';
-            } catch {
-                // Ignore parsing errors and keep generic fallback.
-            }
-
-            console.error(`API Error: ${kpiRes.status} ${kpiRes.statusText}`);
-            throw new Error(backendError || `Fallo en la respuesta de la API (${kpiRes.status})`);
+        if (!kpis) {
+            return;
         }
-        const kpis = await kpiRes.json();
         clearTimeout(requestTimeout);
         requestTimeoutCleared = true;
         if (requestSeq !== dashboardRequestSeq) {
@@ -418,10 +499,18 @@ export async function updateDashboard(API_BASE, token, alias, range = {}, opts =
         updateComisionesUI(kpisWithNormalizedBanks);
         updateOperacionesUI(kpis);
 
+        const {
+            metrics: sidebarMetrics,
+            bankData: sidebarBankData,
+            kpis: normalizedSidebarKpis
+        } = shouldReuseMainForSidebar
+            ? { metrics, bankData, kpis }
+            : normalizeKpiBankData(sidebarKpisRaw || {});
+
         // --- MONITOR LATERAL ---
-        if (kpis) {
-            if (!kpis.metrics) kpis.metrics = metrics;
-            updateSidebarMonitor(kpis, bankData);
+        if (normalizedSidebarKpis) {
+            if (!normalizedSidebarKpis.metrics) normalizedSidebarKpis.metrics = sidebarMetrics;
+            updateSidebarMonitor(normalizedSidebarKpis, sidebarBankData);
         }
 
         // --- PANEL DE BANCOS E INSIGHTS ---

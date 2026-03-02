@@ -4,10 +4,18 @@ interface Props {
   poolTotal: number;
   grossProfit: number;
   platformFee: number;
+  commissionPercentage: number;
   netProfit: number;
 }
 
-const { participationRatio, poolTotal, grossProfit, platformFee, netProfit } = Astro.props;
+const {
+  participationRatio,
+  poolTotal,
+  grossProfit,
+  platformFee,
+  commissionPercentage,
+  netProfit,
+} = Astro.props;
 
 const formatCurrency = (amount: number) => {
   return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amount);
@@ -70,11 +78,16 @@ const ratioPercent = participationRatio * 100;
                 <span class="text-gray-400">Ganancia Bruta Generada</span>
                 <span id="inv-gross-profit" class="text-white font-bold">{formatCurrency(grossProfit)}</span>
             </div>
+
+            <div class="flex justify-between items-center p-3 rounded-lg bg-emerald-500/5 border border-emerald-500/10">
+                <span class="text-emerald-400/80">Retorno Inversor (<span id="inv-commission-rate">{formatPercent(commissionPercentage / 100)}</span>)</span>
+                <span id="inv-net-profit-breakdown" class="text-emerald-300 font-bold">{formatCurrency(netProfit)}</span>
+            </div>
             
             <div class="flex justify-between items-center p-3 rounded-lg bg-red-500/5 border border-red-500/10">
                 <span class="text-red-400/80 flex items-center gap-2">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 17h8m0 0V9m0 8l-8-8-4 4-6-6"></path></svg>
-                    Fee Plataforma (10%)
+                    Fee Plataforma
                 </span>
                 <span id="inv-platform-fee" class="text-red-400 font-bold">-{formatCurrency(platformFee)}</span>
             </div>

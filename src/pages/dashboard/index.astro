@@ -91,7 +91,7 @@ import 'flatpickr/dist/themes/dark.css';
         { id: 'today', label: 'Hoy' }
       ].map((preset) => (
         <button 
-          class="kpi-preset-btn whitespace-nowrap px-6 py-3 rounded-xl text-[11px] font-black uppercase border border-gray-800 bg-white/5 hover:border-[#F3BA2F]/60 hover:text-[#F3BA2F] transition-all shadow-md" 
+          class={`kpi-preset-btn whitespace-nowrap px-6 py-3 rounded-xl text-[11px] font-black uppercase border bg-white/5 hover:border-[#F3BA2F]/60 hover:text-[#F3BA2F] transition-all shadow-md ${preset.id === 'today' ? 'border-[#F3BA2F] bg-[#F3BA2F]/10' : 'border-gray-800'}`}
           data-preset={preset.id}
         >
           {preset.label}
