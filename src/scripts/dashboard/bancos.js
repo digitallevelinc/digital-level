@@ -6,9 +6,6 @@ const safeFloat = (val) => {
     return Number(val.toString().replace(',', '.')) || 0;
 };
 
-const formatUsdtPlain = (val) =>
-    `${Number(val || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USDT`;
-
 const formatSignedUsdtPlain = (val) => {
     const num = Number(val || 0);
     const sign = num > 0 ? '+' : '';
@@ -77,7 +74,6 @@ export function updateBancosUI(insights = []) {
             beInfo: document.getElementById(`bank-be-info-${id}`),
             beMeta: document.getElementById(`bank-be-meta-${id}`),
             beSale: document.getElementById(`bank-be-sale-${id}`),
-            spreadFormula: document.getElementById(`bank-spread-formula-${id}`),
             spreadUsdt: document.getElementById(`bank-spread-usdt-${id}`),
             spreadPercent: document.getElementById(`bank-spread-percent-${id}`),
             pmBadge: document.getElementById(`bank-pm-badge-${id}`) // Select the new badge
@@ -222,9 +218,6 @@ export function updateBancosUI(insights = []) {
                     : 0)
         );
         const lastSellRate = safeFloat(b.lastSellRate);
-        const realizedFiatBase = safeFloat(b.realizedFiatBase);
-        const spreadBuyUsdt = safeFloat(b.spreadBuyUsdt);
-        const spreadSellUsdt = safeFloat(b.spreadSellUsdt);
         const spreadProfitUsdt = safeFloat(b.spreadProfitUsdt);
         const profitPercent = safeFloat(b.profitPercent || b.margin);
         const verificationLevel = String(b.verificationLevel || '').trim();
@@ -282,27 +275,18 @@ export function updateBancosUI(insights = []) {
 
 
         // 2. Lógica de la Barra de Ciclo (Tricolor)
-        if (ui.spreadFormula) {
-            if (realizedFiatBase > 0 && buyRate > 0 && sellRate > 0) {
-                ui.spreadFormula.textContent =
-                    `(${fVES(realizedFiatBase)} / ${buyRate.toFixed(2)}) - (${fVES(realizedFiatBase)} / ${sellRate.toFixed(2)})`;
-            } else {
-                ui.spreadFormula.textContent = '(0 VES / --) - (0 VES / --)';
-            }
-        }
-
         if (ui.spreadUsdt) {
-            if (realizedFiatBase > 0 && buyRate > 0 && sellRate > 0) {
+            if (buyRate > 0 && sellRate > 0) {
                 ui.spreadUsdt.textContent =
                     `${formatSignedUsdtPlain(spreadProfitUsdt)} · Neto ${formatSignedUsdtPlain(bankProfit)}`;
                 ui.spreadUsdt.textContent =
                     `${formatSignedUsdtPlain(spreadProfitUsdt)} | Neto ${formatSignedUsdtPlain(bankProfit)}`;
                 ui.spreadUsdt.className = `text-[15px] font-black tracking-tight ${spreadProfitUsdt >= 0 ? 'text-emerald-400' : 'text-rose-400'}`;
-                ui.spreadUsdt.title =
-                    `${formatUsdtPlain(spreadBuyUsdt)} - ${formatUsdtPlain(spreadSellUsdt)} = ${formatSignedUsdtPlain(spreadProfitUsdt)}`;
+                ui.spreadUsdt.removeAttribute('title');
             } else {
-                ui.spreadUsdt.textContent = '0.00 USDT';
+                ui.spreadUsdt.textContent = '0.00 USDT | Neto 0.00 USDT';
                 ui.spreadUsdt.className = 'text-[15px] font-black tracking-tight text-slate-400';
+                ui.spreadUsdt.removeAttribute('title');
             }
         }
 
