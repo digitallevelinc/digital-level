@@ -22,7 +22,7 @@ import CardHelp from './CardHelp.astro';
         <CardHelp
             title="Lectura Operativa"
             description="Explica si el operador se interpreta como principal, mixto o local y como debe leerse su seguimiento."
-            calculation="En principal/mixto: cobertura local = recompra local acumulada / promesa total. En local: la referencia operativa vive en Ciclos Locales."
+            calculation="En principal/mixto: cobertura local = recompra local acumulada / promesa total. En local: la referencia operativa vive en el flujo local del dashboard."
             notes={[
                 "El modo local evita leer al operador como dispersor cuando su trabajo se cierra dentro del flujo local.",
                 "El modo mixto o principal muestra cuanto del lote sigue fuera del P2P local."
@@ -98,7 +98,7 @@ import CardHelp from './CardHelp.astro';
                 <p class="text-[10px] text-blue-200/70 uppercase font-black tracking-[0.22em]">Modo local</p>
                 <h4 id="dispersor-local-mode-title" class="text-xl font-black text-white tracking-tight mt-2">Este operador se interpreta como flujo local</h4>
                 <p id="dispersor-local-mode-copy" class="text-[13px] text-white/70 leading-relaxed mt-3">
-                    Sus ventas y recompras se leen desde la card de Ciclos Locales. No se mostrara como principal ni como dispersor mientras este modo siga activo.
+                    Sus ventas y recompras se leen desde el flujo local del dashboard. No se mostrara como principal ni como dispersor mientras este modo siga activo.
                 </p>
             </div>
             <span class="inline-flex items-center px-3 py-1 rounded-full border border-blue-400/20 bg-blue-400/10 text-[10px] font-black uppercase tracking-[0.18em] text-blue-200">
@@ -116,7 +116,7 @@ import CardHelp from './CardHelp.astro';
             <span class="text-[10px] uppercase font-black tracking-[0.18em] text-white/35">Sentinel Judge</span>
         </div>
         <p id="dispersor-status-note" class="text-[13px] text-white/62 leading-relaxed mt-3">
-            Cuando el lote no se recompra completo por P2P local, este panel evita interpretar el ciclo principal como roto.
+            Cuando el lote no se recompra completo por P2P local, este panel evita interpretar el flujo principal como roto.
         </p>
     </div>
 </div>

@@ -132,8 +132,6 @@ function renderProfitChart(chartData = []) {
     const profitData = sortedData.map(d => d.profit);
     const feesData = sortedData.map(d => d.fees);
     const capitalData = sortedData.map(d => d.capital);
-    const cyclesData = sortedData.map(d => d.cycles); // Optional
-
     profitChartInstance = new Chart(ctx, {
         type: 'bar',
         data: {
@@ -165,21 +163,6 @@ function renderProfitChart(chartData = []) {
                     tension: 0.3,
                     order: 0,
                     yAxisID: 'y1'
-                },
-                // Optional Cycles Line/Points
-                {
-                    label: 'Ciclos',
-                    data: cyclesData,
-                    type: 'line',
-                    borderColor: '#fbbf24', // amber-400
-                    borderDash: [5, 5],
-                    pointStyle: 'circle',
-                    pointRadius: 3,
-                    backgroundColor: '#fbbf24',
-                    borderWidth: 1,
-                    order: 1,
-                    yAxisID: 'y2',
-                    hidden: true // Hidden by default to avoid clutter
                 }
             ]
         },
@@ -234,14 +217,6 @@ function renderProfitChart(chartData = []) {
                     position: 'right',
                     grid: { drawOnChartArea: false }, // only want the grid lines for one axis to show up
                     ticks: { color: '#60a5fa' }
-                },
-                y2: { // Cycles Axis (Hidden or Small)
-                    type: 'linear',
-                    display: false, // Hide axis labels but keep scaling
-                    position: 'right',
-                    grid: { drawOnChartArea: false },
-                    min: 0,
-                    suggestedMax: 10 // Assuming daily cycles are low
                 }
             }
         }

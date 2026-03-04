@@ -2,7 +2,6 @@
 import flatpickr from "flatpickr";
 import { Spanish } from "flatpickr/dist/l10n/es.js";
 import { fUSDT, fVES, inject } from './dashboard/utils.js';
-import { updateCiclosUI } from './dashboard/ciclos.js';
 import { updateDispersorUI } from './dashboard/dispersor.js';
 import { updateProfitUI } from './dashboard/profit.js';
 import { updateComisionOperadorUI } from './dashboard/comisionOp.js';
@@ -24,6 +23,30 @@ let dashboardAbortController = null;
 let dashboardRequestSeq = 0;
 let kpiLoadingRequestSeq = 0;
 let authRedirecting = false;
+
+function updateSidebarRangeLabel(range = {}) {
+    const el = document.getElementById('side-range-label');
+    if (!el) return;
+    const from = sanitizeDateValue(range?.from);
+    const to = sanitizeDateValue(range?.to);
+    const label = String(range?.label || '').trim();
+
+    if (!from && !to) {
+        el.textContent = 'Todo + Wallet Live';
+        return;
+    }
+
+    if (from && to) {
+        if (from === to) {
+            el.textContent = `${from} + Wallet Live`;
+            return;
+        }
+        el.textContent = `${from} -> ${to} + Wallet Live`;
+        return;
+    }
+
+    el.textContent = `${label || 'Rango activo'} + Wallet Live`;
+}
 
 function normalizeApiBase(value) {
     const raw = String(value || '').trim();
@@ -266,15 +289,6 @@ function buildKpiUrl(API_BASE, range = {}) {
     return `${API_BASE}/api/kpis${params.toString() ? `?${params.toString()}` : ''}`;
 }
 
-function buildTransfersUrl(API_BASE, range = {}, limit = 10) {
-    const params = new URLSearchParams();
-    if (range?.from) params.set('from', range.from);
-    if (range?.to) params.set('to', range.to);
-    params.set('limit', String(limit));
-    params.set('_ts', String(Date.now()));
-    return `${API_BASE}/api/transfers?${params.toString()}`;
-}
-
 async function fetchDashboardKpis(API_BASE, token, range = {}, signal) {
     const res = await fetch(buildKpiUrl(API_BASE, range), {
         headers: {
@@ -303,32 +317,6 @@ async function fetchDashboardKpis(API_BASE, token, range = {}, signal) {
     }
 
     return await res.json();
-}
-
-async function fetchDashboardTransfers(API_BASE, token, range = {}, signal) {
-    try {
-        const res = await fetch(buildTransfersUrl(API_BASE, range), {
-            headers: {
-                'Authorization': `Bearer ${token}`
-            },
-            cache: 'no-store',
-            signal
-        });
-
-        if (!res.ok) {
-            if (res.status === 401 || res.status === 403) {
-                handleExpiredSession();
-                return { transfers: [] };
-            }
-            return { transfers: [] };
-        }
-
-        return await res.json();
-    } catch (error) {
-        if (error?.name === 'AbortError') throw error;
-        console.warn('No fue posible cargar extracto de balance:', error);
-        return { transfers: [] };
-    }
 }
 
 function normalizeKpiBankData(kpis = {}) {
@@ -461,19 +449,12 @@ export async function updateDashboard(API_BASE, token, alias, range = {}, opts =
         setPayrollRange(range || {});
 
         const mainRange = normalizeRange(range);
-        const sidebarRange = normalizeRange(getPresetRange('this_month'));
-        const shouldReuseMainForSidebar = isSameRange(mainRange, sidebarRange);
+        updateSidebarRangeLabel(mainRange);
 
         const updateEl = document.getElementById('last-update');
         if (updateEl) updateEl.textContent = "Sincronizando con Sentinel...";
 
-        const [kpis, transfersPayload, sidebarKpisRaw] = await Promise.all([
-            fetchDashboardKpis(API_BASE, token, mainRange, dashboardAbortController.signal),
-            fetchDashboardTransfers(API_BASE, token, mainRange, dashboardAbortController.signal),
-            shouldReuseMainForSidebar
-                ? Promise.resolve(null)
-                : fetchDashboardKpis(API_BASE, token, sidebarRange, dashboardAbortController.signal)
-        ]);
+        const kpis = await fetchDashboardKpis(API_BASE, token, mainRange, dashboardAbortController.signal);
 
         if (!kpis) {
             return;
@@ -611,24 +592,15 @@ export async function updateDashboard(API_BASE, token, alias, range = {}, opts =
         updateComisionesUI(kpisWithNormalizedBanks);
         updateOperacionesUI(kpis);
 
-        const {
-            metrics: sidebarMetrics,
-            bankData: sidebarBankData,
-            kpis: normalizedSidebarKpis
-        } = shouldReuseMainForSidebar
-            ? { metrics, bankData, kpis }
-            : normalizeKpiBankData(sidebarKpisRaw || {});
-
         // --- MONITOR LATERAL ---
-        if (normalizedSidebarKpis) {
-            if (!normalizedSidebarKpis.metrics) normalizedSidebarKpis.metrics = sidebarMetrics;
-            updateSidebarMonitor(normalizedSidebarKpis, sidebarBankData);
+        if (kpis) {
+            if (!kpis.metrics) kpis.metrics = metrics;
+            updateSidebarMonitor(kpis, bankData);
         }
 
         // --- PANEL DE BANCOS E INSIGHTS ---
         if (bankData.length > 0) {
             updateBancosUI(bankData);
-            updateCiclosUI(kpis, bankData);
         }
 
         updateDispersorUI(kpis);
@@ -642,7 +614,12 @@ export async function updateDashboard(API_BASE, token, alias, range = {}, opts =
         updateProyeccionesUI(kpis, range);
 
         // --- SECCIONES DE CARTERAS (LOGÍSTICA) ---
-        updateBalanceLedgerUI(kpis, transfersPayload);
+        updateBalanceLedgerUI(kpis, {
+            apiBase: API_BASE,
+            token,
+            range: mainRange,
+            onAuthError: handleExpiredSession
+        });
         await refreshActiveAds(API_BASE, token, {
             signal: dashboardAbortController?.signal,
             onAuthError: handleExpiredSession
@@ -848,7 +825,6 @@ function updateMainKpis(kpis = {}, manualProfit = null) {
     const profitToDisplay = critical.profitTotalUSDT ?? (manualProfit !== null ? manualProfit : (summary.totalProfit ?? summary.profit ?? 0));
     inject('kpi-profit', fUSDT(profitToDisplay), true);
 
-    inject('kpi-cycle', fUSDT(critical.currentCycleProfit ?? summary.cycleProfit ?? summary.cycleGain ?? 0), true);
 }
 
 function updateRatesCard(kpis = {}) {

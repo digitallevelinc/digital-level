@@ -7,7 +7,7 @@ import CardHelp from './CardHelp.astro';
     <CardHelp
       title="Resumen de Profit"
       description="Card principal de rendimiento del periodo seleccionado."
-      calculation="Diferencia = wallet real - capital inicial del periodo. Profit generado = suma de profit neto por banco en ciclos cerrados del rango. Volumen total = suma USDT operada."
+      calculation="Diferencia = wallet real - capital inicial del periodo. Profit generado = suma del profit neto consolidado por banco en el rango. Volumen total = suma USDT operada."
       notes={[
         "Capital inicial y wallet real permiten auditar desviaciones.",
         "Si el gap es cercano a cero se marca como estado neutro."
@@ -46,7 +46,7 @@ import CardHelp from './CardHelp.astro';
         <div>
             <p class="text-[12px] text-white-400 uppercase font-black mb-1 tracking-widest">Profit Generado Real</p>
             <h4 id="audit-total-profit-display" class="text-2xl font-mono font-bold text-white leading-tight">---</h4>
-            <p class="text-[10px] text-white-500 mt-1 italic uppercase">Suma de profits por ciclo finalizado</p>
+            <p class="text-[10px] text-white-500 mt-1 italic uppercase">Suma de profit neto consolidado del rango</p>
         </div>
     </div>
 

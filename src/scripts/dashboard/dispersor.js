@@ -24,13 +24,12 @@ function setHidden(id, hidden) {
 function applyDashboardModeLayout(operatorMode) {
     const profitPanel = document.getElementById('dashboard-profit-panel');
     const dispersorPanel = document.getElementById('dashboard-dispersor-panel');
-    const ciclosPanel = document.getElementById('dashboard-ciclos-panel');
     const isLocal = operatorMode === 'LOCAL';
 
     if (profitPanel) {
         profitPanel.classList.toggle('hidden', false);
-        profitPanel.classList.toggle('lg:col-span-7', true);
-        profitPanel.classList.remove('lg:col-span-12');
+        profitPanel.classList.toggle('lg:col-span-7', !isLocal);
+        profitPanel.classList.toggle('lg:col-span-12', isLocal);
         profitPanel.classList.remove('lg:col-span-5');
     }
 
@@ -39,11 +38,6 @@ function applyDashboardModeLayout(operatorMode) {
         dispersorPanel.classList.toggle('lg:col-span-5', !isLocal);
         dispersorPanel.classList.remove('lg:col-span-12');
         dispersorPanel.classList.remove('lg:col-span-7');
-    }
-
-    if (ciclosPanel) {
-        ciclosPanel.classList.toggle('lg:col-span-5', isLocal);
-        ciclosPanel.classList.toggle('lg:col-span-12', !isLocal);
     }
 }
 
@@ -102,7 +96,7 @@ function getModeMeta(mode) {
     if (mode === 'LOCAL') {
         return {
             eyebrow: 'Operador Local',
-            coverageLabel: 'El seguimiento principal vive en Ciclos Locales',
+            coverageLabel: 'El seguimiento principal vive en el flujo local',
             statusLabel: 'Lectura correcta del operador local'
         };
     }
@@ -205,7 +199,7 @@ function resolveStatus({ promisedUsdt, pendingUsdt, coveragePercent, activePromi
             badge: 'Cobertura local completa',
             tone: 'success',
             title: 'El lote ya fue absorbido localmente',
-            note: 'La promesa activa ya regreso al flujo local. El principal no depende de recompras externas para cerrar este lote.'
+            note: 'La promesa activa ya regreso al flujo local. El principal no depende de recompras externas para completar este lote.'
         };
     }
 
@@ -213,8 +207,8 @@ function resolveStatus({ promisedUsdt, pendingUsdt, coveragePercent, activePromi
         return {
             badge: 'Dependencia externa alta',
             tone: 'warning',
-            title: 'La venta abre el ciclo, pero el cierre vive fuera del P2P local',
-            note: 'Esta vista separa la cobertura local del pendiente externo para que el principal no lea su ciclo como incompleto por error.'
+            title: 'La venta sale por el principal, pero la cobertura vive fuera del P2P local',
+            note: 'Esta vista separa la cobertura local del pendiente externo para que el principal no lea su flujo como incompleto por error.'
         };
     }
 

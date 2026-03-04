@@ -43,7 +43,6 @@ export function updateBancosUI(insights = []) {
             feeSell: document.getElementById(`bank-fee-sell-${id}`),
             profit: document.getElementById(`bank-profit-${id}`),
             margin: document.getElementById(`bank-margin-${id}`),
-            ctot: document.getElementById(`bank-ctot-${id}`),
             trOps: document.getElementById(`bank-tr-ops-${id}`),
             pmOps: document.getElementById(`bank-pm-ops-${id}`),
             sellPM: document.getElementById(`bank-sell-pm-${id}`),
@@ -91,11 +90,6 @@ export function updateBancosUI(insights = []) {
         if (ui.usdt) ui.usdt.textContent = fUSDT(usdtBal);
         if (ui.profit) ui.profit.textContent = `${fUSDT(bankProfit)} ≈ Profit Neto`;
         if (ui.trOps) ui.trOps.textContent = `${trf.buyCount + trf.sellCount} OPS`;
-
-        if (ui.ctot) {
-            const cycles = b.completedCycles ?? b.cycles ?? 0;
-            ui.ctot.textContent = cycles.toString();
-        }
 
         if (ui.pmOps) ui.pmOps.textContent = `${pm.buyCount + pm.sellCount} OPS`;
 
