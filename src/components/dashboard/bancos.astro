@@ -60,13 +60,9 @@ const banks = [
                     </div>
                 </div>
                 <div class="bg-black/40 border border-white/5 rounded-xl p-2 flex flex-col justify-between relative overflow-hidden min-h-[90px]">
-                    <div class="text-center pb-1.5 border-b border-white/5">
-                        <p class="text-[12px] text-rose-400 font-black uppercase tracking-widest mb-1 opacity-80 text-left px-1">Techo (-0.5%)</p>
+                    <div class="text-center flex-1 flex flex-col justify-center">
+                        <p id={`bank-breakeven-label-${b.id}`} class="text-[12px] text-rose-400 font-black uppercase tracking-widest mb-1 opacity-80 text-left px-1">Techo</p>
                         <p id={`bank-breakeven-${b.id}`} class="text-[20px] font-black text-white leading-none tracking-tighter">0.00</p>
-                    </div>
-                    <div class="text-center pt-1.5">
-                        <p class="text-[12px] text-emerald-400 font-black uppercase tracking-widest mb-1 opacity-80 text-left px-1">Ideal (-1.0%)</p>
-                        <p id={`bank-ideal-${b.id}`} class="text-[20px] font-black text-white leading-none tracking-tighter">0.00</p>
                     </div>
                     <div class="mt-2 text-center">
                         <span id={`bank-be-info-${b.id}`} class="text-[12px] px-2 py-0.5 rounded-full bg-white/5 text-white-500 font-bold uppercase tracking-tighter">Esperando...</span>

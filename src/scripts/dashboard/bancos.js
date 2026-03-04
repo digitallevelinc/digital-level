@@ -63,8 +63,8 @@ export function updateBancosUI(insights = []) {
             buyingPower: document.getElementById(`bank-buying-power-${id}`),
             opsCount: document.getElementById(`bank-ops-count-${id}`),
             // Missing BreakEven selectors
+            breakevenLabel: document.getElementById(`bank-breakeven-label-${id}`),
             breakeven: document.getElementById(`bank-breakeven-${id}`),
-            ideal: document.getElementById(`bank-ideal-${id}`),
             beInfo: document.getElementById(`bank-be-info-${id}`),
             pmBadge: document.getElementById(`bank-pm-badge-${id}`) // Select the new badge
         };
@@ -195,8 +195,12 @@ export function updateBancosUI(insights = []) {
 
         // Si la API trae 'ceilingRate' o 'breakEvenRate', lo usamos.
         const techo = safeFloat(b.ceilingRate || b.breakEvenRate || 0);
-        // Ideal: suele ser un spread sobre el techo
-        const ideal = safeFloat(b.idealRate || 0);
+        const baseVerificationPercent = safeFloat(b.verificationPercent);
+        const lastSellRole = String(b.lastSellRole || 'TAKER').toUpperCase();
+        const roleMultiplier = lastSellRole === 'MAKER' ? 2 : 1;
+        const appliedPercent = baseVerificationPercent > 0
+            ? baseVerificationPercent * roleMultiplier
+            : 0;
 
         // Eliminamos overrides manuales (Mercantil etc) porque el backend ya debe manejarlo.
         // Si el backend envía data limpia, confiamos.
@@ -205,8 +209,21 @@ export function updateBancosUI(insights = []) {
             ui.breakeven.textContent = techo > 0 ? techo.toFixed(2) : '0.00';
         }
 
-        if (ui.ideal) {
-            ui.ideal.textContent = ideal > 0 ? ideal.toFixed(2) : '0.00';
+        if (ui.breakevenLabel) {
+            ui.breakevenLabel.textContent = appliedPercent > 0
+                ? `Techo (-${appliedPercent.toFixed(2)}%)`
+                : 'Techo';
+
+            const verificationLevel = String(b.verificationLevel || '').trim();
+            const levelLabel = verificationLevel
+                ? verificationLevel.charAt(0).toUpperCase() + verificationLevel.slice(1)
+                : 'Sin nivel';
+            ui.breakevenLabel.title = [
+                `Nivel: ${levelLabel}`,
+                `Ultima venta: ${lastSellRole}`,
+                `Porcentaje base: ${baseVerificationPercent.toFixed(2)}%`,
+                `Porcentaje aplicado al techo: ${appliedPercent.toFixed(2)}%`,
+            ].join('\n');
         }
 
         // Status Pill (Esperando... / Gap)
