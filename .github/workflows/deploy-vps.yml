@@ -17,6 +17,24 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Validate VPS secrets
+        shell: bash
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_USER: ${{ secrets.VPS_USER }}
+          VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
+          VPS_PASSWORD: ${{ secrets.VPS_PASSWORD }}
+        run: |
+          set -euo pipefail
+          if [ -z "${VPS_HOST}" ] || [ -z "${VPS_USER}" ]; then
+            echo "Missing VPS_HOST or VPS_USER GitHub secret."
+            exit 1
+          fi
+          if [ -z "${VPS_SSH_KEY}" ] && [ -z "${VPS_PASSWORD}" ]; then
+            echo "Missing VPS_SSH_KEY and VPS_PASSWORD. Provide at least one."
+            exit 1
+          fi
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
@@ -29,12 +47,99 @@ jobs:
       - name: Build Project
         run: npm run build
 
-      - name: Deploy to VPS
-        uses: appleboy/scp-action@v0.1.7
-        with:
-          host: ${{ secrets.VPS_HOST }}
-          username: ${{ secrets.VPS_USER }}
-          key: ${{ secrets.VPS_SSH_KEY }}
-          source: "dist/*"
-          target: "/var/www/landing"
-          strip_components: 1
+      - name: Create deployment package
+        shell: bash
+        run: |
+          set -euo pipefail
+          tar -czf landing-dist.tar.gz -C dist .
+
+      - name: Show deployment package size
+        run: ls -lh landing-dist.tar.gz
+
+      - name: Prepare SSH client
+        shell: bash
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y openssh-client sshpass
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          ssh-keyscan -H "${VPS_HOST}" >> ~/.ssh/known_hosts 2>/dev/null || true
+          chmod 644 ~/.ssh/known_hosts
+          if [ -n "${VPS_SSH_KEY}" ]; then
+            printf '%s\n' "${VPS_SSH_KEY}" > ~/.ssh/deploy_key
+            chmod 600 ~/.ssh/deploy_key
+          fi
+
+      - name: Upload and deploy to VPS
+        shell: bash
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_USER: ${{ secrets.VPS_USER }}
+          VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
+          VPS_PASSWORD: ${{ secrets.VPS_PASSWORD }}
+        run: |
+          set -euo pipefail
+
+          if [ -n "${VPS_SSH_KEY}" ]; then
+            SSH_BASE=(ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=yes -o ConnectTimeout=20 -o ServerAliveInterval=15 -o ServerAliveCountMax=3)
+            SCP_BASE=(scp -i ~/.ssh/deploy_key -o StrictHostKeyChecking=yes -o ConnectTimeout=20 -o ServerAliveInterval=15 -o ServerAliveCountMax=3)
+          else
+            SSH_BASE=(sshpass -p "${VPS_PASSWORD}" ssh -o StrictHostKeyChecking=yes -o PreferredAuthentications=password -o PubkeyAuthentication=no -o ConnectTimeout=20 -o ServerAliveInterval=15 -o ServerAliveCountMax=3)
+            SCP_BASE=(sshpass -p "${VPS_PASSWORD}" scp -o StrictHostKeyChecking=yes -o PreferredAuthentications=password -o PubkeyAuthentication=no -o ConnectTimeout=20 -o ServerAliveInterval=15 -o ServerAliveCountMax=3)
+          fi
+
+          connected=0
+          for attempt in 1 2 3 4 5; do
+            echo "Bootstrap SSH attempt ${attempt}/5"
+            if "${SSH_BASE[@]}" "${VPS_USER}@${VPS_HOST}" "mkdir -p /var/www/landing"; then
+              connected=1
+              break
+            fi
+            sleep $((attempt * 10))
+          done
+
+          if [ "${connected}" -ne 1 ]; then
+            echo "Could not establish SSH session to prepare /var/www/landing"
+            exit 1
+          fi
+
+          uploaded=0
+          for attempt in 1 2 3 4 5; do
+            echo "SCP upload attempt ${attempt}/5"
+            if "${SCP_BASE[@]}" landing-dist.tar.gz "${VPS_USER}@${VPS_HOST}:/tmp/landing-dist.tar.gz"; then
+              uploaded=1
+              break
+            fi
+            sleep $((attempt * 10))
+          done
+
+          if [ "${uploaded}" -ne 1 ]; then
+            echo "Could not upload landing-dist.tar.gz to the VPS"
+            exit 1
+          fi
+
+          read -r -d '' REMOTE_SCRIPT <<'EOF' || true
+          set -euo pipefail
+          rm -rf /var/www/landing/*
+          tar -xzf /tmp/landing-dist.tar.gz -C /var/www/landing
+          rm -f /tmp/landing-dist.tar.gz
+          EOF
+
+          deployed=0
+          for attempt in 1 2 3; do
+            echo "Remote deploy attempt ${attempt}/3"
+            if printf '%s\n' "${REMOTE_SCRIPT}" | "${SSH_BASE[@]}" "${VPS_USER}@${VPS_HOST}" "bash -se"; then
+              deployed=1
+              break
+            fi
+            sleep $((attempt * 15))
+          done
+
+          if [ "${deployed}" -ne 1 ]; then
+            echo "Remote deploy failed after retries"
+            exit 1
+          fi
