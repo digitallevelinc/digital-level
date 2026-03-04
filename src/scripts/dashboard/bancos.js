@@ -6,6 +6,15 @@ const safeFloat = (val) => {
     return Number(val.toString().replace(',', '.')) || 0;
 };
 
+const formatUsdtPlain = (val) =>
+    `${Number(val || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USDT`;
+
+const formatSignedUsdtPlain = (val) => {
+    const num = Number(val || 0);
+    const sign = num > 0 ? '+' : '';
+    return `${sign}${num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USDT`;
+};
+
 export function updateBancosUI(insights = []) {
     if (!insights) return;
 
@@ -66,6 +75,11 @@ export function updateBancosUI(insights = []) {
             breakevenLabel: document.getElementById(`bank-breakeven-label-${id}`),
             breakeven: document.getElementById(`bank-breakeven-${id}`),
             beInfo: document.getElementById(`bank-be-info-${id}`),
+            beMeta: document.getElementById(`bank-be-meta-${id}`),
+            beSale: document.getElementById(`bank-be-sale-${id}`),
+            spreadFormula: document.getElementById(`bank-spread-formula-${id}`),
+            spreadUsdt: document.getElementById(`bank-spread-usdt-${id}`),
+            spreadPercent: document.getElementById(`bank-spread-percent-${id}`),
             pmBadge: document.getElementById(`bank-pm-badge-${id}`) // Select the new badge
         };
 
@@ -103,6 +117,9 @@ export function updateBancosUI(insights = []) {
         // 1. Header TRF Count (Total Transferencias)
         if (ui.trOps) {
             ui.trOps.textContent = `${b.trf.buyCount + b.trf.sellCount} OPS`;
+        }
+        if (ui.profit) {
+            ui.profit.textContent = `${fUSDT(bankProfit)} ≈ Profit Neto`;
         }
 
         // Vueltas P2P (Legacy vs V2)
@@ -197,10 +214,23 @@ export function updateBancosUI(insights = []) {
         const techo = safeFloat(b.ceilingRate || b.breakEvenRate || 0);
         const baseVerificationPercent = safeFloat(b.verificationPercent);
         const lastSellRole = String(b.lastSellRole || 'TAKER').toUpperCase();
-        const roleMultiplier = lastSellRole === 'MAKER' ? 2 : 1;
-        const appliedPercent = baseVerificationPercent > 0
-            ? baseVerificationPercent * roleMultiplier
-            : 0;
+        const appliedPercent = safeFloat(
+            b.ceilingAppliedPercent !== undefined
+                ? b.ceilingAppliedPercent
+                : (baseVerificationPercent > 0
+                    ? baseVerificationPercent * (lastSellRole === 'MAKER' ? 2 : 1)
+                    : 0)
+        );
+        const lastSellRate = safeFloat(b.lastSellRate);
+        const realizedFiatBase = safeFloat(b.realizedFiatBase);
+        const spreadBuyUsdt = safeFloat(b.spreadBuyUsdt);
+        const spreadSellUsdt = safeFloat(b.spreadSellUsdt);
+        const spreadProfitUsdt = safeFloat(b.spreadProfitUsdt);
+        const profitPercent = safeFloat(b.profitPercent || b.margin);
+        const verificationLevel = String(b.verificationLevel || '').trim();
+        const levelLabel = verificationLevel
+            ? verificationLevel.charAt(0).toUpperCase() + verificationLevel.slice(1)
+            : 'Sin nivel';
 
         // Eliminamos overrides manuales (Mercantil etc) porque el backend ya debe manejarlo.
         // Si el backend envía data limpia, confiamos.
@@ -213,17 +243,22 @@ export function updateBancosUI(insights = []) {
             ui.breakevenLabel.textContent = appliedPercent > 0
                 ? `Techo (-${appliedPercent.toFixed(2)}%)`
                 : 'Techo';
-
-            const verificationLevel = String(b.verificationLevel || '').trim();
-            const levelLabel = verificationLevel
-                ? verificationLevel.charAt(0).toUpperCase() + verificationLevel.slice(1)
-                : 'Sin nivel';
             ui.breakevenLabel.title = [
                 `Nivel: ${levelLabel}`,
                 `Ultima venta: ${lastSellRole}`,
                 `Porcentaje base: ${baseVerificationPercent.toFixed(2)}%`,
                 `Porcentaje aplicado al techo: ${appliedPercent.toFixed(2)}%`,
             ].join('\n');
+        }
+
+        if (ui.beMeta) {
+            ui.beMeta.textContent = `${levelLabel} ${baseVerificationPercent.toFixed(2)}%`;
+        }
+
+        if (ui.beSale) {
+            ui.beSale.textContent = lastSellRate > 0
+                ? `${lastSellRole} ${lastSellRate.toFixed(2)}`
+                : `${lastSellRole} --`;
         }
 
         // Status Pill (Esperando... / Gap)
@@ -247,6 +282,35 @@ export function updateBancosUI(insights = []) {
 
 
         // 2. Lógica de la Barra de Ciclo (Tricolor)
+        if (ui.spreadFormula) {
+            if (realizedFiatBase > 0 && buyRate > 0 && sellRate > 0) {
+                ui.spreadFormula.textContent =
+                    `(${fVES(realizedFiatBase)} / ${buyRate.toFixed(2)}) - (${fVES(realizedFiatBase)} / ${sellRate.toFixed(2)})`;
+            } else {
+                ui.spreadFormula.textContent = '(0 VES / --) - (0 VES / --)';
+            }
+        }
+
+        if (ui.spreadUsdt) {
+            if (realizedFiatBase > 0 && buyRate > 0 && sellRate > 0) {
+                ui.spreadUsdt.textContent =
+                    `${formatSignedUsdtPlain(spreadProfitUsdt)} · Neto ${formatSignedUsdtPlain(bankProfit)}`;
+                ui.spreadUsdt.textContent =
+                    `${formatSignedUsdtPlain(spreadProfitUsdt)} | Neto ${formatSignedUsdtPlain(bankProfit)}`;
+                ui.spreadUsdt.className = `text-[15px] font-black tracking-tight ${spreadProfitUsdt >= 0 ? 'text-emerald-400' : 'text-rose-400'}`;
+                ui.spreadUsdt.title =
+                    `${formatUsdtPlain(spreadBuyUsdt)} - ${formatUsdtPlain(spreadSellUsdt)} = ${formatSignedUsdtPlain(spreadProfitUsdt)}`;
+            } else {
+                ui.spreadUsdt.textContent = '0.00 USDT';
+                ui.spreadUsdt.className = 'text-[15px] font-black tracking-tight text-slate-400';
+            }
+        }
+
+        if (ui.spreadPercent) {
+            ui.spreadPercent.textContent = `${profitPercent.toFixed(2)}%`;
+            ui.spreadPercent.className = `text-[12px] font-black uppercase tracking-[0.12em] ${profitPercent >= 0 ? 'text-[#F3BA2F]' : 'text-rose-400'}`;
+        }
+
         if (ui.barRecompra && ui.barComprado && ui.barProfit) {
             let pRecompra = 0;
             let pComprado = 0;
