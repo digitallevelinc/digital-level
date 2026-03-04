@@ -1,0 +1,86 @@
+---
+import CardHelp from './CardHelp.astro';
+---
+<div id="balance-module" class="overflow-hidden rounded-3xl border border-white/8 bg-[#0b0f14] shadow-[0_18px_48px_rgba(0,0,0,0.28)]">
+    <div class="px-4 py-5 md:px-6">
+        <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+            <div>
+                <p class="text-[11px] font-black uppercase tracking-[0.24em] text-[#F3BA2F]">Balance Module</p>
+                <h3 class="mt-2 text-[1.45rem] font-black uppercase tracking-[0.04em] text-white md:text-[1.75rem]">Control de Capital</h3>
+                <p class="mt-2 max-w-3xl text-[15px] leading-7 text-white/60">
+                    Resumen de balances y extracto operativo
+                    <span class="font-black text-white/82">RED / PAY / P2P</span>.
+                    El fiat se muestra abajo en pequeno y los negativos van en rojo.
+                </p>
+            </div>
+            <CardHelp
+                title="Control de Capital"
+                description="Lectura compacta de balances y movimientos recientes para seguir el capital operativo."
+                calculation="Cada fila clasifica el flujo en RED, PAY o P2P. El monto principal usa signo segun la direccion del movimiento y el fiat queda debajo como referencia secundaria."
+                notes={[
+                    "Negativos en rojo.",
+                    "Resumen fijo arriba, detalle plegable abajo.",
+                    "Reemplaza el bloque anterior de logistica de carteras."
+                ]}
+                align="left"
+            />
+        </div>
+
+        <div id="balance-summary" class="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            <div class="rounded-2xl border border-white/8 bg-white/[0.02] px-4 py-4">
+                <div class="text-[11px] font-black uppercase tracking-[0.18em] text-white/45">P2P</div>
+                <div data-balance-value class="mt-2 text-[1.85rem] font-black text-white">$0.00</div>
+                <div data-balance-sub class="mt-1 text-[12px] font-medium text-white/38">Balance actual</div>
+            </div>
+            <div class="rounded-2xl border border-white/8 bg-white/[0.02] px-4 py-4">
+                <div class="text-[11px] font-black uppercase tracking-[0.18em] text-white/45">PAY</div>
+                <div data-balance-value class="mt-2 text-[1.85rem] font-black text-white">$0.00</div>
+                <div data-balance-sub class="mt-1 text-[12px] font-medium text-white/38">Balance actual</div>
+            </div>
+            <div class="rounded-2xl border border-white/8 bg-white/[0.02] px-4 py-4">
+                <div class="text-[11px] font-black uppercase tracking-[0.18em] text-white/45">RED</div>
+                <div data-balance-value class="mt-2 text-[1.85rem] font-black text-white">$0.00</div>
+                <div data-balance-sub class="mt-1 text-[12px] font-medium text-white/38">Balance actual</div>
+            </div>
+            <div class="rounded-2xl border border-white/8 bg-white/[0.02] px-4 py-4">
+                <div class="text-[11px] font-black uppercase tracking-[0.18em] text-white/45">FIAT</div>
+                <div data-balance-value class="mt-2 text-[1.85rem] font-black text-emerald-400">0.00 VES</div>
+                <div data-balance-sub class="mt-1 text-[12px] font-medium text-white/38">≈ 0.00 USD</div>
+            </div>
+        </div>
+
+        <div id="balance-switch-pill" class="mt-4 hidden">
+            <div class="inline-flex items-center gap-3 rounded-full border border-white/8 bg-white/[0.02] px-4 py-2 text-[11px] font-black uppercase tracking-[0.18em] text-white/45">
+                <span>Switch</span>
+                <span id="balance-switch-value" class="text-white/80">$0.00</span>
+            </div>
+        </div>
+    </div>
+
+    <details id="balance-ledger-disclosure" class="border-t border-white/8">
+        <summary class="flex cursor-pointer list-none items-center justify-between gap-4 px-4 py-4 md:px-6">
+            <div>
+                <div class="text-[13px] font-black uppercase tracking-[0.14em] text-white">Movimientos</div>
+                <div id="balance-ledger-count" class="mt-1 text-sm text-white/45">Sincronizando extracto...</div>
+            </div>
+            <div class="flex items-center gap-3 text-[11px] font-black uppercase tracking-[0.16em] text-white/45">
+                <span>Ver detalle</span>
+                <span class="text-lg leading-none text-white/70">+</span>
+            </div>
+        </summary>
+
+        <div class="hidden grid-cols-[120px_minmax(0,1.6fr)_92px_130px_140px] gap-4 border-t border-white/8 px-6 py-3 text-[11px] font-black uppercase tracking-[0.16em] text-white/30 lg:grid">
+            <span>Fecha</span>
+            <span>Descripcion</span>
+            <span class="text-center">Tipo</span>
+            <span class="text-right">Monto</span>
+            <span class="text-right">Balance</span>
+        </div>
+
+        <div id="balance-ledger-body" class="divide-y divide-white/8">
+            <div class="px-6 py-8 text-center text-[15px] font-medium text-white/45">
+                Sincronizando movimientos...
+            </div>
+        </div>
+    </details>
+</div>

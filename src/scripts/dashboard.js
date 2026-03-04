@@ -2,11 +2,6 @@
 import flatpickr from "flatpickr";
 import { Spanish } from "flatpickr/dist/l10n/es.js";
 import { fUSDT, fVES, inject } from './dashboard/utils.js';
-import { updateRedSection } from './dashboard/red.js';
-import { updatePaySection } from './dashboard/pay.js';
-import { updateSwitchSection } from './dashboard/switch.js';
-import { updateP2PSection } from './dashboard/p2p.js';
-import { updateFiatSection } from './dashboard/fiat.js';
 import { updateCiclosUI } from './dashboard/ciclos.js';
 import { updateDispersorUI } from './dashboard/dispersor.js';
 import { updateProfitUI } from './dashboard/profit.js';
@@ -16,6 +11,7 @@ import { updateProyeccionesUI } from './dashboard/proyecciones.js';
 import { updateComisionesUI } from './dashboard/comisiones.js';
 import { updateOperacionesUI } from './dashboard/operaciones.js';
 import { updateBancosUI } from './dashboard/bancos.js';
+import { updateBalanceLedgerUI } from './dashboard/balanceLedger.js';
 import { updateSidebarMonitor } from './dashboard/SidebarMonitor.js';
 import { initActiveAdsToggle, refreshActiveAds } from './dashboard/activeAds.js';
 import { initCardHelpTooltips } from './dashboard/cardHelp.js';
@@ -270,6 +266,15 @@ function buildKpiUrl(API_BASE, range = {}) {
     return `${API_BASE}/api/kpis${params.toString() ? `?${params.toString()}` : ''}`;
 }
 
+function buildTransfersUrl(API_BASE, range = {}, limit = 10) {
+    const params = new URLSearchParams();
+    if (range?.from) params.set('from', range.from);
+    if (range?.to) params.set('to', range.to);
+    params.set('limit', String(limit));
+    params.set('_ts', String(Date.now()));
+    return `${API_BASE}/api/transfers?${params.toString()}`;
+}
+
 async function fetchDashboardKpis(API_BASE, token, range = {}, signal) {
     const res = await fetch(buildKpiUrl(API_BASE, range), {
         headers: {
@@ -298,6 +303,32 @@ async function fetchDashboardKpis(API_BASE, token, range = {}, signal) {
     }
 
     return await res.json();
+}
+
+async function fetchDashboardTransfers(API_BASE, token, range = {}, signal) {
+    try {
+        const res = await fetch(buildTransfersUrl(API_BASE, range), {
+            headers: {
+                'Authorization': `Bearer ${token}`
+            },
+            cache: 'no-store',
+            signal
+        });
+
+        if (!res.ok) {
+            if (res.status === 401 || res.status === 403) {
+                handleExpiredSession();
+                return { transfers: [] };
+            }
+            return { transfers: [] };
+        }
+
+        return await res.json();
+    } catch (error) {
+        if (error?.name === 'AbortError') throw error;
+        console.warn('No fue posible cargar extracto de balance:', error);
+        return { transfers: [] };
+    }
 }
 
 function normalizeKpiBankData(kpis = {}) {
@@ -414,8 +445,9 @@ export async function updateDashboard(API_BASE, token, alias, range = {}, opts =
         const updateEl = document.getElementById('last-update');
         if (updateEl) updateEl.textContent = "Sincronizando con Sentinel...";
 
-        const [kpis, sidebarKpisRaw] = await Promise.all([
+        const [kpis, transfersPayload, sidebarKpisRaw] = await Promise.all([
             fetchDashboardKpis(API_BASE, token, mainRange, dashboardAbortController.signal),
+            fetchDashboardTransfers(API_BASE, token, mainRange, dashboardAbortController.signal),
             shouldReuseMainForSidebar
                 ? Promise.resolve(null)
                 : fetchDashboardKpis(API_BASE, token, sidebarRange, dashboardAbortController.signal)
@@ -566,11 +598,7 @@ export async function updateDashboard(API_BASE, token, alias, range = {}, opts =
         updateProyeccionesUI(kpis, range);
 
         // --- SECCIONES DE CARTERAS (LOGÍSTICA) ---
-        updateRedSection(kpis);
-        updatePaySection(kpis);
-        updateSwitchSection(kpis);
-        updateP2PSection(kpis);
-        updateFiatSection(kpis, bankData);
+        updateBalanceLedgerUI(kpis, transfersPayload);
         await refreshActiveAds(API_BASE, token, {
             signal: dashboardAbortController?.signal,
             onAuthError: handleExpiredSession

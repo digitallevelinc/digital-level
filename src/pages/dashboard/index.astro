@@ -4,11 +4,7 @@ import DashboardLayout from '../../layouts/DashboardLayout.astro';
 import StatCard from '../../components/dashboard/StatCard.astro';
 import Operaciones from '../../components/dashboard/operaciones.astro';
 import Comisiones from '../../components/dashboard/comisiones.astro';
-import P2P from '../../components/dashboard/p2p.astro';
-import Pay from '../../components/dashboard/pay.astro';
-import Red from '../../components/dashboard/red.astro';
-import Switch from '../../components/dashboard/switch.astro';
-import Fiat from '../../components/dashboard/fiat.astro';
+import BalanceLedger from '../../components/dashboard/BalanceLedger.astro';
 import Bancos from '../../components/dashboard/bancos.astro';
 import Ciclos from '../../components/dashboard/ciclos.astro';
 import Dispersor from '../../components/dashboard/dispersor.astro';
@@ -179,13 +175,7 @@ import 'flatpickr/dist/themes/dark.css';
     <h2 class="text-[#F3BA2F] text-[12px] font-black uppercase tracking-[0.3em] mb-6 italic flex items-center gap-3 px-2">
       <span class="w-1.5 h-4 bg-[#F3BA2F]"></span> 3. LOGISTICA DE CARTERAS (BALANCES INTERNOS)
     </h2>
-    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-      <P2P />
-      <Pay />
-      <Red />
-      <Switch />
-      <Fiat />
-    </div>
+    <BalanceLedger />
   </section>
 
   <section class="pb-28">
