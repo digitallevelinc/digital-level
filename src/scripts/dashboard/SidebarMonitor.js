@@ -69,11 +69,18 @@ function getBankMonitorSummary(kpis = {}, bankInsights = []) {
         (sum, bank) => sum + Number(bank.spreadSellUsdt || 0),
         0
     );
+    const avgSellRateFromBanks = average(
+        banks.map((bank) => bank.sellRate ?? bank.weightedAvgSellRate ?? bank.avgSellRate)
+    );
+    const avgSellRate = Number(kpis?.bankSummary?.generalSellRate || 0) > 0
+        ? Number(kpis.bankSummary.generalSellRate)
+        : avgSellRateFromBanks;
 
     return {
         levelLabel,
         verificationPercent: Number(firstPercent || 0),
         avgCeilingRate: average(ceilingBanks.map((bank) => bank.ceilingRate)),
+        avgSellRate,
         spreadProfitUsdt,
         spreadPercent: spreadBaseUsdt > 0 ? (spreadProfitUsdt / spreadBaseUsdt) * 100 : 0,
         banksWithCeiling: ceilingBanks.length,
@@ -87,13 +94,19 @@ function buildSpreadLabel(bank) {
 }
 
 function buildPagoMovilLabel(bank, config = {}) {
-    const limit = Number(config.pagoMovilLimitVes || 0);
+    const limits = config?.bankPagoMovilLimitsVes && typeof config.bankPagoMovilLimitsVes === 'object'
+        ? config.bankPagoMovilLimitsVes
+        : config?.bankSpendLimitsVes && typeof config.bankSpendLimitsVes === 'object'
+            ? config.bankSpendLimitsVes
+        : {};
+    const key = normalizeBankLimitKey(bank);
+    const limit = Number(limits?.[key] || 0);
     const consumed = Number(bank.pm?.buyVol || 0);
 
     if (limit <= 0) {
         return {
             value: '0.00 / 0.00',
-            meta: 'Sin monto cargado',
+            meta: 'Sin tope global',
             progress: 0,
         };
     }
@@ -101,7 +114,9 @@ function buildPagoMovilLabel(bank, config = {}) {
     const remaining = Math.max(0, limit - consumed);
     return {
         value: `${fVESInline(remaining)} / ${fVESInline(limit)}`,
-        meta: `${fVESInline(consumed)} usado`,
+        meta: consumed <= limit
+            ? `${fVESInline(consumed)} usado`
+            : `Exceso ${fVESInline(consumed - limit)}`,
         progress: clampPercent((consumed / limit) * 100),
     };
 }
@@ -171,13 +186,14 @@ export function updateSidebarMonitor(kpis = {}, bankInsights = []) {
     inject('side-ceiling-level-label', `TECHO (${String(bankSummary.levelLabel || 'Sin nivel').toUpperCase()})`);
     inject('side-ceiling-level-value', bankSummary.avgCeilingRate > 0 ? formatPlain(bankSummary.avgCeilingRate) : '0.00');
     inject('side-ceiling-level-meta', `${formatPlain(bankSummary.verificationPercent)}% | Prom. de techos`);
+    inject('side-ceiling-sell-rate', `Venta prom: ${formatPlain(bankSummary.avgSellRate)}`);
     inject('side-ceiling-level-badge', `${bankSummary.banksWithCeiling} Bancos`);
     inject('side-spread-value', formatSignedUsdt(bankSummary.spreadProfitUsdt));
     inject('side-spread-meta', `${formatPlain(bankSummary.spreadPercent)}%`);
 
     const spreadEl = document.getElementById('side-spread-value');
     if (spreadEl) {
-        spreadEl.className = `text-[1.05rem] mt-2 font-mono font-black tracking-tight ${bankSummary.spreadProfitUsdt >= 0 ? 'text-emerald-400' : 'text-rose-400'}`;
+        spreadEl.className = `text-[1.2rem] mt-2 font-mono font-black tracking-tight ${bankSummary.spreadProfitUsdt >= 0 ? 'text-emerald-400' : 'text-rose-400'}`;
     }
 
     const alias = audit.operatorAlias || kpis.operatorAlias || 'N/A';
@@ -244,38 +260,38 @@ export function updateSidebarMonitor(kpis = {}, bankInsights = []) {
         const spreadLabel = buildSpreadLabel(bank);
 
         const div = document.createElement('div');
-        div.className = 'bg-white/[0.02] p-3 rounded-xl border border-white/5 flex flex-col gap-2 transition-all hover:bg-white/[0.04]';
+        div.className = 'bg-white/[0.02] p-4 rounded-xl border border-white/5 flex flex-col gap-2.5 transition-all hover:bg-white/[0.04]';
         div.innerHTML = `
             <div class="flex justify-between items-start">
                 <div class="flex flex-col">
-                    <span class="text-xs font-black text-white uppercase italic tracking-wider">${bank.bankName || bank.bank}</span>
-                    <span class="text-[10px] text-[#F3BA2F] font-black uppercase mt-1 tracking-wide">
+                    <span class="text-[13px] font-black text-white uppercase italic tracking-wider">${bank.bankName || bank.bank}</span>
+                    <span class="text-[11px] text-[#F3BA2F] font-black uppercase mt-1 tracking-wide">
                         ${ops} Ops | ${activeVerdicts} Activas
                     </span>
                 </div>
                 <div class="text-right">
-                    <span class="text-sm font-mono font-black ${Number(bank.profit || 0) >= 0 ? 'text-emerald-400' : 'text-rose-500'} tracking-tight">${formatSignedUsdt(bank.profit || 0)}</span>
+                    <span class="text-[1rem] font-mono font-black ${Number(bank.profit || 0) >= 0 ? 'text-emerald-400' : 'text-rose-500'} tracking-tight">${formatSignedUsdt(bank.profit || 0)}</span>
                     <span class="text-[9px] text-gray-500 block font-black uppercase tracking-wider">Profit Neto</span>
                 </div>
             </div>
-            <div class="text-[12px] font-mono font-black tracking-tight text-white/90 mt-1">
+            <div class="text-[13px] font-mono font-black tracking-tight text-white/90 mt-1">
                 ${spreadLabel}
             </div>
             <div class="flex items-center justify-between gap-3 mt-1">
-                <span class="text-[10px] text-slate-500 font-black uppercase tracking-[0.18em]">Pago Movil</span>
-                <span class="text-[10px] text-slate-500 font-black tracking-tight">${pagoMovil.meta}</span>
+                <span class="text-[11px] text-slate-500 font-black uppercase tracking-[0.18em]">Pago Movil</span>
+                <span class="text-[11px] text-slate-500 font-black tracking-tight">${pagoMovil.meta}</span>
             </div>
-            <div class="text-[12px] font-mono font-black tracking-tight text-white/90">
+            <div class="text-[13px] font-mono font-black tracking-tight text-white/90">
                 ${pagoMovil.value}
             </div>
             <div class="h-1.5 w-full bg-white/10 rounded-full overflow-hidden mt-1">
                 <div class="h-full bg-[#F3BA2F] transition-all duration-700 ease-out" style="width: ${pagoMovil.progress}%"></div>
             </div>
             <div class="flex items-center justify-between gap-3 mt-2">
-                <span class="text-[10px] text-slate-500 font-black uppercase tracking-[0.18em]">Control VES</span>
-                <span class="text-[10px] text-slate-500 font-black tracking-tight">${vesLimit.meta}</span>
+                <span class="text-[11px] text-slate-500 font-black uppercase tracking-[0.18em]">Control VES</span>
+                <span class="text-[11px] text-slate-500 font-black tracking-tight">${vesLimit.meta}</span>
             </div>
-            <div class="text-[12px] font-mono font-black tracking-tight text-white/90">
+            <div class="text-[13px] font-mono font-black tracking-tight text-white/90">
                 ${vesLimit.value}
             </div>
             <div class="h-1.5 w-full bg-white/10 rounded-full overflow-hidden mt-1">
