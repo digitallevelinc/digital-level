@@ -15,12 +15,6 @@ function fVESInline(value) {
     });
 }
 
-function formatSignedVesInline(value) {
-    const amount = Number(value || 0);
-    const sign = amount < 0 ? '-' : '';
-    return `${sign}${fVESInline(Math.abs(amount))}`;
-}
-
 function formatPlain(value, digits = 2) {
     return Number(value || 0).toLocaleString('es-VE', {
         minimumFractionDigits: digits,
@@ -34,18 +28,33 @@ function formatSignedUsdt(value) {
     return `${sign}${formatPlain(amount)} USDT`;
 }
 
-function average(values = []) {
-    const valid = values
-        .map((value) => Number(value || 0))
-        .filter((value) => Number.isFinite(value) && value > 0);
+function formatUsdtInline(value) {
+    return `${formatPlain(value)} USDT`;
+}
 
-    if (valid.length === 0) return 0;
-    return valid.reduce((sum, value) => sum + value, 0) / valid.length;
+function weightedAverage(items = [], getValue = () => 0, getWeight = () => 0) {
+    let weightedSum = 0;
+    let totalWeight = 0;
+
+    items.forEach((item) => {
+        const value = Number(getValue(item) || 0);
+        const weight = Number(getWeight(item) || 0);
+        if (!Number.isFinite(value) || value <= 0) return;
+        if (!Number.isFinite(weight) || weight <= 0) return;
+        weightedSum += value * weight;
+        totalWeight += weight;
+    });
+
+    if (totalWeight <= 0) return 0;
+    return weightedSum / totalWeight;
 }
 
 function getBankMonitorSummary(kpis = {}, bankInsights = []) {
     const banks = Array.isArray(bankInsights) ? bankInsights : [];
     const ceilingBanks = banks.filter((bank) => Number(bank.ceilingRate || 0) > 0);
+    const sellReferenceBanks = banks.filter(
+        (bank) => Number(bank.lastSellRate || bank.sellRate || bank.weightedAvgSellRate || bank.avgSellRate || 0) > 0
+    );
     const spreadBanks = banks.filter(
         (bank) => Number(bank.spreadSellUsdt || 0) > 0 || Number(bank.spreadProfitUsdt || 0) !== 0
     );
@@ -69,17 +78,37 @@ function getBankMonitorSummary(kpis = {}, bankInsights = []) {
         (sum, bank) => sum + Number(bank.spreadSellUsdt || 0),
         0
     );
-    const avgSellRateFromBanks = average(
-        banks.map((bank) => bank.sellRate ?? bank.weightedAvgSellRate ?? bank.avgSellRate)
+    const getSellWeight = (bank) => {
+        const sellFiat = Number(bank.sellFiat || 0);
+        if (sellFiat > 0) return sellFiat;
+
+        const sellVolUsdt = Number(bank.sellVolUSDT || bank.realizedVolumeUSDT || bank.spreadSellUsdt || 0);
+        const sellRate = Number(bank.lastSellRate || bank.sellRate || bank.weightedAvgSellRate || bank.avgSellRate || 0);
+        if (sellVolUsdt > 0 && sellRate > 0) return sellVolUsdt * sellRate;
+        return sellVolUsdt > 0 ? sellVolUsdt : 0;
+    };
+
+    const avgSellRateFromBanks = weightedAverage(
+        sellReferenceBanks,
+        (bank) => bank.lastSellRate ?? bank.sellRate ?? bank.weightedAvgSellRate ?? bank.avgSellRate,
+        getSellWeight
     );
-    const avgSellRate = Number(kpis?.bankSummary?.generalSellRate || 0) > 0
-        ? Number(kpis.bankSummary.generalSellRate)
-        : avgSellRateFromBanks;
+    const avgCeilingRateFromBanks = weightedAverage(
+        ceilingBanks,
+        (bank) => bank.ceilingRate,
+        getSellWeight
+    );
+    const avgSellRate = avgSellRateFromBanks > 0
+        ? avgSellRateFromBanks
+        : Number(kpis?.bankSummary?.generalSellRate || 0);
+    const avgCeilingRate = avgCeilingRateFromBanks > 0
+        ? avgCeilingRateFromBanks
+        : Number(kpis?.bankSummary?.generalCeilingRate || 0);
 
     return {
         levelLabel,
         verificationPercent: Number(firstPercent || 0),
-        avgCeilingRate: average(ceilingBanks.map((bank) => bank.ceilingRate)),
+        avgCeilingRate,
         avgSellRate,
         spreadProfitUsdt,
         spreadPercent: spreadBaseUsdt > 0 ? (spreadProfitUsdt / spreadBaseUsdt) * 100 : 0,
@@ -121,8 +150,8 @@ function buildPagoMovilLabel(bank, config = {}) {
     };
 }
 
-function normalizeBankLimitKey(bank) {
-    const raw = String(bank?.bankName || bank?.bank || '').trim().toLowerCase();
+function normalizeBankName(value) {
+    const raw = String(value || '').trim().toLowerCase();
     if (!raw) return '';
     if (raw.includes('bbva') || raw.includes('provincial')) return 'provincial';
     if (raw.includes('mercantil')) return 'mercantil';
@@ -133,31 +162,180 @@ function normalizeBankLimitKey(bank) {
     return raw.replace(/\s+/g, '');
 }
 
-function buildBankVesLimitLabel(bank, config = {}) {
-    const limits = config?.bankSpendLimitsVes && typeof config.bankSpendLimitsVes === 'object'
-        ? config.bankSpendLimitsVes
-        : {};
-    const key = normalizeBankLimitKey(bank);
-    const limit = Number(limits?.[key] || 0);
-    const current = Number(bank?.fiatBalance || 0);
+function normalizeBankLimitKey(bank) {
+    return normalizeBankName(bank?.bankName || bank?.bank || '');
+}
 
-    if (limit <= 0) {
+function isPromiseVerdict(verdict) {
+    const parseMode = String(verdict?.parseMode || '').trim().toUpperCase();
+    if (parseMode === 'PROMISE' || parseMode === 'GLOBAL_PROMISE') return true;
+    return Number(verdict?.expectedRebuyUsdt || 0) > 0 || Number(verdict?.expectedRebuyFiat || 0) > 0;
+}
+
+function buildPromiseSummaryByBank(kpis = {}) {
+    const openVerdicts = Array.isArray(kpis?.judge?.openVerdicts) ? kpis.judge.openVerdicts : [];
+    const summary = new Map();
+
+    openVerdicts.forEach((verdict) => {
+        if (!isPromiseVerdict(verdict)) return;
+
+        const bankKey = normalizeBankName(verdict?.paymentMethod);
+        if (!bankKey) return;
+
+        const fallbackUsdt = Number(verdict?.saleAmount || 0);
+        const fallbackFiat = Number(verdict?.fiatReceived || 0);
+        const expectedUsdt = Number(verdict?.expectedRebuyUsdt ?? fallbackUsdt);
+        const expectedFiat = Number(verdict?.expectedRebuyFiat ?? fallbackFiat);
+        const consumedUsdt = Math.max(0, Number(verdict?.consumedRebuyUsdt || 0));
+        const consumedFiat = Math.max(0, Number(verdict?.consumedRebuyFiat || 0));
+        const boundedConsumedUsdt = Math.min(consumedUsdt, expectedUsdt);
+        const boundedConsumedFiat = Math.min(consumedFiat, expectedFiat);
+        const pendingUsdt = Math.max(0, expectedUsdt - boundedConsumedUsdt);
+        const pendingFiat = Math.max(0, expectedFiat - boundedConsumedFiat);
+        const status = String(verdict?.status || '').toUpperCase();
+
+        const bucket = summary.get(bankKey) || {
+            promisedUsdt: 0,
+            promisedFiat: 0,
+            pendingUsdt: 0,
+            pendingFiat: 0,
+            activePromises: 0,
+        };
+
+        bucket.promisedUsdt += expectedUsdt;
+        bucket.promisedFiat += expectedFiat;
+        bucket.pendingUsdt += pendingUsdt;
+        bucket.pendingFiat += pendingFiat;
+        if (status !== 'CLOSED') {
+            bucket.activePromises += 1;
+        }
+
+        summary.set(bankKey, bucket);
+    });
+
+    return summary;
+}
+
+function buildPromiseLabel(bank, promiseSummaryByBank = new Map()) {
+    const key = normalizeBankLimitKey(bank);
+    const promise = promiseSummaryByBank.get(key) || {
+        promisedUsdt: 0,
+        promisedFiat: 0,
+        pendingUsdt: 0,
+        pendingFiat: 0,
+        activePromises: 0,
+    };
+    const pendingUsdt = Number(promise.pendingUsdt || 0);
+    const pendingFiat = Number(promise.pendingFiat || 0);
+    const promisedUsdt = Number(promise.promisedUsdt || 0);
+
+    return {
+        value: `${formatUsdtInline(pendingUsdt)} | ${fVESInline(pendingFiat)} VES`,
+        meta: promise.activePromises > 0
+            ? `${promise.activePromises} activa${promise.activePromises === 1 ? '' : 's'}`
+            : 'Sin promesa activa',
+        progress: promisedUsdt > 0 ? clampPercent((pendingUsdt / promisedUsdt) * 100) : 0,
+        pendingUsdt,
+        pendingFiat,
+        activePromises: Number(promise.activePromises || 0),
+    };
+}
+
+function buildVesControlSummaryByBank(kpis = {}) {
+    const openVerdicts = Array.isArray(kpis?.judge?.openVerdicts) ? kpis.judge.openVerdicts : [];
+    const summary = new Map();
+
+    openVerdicts.forEach((verdict) => {
+        const bankKey = normalizeBankName(verdict?.paymentMethod);
+        if (!bankKey) return;
+
+        const saleRate = Number(verdict?.saleRate || 0);
+        const fallbackExpectedFiat = Number(verdict?.fiatReceived || 0);
+        const expectedUsdt = Number(verdict?.expectedRebuyUsdt ?? verdict?.saleAmount ?? 0);
+        const expectedFiat = Number(
+            verdict?.expectedRebuyFiat
+            ?? (expectedUsdt > 0 && saleRate > 0 ? expectedUsdt * saleRate : fallbackExpectedFiat)
+            ?? 0
+        );
+
+        let remainingFiat = Number(verdict?.remainingFiat);
+        if (!Number.isFinite(remainingFiat)) {
+            const consumedFiat = Number(verdict?.consumedRebuyFiat || 0);
+            remainingFiat = Math.max(0, expectedFiat - Math.max(0, consumedFiat));
+        }
+
+        const boundedExpected = Math.max(0, expectedFiat);
+        const boundedRemaining = Math.min(Math.max(0, remainingFiat), boundedExpected);
+        const consumed = Math.max(0, boundedExpected - boundedRemaining);
+
+        const bucket = summary.get(bankKey) || {
+            inflowFiat: 0,
+            availableFiat: 0,
+            consumedFiat: 0,
+            activeVerdicts: 0,
+        };
+
+        bucket.inflowFiat += boundedExpected;
+        bucket.availableFiat += boundedRemaining;
+        bucket.consumedFiat += consumed;
+        bucket.activeVerdicts += 1;
+
+        summary.set(bankKey, bucket);
+    });
+
+    return summary;
+}
+
+function buildBankVesLimitLabel(bank, _config = {}, vesControlSummaryByBank = new Map()) {
+    const key = normalizeBankLimitKey(bank);
+    const dynamicSummary = vesControlSummaryByBank.get(key);
+    const hasDynamic = Boolean(dynamicSummary);
+    if (!hasDynamic) {
         return {
-            value: `${formatSignedVesInline(current)} / 0.00`,
-            meta: 'Sin tope cargado',
+            value: '0.00 / 0.00',
+            meta: 'Sin flujo activo',
             progress: 0,
+            limit: 0,
+            current: 0,
+            hasFlow: false,
         };
     }
 
-    const remaining = limit - current;
-    const progress = current <= 0 ? 0 : clampPercent((current / limit) * 100);
+    const available = Number(dynamicSummary.availableFiat || 0);
+    const consumed = Number(dynamicSummary.consumedFiat || 0);
+    const inflowFiat = Number(dynamicSummary.inflowFiat || 0);
+    const inferredCapFromFlow = Math.max(0, inflowFiat, available + consumed);
+    let effectiveCap = Math.max(0, inferredCapFromFlow);
+
+    if (available > effectiveCap) {
+        effectiveCap = available;
+    }
+
+    if (effectiveCap <= 0) {
+        return {
+            value: '0.00 / 0.00',
+            meta: 'Sin flujo activo',
+            progress: 0,
+            limit: 0,
+            current: 0,
+            hasFlow: false,
+        };
+    }
+
+    const progress = available <= 0 ? 0 : clampPercent((available / effectiveCap) * 100);
+    const burned = Math.max(0, effectiveCap - available);
 
     return {
-        value: `${formatSignedVesInline(current)} / ${fVESInline(limit)}`,
-        meta: remaining >= 0
-            ? `${fVESInline(remaining)} disponibles`
-            : `Exceso ${fVESInline(Math.abs(remaining))}`,
+        value: `${fVESInline(available)} / ${fVESInline(effectiveCap)}`,
+        meta: burned <= 0.01
+            ? 'Barra llena'
+            : available <= 0.01
+                ? 'Lote quemado'
+                : `${fVESInline(burned)} quemado`,
         progress,
+        limit: effectiveCap,
+        current: available,
+        hasFlow: true,
     };
 }
 
@@ -185,8 +363,8 @@ export function updateSidebarMonitor(kpis = {}, bankInsights = []) {
     inject('side-profit-total', fUSDT(profit));
     inject('side-ceiling-level-label', `TECHO (${String(bankSummary.levelLabel || 'Sin nivel').toUpperCase()})`);
     inject('side-ceiling-level-value', bankSummary.avgCeilingRate > 0 ? formatPlain(bankSummary.avgCeilingRate) : '0.00');
-    inject('side-ceiling-level-meta', `${formatPlain(bankSummary.verificationPercent)}% | Prom. de techos`);
-    inject('side-ceiling-sell-rate', `Venta prom: ${formatPlain(bankSummary.avgSellRate)}`);
+    inject('side-ceiling-level-meta', `${formatPlain(bankSummary.verificationPercent)}% | Techo prom. ponderado`);
+    inject('side-ceiling-sell-rate', `Venta prom. ponderada: ${formatPlain(bankSummary.avgSellRate)} VES/USDT`);
     inject('side-ceiling-level-badge', `${bankSummary.banksWithCeiling} Bancos`);
     inject('side-spread-value', formatSignedUsdt(bankSummary.spreadProfitUsdt));
     inject('side-spread-meta', `${formatPlain(bankSummary.spreadPercent)}%`);
@@ -251,13 +429,25 @@ export function updateSidebarMonitor(kpis = {}, bankInsights = []) {
     const listContainer = document.getElementById('side-banks-list');
     if (!listContainer) return;
     listContainer.innerHTML = '';
+    const promiseSummaryByBank = buildPromiseSummaryByBank(kpis);
+    const vesControlSummaryByBank = buildVesControlSummaryByBank(kpis);
 
     bankInsights.forEach((bank) => {
         const activeVerdicts = Number(bank.activeVerdictsCount || 0);
         const ops = Number(bank.transactionCount ?? bank.totalOps ?? ((bank.countSell || 0) + (bank.countBuy || 0)));
         const pagoMovil = buildPagoMovilLabel(bank, kpis.config || {});
-        const vesLimit = buildBankVesLimitLabel(bank, kpis.config || {});
+        const vesLimit = buildBankVesLimitLabel(
+            bank,
+            kpis.config || {},
+            vesControlSummaryByBank
+        );
         const spreadLabel = buildSpreadLabel(bank);
+        const promiseLabel = buildPromiseLabel(bank, promiseSummaryByBank);
+        const promiseTextClass = promiseLabel.pendingUsdt > 0 || promiseLabel.pendingFiat > 0
+            ? 'text-amber-300'
+            : 'text-white/90';
+        const vesBarClass = vesLimit.hasFlow ? 'bg-sky-400' : 'bg-slate-500/40';
+        const statusLabel = `${ops} Ops | ${activeVerdicts} Activas`;
 
         const div = document.createElement('div');
         div.className = 'bg-white/[0.02] p-4 rounded-xl border border-white/5 flex flex-col gap-2.5 transition-all hover:bg-white/[0.04]';
@@ -266,7 +456,7 @@ export function updateSidebarMonitor(kpis = {}, bankInsights = []) {
                 <div class="flex flex-col">
                     <span class="text-[13px] font-black text-white uppercase italic tracking-wider">${bank.bankName || bank.bank}</span>
                     <span class="text-[11px] text-[#F3BA2F] font-black uppercase mt-1 tracking-wide">
-                        ${ops} Ops | ${activeVerdicts} Activas
+                        ${statusLabel}
                     </span>
                 </div>
                 <div class="text-right">
@@ -276,6 +466,13 @@ export function updateSidebarMonitor(kpis = {}, bankInsights = []) {
             </div>
             <div class="text-[13px] font-mono font-black tracking-tight text-white/90 mt-1">
                 ${spreadLabel}
+            </div>
+            <div class="flex items-center justify-between gap-3 mt-1">
+                <span class="text-[11px] text-slate-500 font-black uppercase tracking-[0.18em]">Parseo 2.0</span>
+                <span class="text-[11px] text-slate-500 font-black tracking-tight">${promiseLabel.meta}</span>
+            </div>
+            <div class="text-[13px] font-mono font-black tracking-tight ${promiseTextClass}">
+                ${promiseLabel.value}
             </div>
             <div class="flex items-center justify-between gap-3 mt-1">
                 <span class="text-[11px] text-slate-500 font-black uppercase tracking-[0.18em]">Pago Movil</span>
@@ -295,7 +492,7 @@ export function updateSidebarMonitor(kpis = {}, bankInsights = []) {
                 ${vesLimit.value}
             </div>
             <div class="h-1.5 w-full bg-white/10 rounded-full overflow-hidden mt-1">
-                <div class="h-full ${Number(bank.fiatBalance || 0) > Number((kpis.config?.bankSpendLimitsVes || {})?.[normalizeBankLimitKey(bank)] || 0) && Number((kpis.config?.bankSpendLimitsVes || {})?.[normalizeBankLimitKey(bank)] || 0) > 0 ? 'bg-rose-400' : 'bg-sky-400'} transition-all duration-700 ease-out" style="width: ${vesLimit.progress}%"></div>
+                <div class="h-full ${vesBarClass} transition-all duration-700 ease-out" style="width: ${vesLimit.progress}%"></div>
             </div>
         `;
         listContainer.appendChild(div);

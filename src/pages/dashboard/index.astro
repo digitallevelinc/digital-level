@@ -24,9 +24,9 @@ import 'flatpickr/dist/themes/dark.css';
       window.location.href = '/investor';
     }
   </script>
-  <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 px-2 gap-4">
+  <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 px-1 sm:px-2 gap-4">
     <div>
-      <h1 class="text-white font-black text-2xl md:text-3xl uppercase tracking-tighter">
+      <h1 class="text-white font-black text-xl sm:text-2xl md:text-3xl uppercase tracking-tight break-words">
         Bienvenido, <span id="operator-alias" class="text-[#F3BA2F]">Cargando...</span>
       </h1>
       <div class="flex flex-col gap-1 mt-2">
@@ -41,7 +41,7 @@ import 'flatpickr/dist/themes/dark.css';
     
         
 
-    <div class="flex items-center gap-3 w-full md:w-auto bg-[#1e2329]/20 p-2 rounded-2xl border border-white/5 backdrop-blur-sm">
+    <div class="flex flex-wrap sm:flex-nowrap items-center gap-2 sm:gap-3 w-full md:w-auto bg-[#1e2329]/20 p-2 rounded-2xl border border-white/5 backdrop-blur-sm">
     
   
 
@@ -49,7 +49,7 @@ import 'flatpickr/dist/themes/dark.css';
         id="link-p2p-sheet" 
         href="#" 
         target="_blank" 
-        class="flex items-center justify-center w-11 h-11 rounded-xl bg-emerald-500/5 border border-emerald-500/10 text-emerald-500 hover:bg-emerald-500/20 hover:border-emerald-500/40 transition-all duration-300 group shadow-lg"
+        class="flex items-center justify-center w-10 h-10 sm:w-11 sm:h-11 rounded-xl bg-emerald-500/5 border border-emerald-500/10 text-emerald-500 hover:bg-emerald-500/20 hover:border-emerald-500/40 transition-all duration-300 group shadow-lg"
         title="Abrir Google Sheet P2P"
     >
         <svg class="w-6 h-6 transition-transform group-hover:scale-110" viewBox="0 0 24 24" fill="currentColor">
@@ -61,7 +61,7 @@ import 'flatpickr/dist/themes/dark.css';
     
     <button 
         id="logout-btn" 
-        class="flex-1 md:flex-none h-11 px-6 rounded-xl bg-red-500/5 border border-red-500/10 text-red-500 hover:bg-red-500/20 hover:border-red-500/40 text-[10px] font-black transition-all duration-300 uppercase tracking-[0.2em] shadow-lg active:scale-95"
+        class="flex-1 md:flex-none h-10 sm:h-11 px-4 sm:px-6 rounded-xl bg-red-500/5 border border-red-500/10 text-red-500 hover:bg-red-500/20 hover:border-red-500/40 text-[10px] font-black transition-all duration-300 uppercase tracking-[0.16em] sm:tracking-[0.2em] shadow-lg active:scale-95"
     >
         Cerrar Sesion
     </button>
@@ -69,10 +69,10 @@ import 'flatpickr/dist/themes/dark.css';
 
   </div>
 
-  <section class="mb-10 bg-gradient-to-br from-[#0f1216] to-[#0b0d11] border border-gray-800 rounded-2xl p-6 shadow-xl shadow-black/40">
+  <section class="mb-10 bg-gradient-to-br from-[#0f1216] to-[#0b0d11] border border-gray-800 rounded-2xl p-4 sm:p-6 shadow-xl shadow-black/40">
     <div class="flex items-center gap-3 mb-5">
       <span class="w-1.5 h-5 bg-[#F3BA2F]"></span>
-      <p class="text-[11px] font-black uppercase tracking-[0.3em] text-gray-300">Filtro temporal KPI</p>
+      <p class="text-[10px] sm:text-[11px] font-black uppercase tracking-[0.2em] sm:tracking-[0.3em] text-gray-300">Filtro temporal KPI</p>
     </div>
 
     <div class="flex overflow-x-auto pb-4 gap-3 mb-8 scrollbar-hide" id="kpi-preset-group">
@@ -86,7 +86,7 @@ import 'flatpickr/dist/themes/dark.css';
         { id: 'today', label: 'Hoy' }
       ].map((preset) => (
         <button 
-          class={`kpi-preset-btn whitespace-nowrap px-6 py-3 rounded-xl text-[11px] font-black uppercase border bg-white/5 hover:border-[#F3BA2F]/60 hover:text-[#F3BA2F] transition-all shadow-md ${preset.id === 'today' ? 'border-[#F3BA2F] bg-[#F3BA2F]/10' : 'border-gray-800'}`}
+          class={`kpi-preset-btn whitespace-nowrap px-4 sm:px-6 py-2.5 sm:py-3 rounded-xl text-[10px] sm:text-[11px] font-black uppercase border bg-white/5 hover:border-[#F3BA2F]/60 hover:text-[#F3BA2F] transition-all shadow-md ${preset.id === 'today' ? 'border-[#F3BA2F] bg-[#F3BA2F]/10' : 'border-gray-800'}`}
           data-preset={preset.id}
         >
           {preset.label}
@@ -122,7 +122,7 @@ import 'flatpickr/dist/themes/dark.css';
   </section>
 
   <section class="mb-12">
-    <h2 class="text-[#F3BA2F] text-[12px] font-black uppercase tracking-[0.3em] mb-6 italic flex items-center gap-3 px-2">
+    <h2 class="text-[#F3BA2F] text-[10px] sm:text-[12px] font-black uppercase tracking-[0.18em] sm:tracking-[0.3em] mb-6 italic flex items-center gap-3 px-1 sm:px-2 break-words">
       <span class="w-1.5 h-4 bg-[#F3BA2F]"></span> 1. RENDIMIENTO DE OPERACIONES CRITICAS
     </h2>
     <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
@@ -135,9 +135,9 @@ import 'flatpickr/dist/themes/dark.css';
     </div>
   </section>
 
-  <div class="grid grid-cols-1 lg:grid-cols-2 gap-12 mb-12">
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12 mb-12">
     <section>
-      <h2 class="text-[#F3BA2F] text-[12px] font-black uppercase tracking-[0.3em] mb-6 italic flex items-center gap-3 px-2">
+      <h2 class="text-[#F3BA2F] text-[10px] sm:text-[12px] font-black uppercase tracking-[0.18em] sm:tracking-[0.3em] mb-6 italic flex items-center gap-3 px-1 sm:px-2 break-words">
       <span class="w-1.5 h-4 bg-[#F3BA2F]"></span> 2. CONTROL DE OPERACIONES Y VOLUMEN
     </h2>
       
@@ -149,7 +149,7 @@ import 'flatpickr/dist/themes/dark.css';
 
     <section>
       
-      <h2 class="text-[#F3BA2F] text-[12px] font-black uppercase tracking-[0.3em] mb-6 italic flex items-center gap-3 px-2">
+      <h2 class="text-[#F3BA2F] text-[10px] sm:text-[12px] font-black uppercase tracking-[0.18em] sm:tracking-[0.3em] mb-6 italic flex items-center gap-3 px-1 sm:px-2 break-words">
       <span class="w-1.5 h-4 bg-[#F3BA2F]"></span> 4. PROYECCIONES E INSIGHTS
     </h2>
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
@@ -160,7 +160,7 @@ import 'flatpickr/dist/themes/dark.css';
   </div>
 
   <section class="mb-12">
-    <h2 class="text-[#F3BA2F] text-[14px] font-black uppercase tracking-[0.24em] mb-6 italic flex items-center gap-3 px-2">
+    <h2 class="text-[#F3BA2F] text-[11px] sm:text-[14px] font-black uppercase tracking-[0.16em] sm:tracking-[0.24em] mb-6 italic flex items-center gap-3 px-1 sm:px-2 break-words">
       <span class="w-1.5 h-4 bg-[#F3BA2F]"></span> MONITOR DE ORDENES P2P ACTIVAS
     </h2>
     <AnunciosActivos />
@@ -168,15 +168,15 @@ import 'flatpickr/dist/themes/dark.css';
 
   <section class="mb-12">
     
-    <h2 class="text-[#F3BA2F] text-[12px] font-black uppercase tracking-[0.3em] mb-6 italic flex items-center gap-3 px-2">
+    <h2 class="text-[#F3BA2F] text-[10px] sm:text-[12px] font-black uppercase tracking-[0.18em] sm:tracking-[0.3em] mb-6 italic flex items-center gap-3 px-1 sm:px-2 break-words">
       <span class="w-1.5 h-4 bg-[#F3BA2F]"></span> 3. LOGISTICA DE CARTERAS (BALANCES INTERNOS)
     </h2>
     <BalanceLedger />
   </section>
 
   <section class="pb-28">
-    <div class="mb-6 px-2 flex items-start justify-between gap-3">
-      <h2 class="text-[#F3BA2F] text-[12px] font-black uppercase tracking-[0.3em] italic flex items-center gap-3">
+    <div class="mb-6 px-1 sm:px-2 flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+      <h2 class="text-[#F3BA2F] text-[10px] sm:text-[12px] font-black uppercase tracking-[0.18em] sm:tracking-[0.3em] italic flex items-center gap-3 break-words">
         <span class="w-1.5 h-4 bg-[#F3BA2F]"></span> 5. PANEL DE BANCOS (CONTROL DE VOLUMEN)
       </h2>
       <CardHelp
@@ -209,6 +209,12 @@ import 'flatpickr/dist/themes/dark.css';
   
   /* Ajuste para el alto del boton de aplicar */
   #kpi-apply-range {
-    height: 58px;
+    height: 52px;
+  }
+
+  @media (min-width: 640px) {
+    #kpi-apply-range {
+      height: 58px;
+    }
   }
 </style>

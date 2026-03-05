@@ -257,7 +257,6 @@ export function updateDispersorUI(kpis = {}) {
 
     setText('dispersor-card-eyebrow', modeMeta.eyebrow);
     setText('dispersor-coverage-label', modeMeta.coverageLabel);
-    setText('dispersor-status-label', modeMeta.statusLabel);
     setText('dispersor-coverage-value', `${coveragePercent.toFixed(1)}%`);
     setText('dispersor-promised-usdt', fUSDT(promisedUsdt));
     setText('dispersor-promised-fiat', fVES(promisedFiat));
@@ -284,6 +283,4 @@ export function updateDispersorUI(kpis = {}) {
 
     renderReceivers(receivers);
     setBadge(status.badge, status.tone);
-    setText('dispersor-status-title', status.title);
-    setText('dispersor-status-note', status.note);
 }

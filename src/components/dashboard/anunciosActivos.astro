@@ -3,7 +3,7 @@ import CardHelp from './CardHelp.astro';
 ---
 <div
   id="active-ads-card"
-  class="bg-[#161a1e] border border-white/10 rounded-2xl p-7 shadow-lg transition-all hover:border-[#F3BA2F]/20"
+  class="bg-[#161a1e] border border-white/10 rounded-2xl p-4 sm:p-7 shadow-lg transition-all hover:border-[#F3BA2F]/20"
 >
   <div class="flex flex-col gap-5">
     <div class="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
@@ -128,22 +128,22 @@ import CardHelp from './CardHelp.astro';
       ></p>
 
       <div class="overflow-x-auto rounded-xl border border-white/5 bg-black/20">
-        <table class="w-full min-w-[900px] text-left text-[14px]">
-          <thead class="bg-black/40 text-white/75 uppercase text-[11px] tracking-[0.2em]">
+        <table class="w-full min-w-[760px] sm:min-w-[900px] text-left text-[12px] sm:text-[14px]">
+          <thead class="bg-black/40 text-white/75 uppercase text-[10px] sm:text-[11px] tracking-[0.16em] sm:tracking-[0.2em]">
             <tr>
-              <th class="px-3 py-2 font-black">Anuncio</th>
-              <th class="px-3 py-2 font-black">Tipo</th>
-              <th class="px-3 py-2 font-black">Par</th>
-              <th class="px-3 py-2 font-black">Precio</th>
-              <th class="px-3 py-2 font-black">Cantidad / Liquidez Bs</th>
-              <th class="px-3 py-2 font-black">Metodos</th>
-              <th class="px-3 py-2 font-black">Ordenes</th>
-              <th class="px-3 py-2 font-black">Estado</th>
+              <th class="px-2 sm:px-3 py-2 font-black">Anuncio</th>
+              <th class="px-2 sm:px-3 py-2 font-black">Tipo</th>
+              <th class="px-2 sm:px-3 py-2 font-black">Par</th>
+              <th class="px-2 sm:px-3 py-2 font-black">Precio</th>
+              <th class="px-2 sm:px-3 py-2 font-black">Cantidad / Liquidez Bs</th>
+              <th class="px-2 sm:px-3 py-2 font-black">Metodos</th>
+              <th class="px-2 sm:px-3 py-2 font-black">Ordenes</th>
+              <th class="px-2 sm:px-3 py-2 font-black">Estado</th>
             </tr>
           </thead>
           <tbody id="active-ads-table-body" class="text-white/90">
             <tr class="border-t border-white/5">
-              <td class="px-3 py-3 text-white/50" colspan="8">
+              <td class="px-2 sm:px-3 py-3 text-white/50" colspan="8">
                 Sin datos de ordenes P2P activas.
               </td>
             </tr>
