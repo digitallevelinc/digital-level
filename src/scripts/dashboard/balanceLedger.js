@@ -17,6 +17,7 @@ const state = {
     onAuthError: null,
     searchTerm: '',
     currentTransfers: [],
+    pageNetByPage: new Map(),
 };
 
 const escapeHtml = (value) => String(value ?? '')
@@ -58,20 +59,38 @@ const getDirection = (type) => {
     }
 };
 
-const getCategoryBalance = (kpis, category) => {
-    const wallets = kpis?.wallets || {};
-    switch (category) {
-        case 'P2P':
-            return Number(wallets.balanceP2P || 0);
-        case 'PAY':
-            return Number(wallets.balancePay || 0);
-        case 'RED':
-            return Number(wallets.balanceRed || 0);
-        case 'SWITCH':
-            return Number(wallets.balanceSwitch || 0);
-        default:
-            return 0;
+const getSignedAmount = (tx) => Number(tx?.amount || 0) * getDirection(tx?.type);
+
+const getLedgerAnchorBalance = (kpis = {}) => {
+    const candidates = [
+        kpis?.metrics?.totalBalance,
+        kpis?.currentBalance,
+        kpis?.audit?.realBalance,
+        kpis?.critical?.balanceTotal,
+    ];
+
+    for (const candidate of candidates) {
+        const n = Number(candidate);
+        if (Number.isFinite(n)) return n;
     }
+
+    const wallets = kpis?.wallets || {};
+    return Number(wallets.balanceP2P || 0)
+        + Number(wallets.balancePay || 0)
+        + Number(wallets.balanceRed || 0)
+        + Number(wallets.balanceSwitch || 0);
+};
+
+const getKnownNetBeforePage = (page) => {
+    if (page <= 1) return 0;
+
+    let netBefore = 0;
+    for (let i = 1; i < page; i += 1) {
+        if (!state.pageNetByPage.has(i)) return null;
+        netBefore += Number(state.pageNetByPage.get(i) || 0);
+    }
+
+    return netBefore;
 };
 
 const getCategoryTone = (category) => {
@@ -106,29 +125,65 @@ const formatRate = (rate) => {
     return n > 0 ? `RATE ${formatNumber(n, 2)}` : '';
 };
 
-const buildDescriptionTop = (tx) => tx?.counterpartyName
-    || tx?.paymentMethod
-    || tx?.notes
-    || 'Movimiento sin detalle';
+const maskCounterpartyName = (value) => {
+    const raw = String(value ?? '').trim();
+    if (!raw) return '';
+    return raw;
+};
 
-const buildDescriptionMeta = (tx) => {
+const buildDescriptionTop = (tx) => {
+    if (tx?.counterpartyName) return maskCounterpartyName(tx.counterpartyName);
+    return tx?.notes || tx?.paymentMethod || 'Movimiento sin detalle';
+};
+
+const buildDescriptionMeta = (tx, topLine = '') => {
     const parts = [];
     const rateText = formatRate(tx?.exchangeRate);
+
+    // Keep sender/receiver identity only in the top line to avoid redundancy.
     if (tx?.paymentMethod) parts.push(tx.paymentMethod);
-    if (tx?.counterpartyName) parts.push(tx.counterpartyName);
     if (rateText) parts.push(rateText);
+    if (tx?.tradeType) parts.push(`TRADE ${tx.tradeType}`);
     if (tx?.orderNumber) parts.push(`ORDER ${tx.orderNumber}`);
+    if (tx?.counterpartyId && tx?.counterpartyName !== topLine) {
+        parts.push(`ID ${tx.counterpartyId}`);
+    }
+    if (tx?.walletFrom || tx?.walletTo) {
+        parts.push(`${tx.walletFrom || '?'}->${tx.walletTo || '?'}`);
+    }
     if (tx?.txHash || tx?.binanceRawId) parts.push(`TX ${tx.txHash || tx.binanceRawId}`);
-    return parts.slice(0, 3);
+    if (tx?.notes && tx?.notes !== topLine) parts.push(tx.notes);
+    return parts;
+};
+
+const getTxRate = (tx) => {
+    const directRate = Number(tx?.exchangeRate || 0);
+    if (directRate > 0) return directRate;
+
+    const amount = Math.abs(Number(tx?.amount || 0));
+    const fiatAmount = Math.abs(Number(tx?.fiatAmount || 0));
+    if (amount > 0 && fiatAmount > 0) return fiatAmount / amount;
+
+    return 0;
+};
+
+const resolveFiatAmount = (tx) => {
+    const fiatAmount = Math.abs(Number(tx?.fiatAmount || 0));
+    if (fiatAmount > 0) return fiatAmount;
+
+    const amount = Math.abs(Number(tx?.amount || 0));
+    if (amount <= 0) return 0;
+
+    const rate = getTxRate(tx);
+    if (rate > 0) return amount * rate;
+
+    // Ultimo recurso: mostrar el monto base como FIAT para evitar huecos de datos en UI.
+    return amount;
 };
 
 const formatFiat = (tx) => {
-    const fiatAmount = Number(tx?.fiatAmount || 0);
-    if (fiatAmount) {
-        return `${formatNumber(Math.abs(fiatAmount), 2)} ${escapeHtml(tx?.fiatCurrency || 'FIAT')}`;
-    }
-    const rateText = formatRate(tx?.exchangeRate);
-    return rateText || 'SIN DATO FIAT';
+    const fiatResolved = resolveFiatAmount(tx);
+    return `${formatNumber(fiatResolved, 2)} FIAT`;
 };
 
 const formatAmount = (tx) => {
@@ -235,33 +290,52 @@ const matchesSearch = (tx, searchTerm) => {
     return haystack.includes(needle);
 };
 
-const renderRow = (tx, kpis) => {
+const buildRowsWithBalance = (transfers = []) => {
+    const rows = Array.isArray(transfers) ? transfers : [];
+    const pageNet = rows.reduce((sum, tx) => sum + getSignedAmount(tx), 0);
+    state.pageNetByPage.set(state.page, pageNet);
+
+    const anchorBalance = getLedgerAnchorBalance(state.kpis);
+    const knownNetBefore = getKnownNetBeforePage(state.page);
+    let runningBalance = anchorBalance - Number(knownNetBefore || 0);
+
+    return rows.map((tx) => {
+        const row = {
+            tx,
+            balance: runningBalance,
+        };
+        runningBalance -= getSignedAmount(tx);
+        return row;
+    });
+};
+
+const renderRow = (tx, rowBalance) => {
     const category = getCategory(tx.type);
-    const signedAmount = Number(tx?.amount || 0) * getDirection(tx?.type);
+    const signedAmount = getSignedAmount(tx);
     const amountTone = signedAmount < 0 ? 'text-red-400' : 'text-white';
-    const categoryBalance = getCategoryBalance(kpis, category);
-    const balanceTone = categoryBalance < 0 ? 'text-red-400' : 'text-white';
-    const top = escapeHtml(buildDescriptionTop(tx));
-    const meta = buildDescriptionMeta(tx);
+    const balanceTone = rowBalance < 0 ? 'text-red-400' : 'text-white';
+    const topRaw = buildDescriptionTop(tx);
+    const top = escapeHtml(topRaw);
+    const meta = buildDescriptionMeta(tx, topRaw);
     const metaHtml = meta.map((line) => `<span>${escapeHtml(line)}</span>`).join('<span class="text-white/18">|</span>');
 
     return `
-        <article class="grid gap-3 px-4 py-3 md:px-5 lg:grid-cols-[128px_minmax(0,1.6fr)_82px_120px_128px] lg:items-center">
+        <article class="grid gap-2 px-4 py-2 md:px-5 lg:grid-cols-[128px_minmax(300px,1.5fr)_92px_minmax(150px,0.9fr)_minmax(150px,0.9fr)] lg:items-center">
             <div class="text-[11px] font-semibold text-white/42">${escapeHtml(formatPostingDate(tx.timestamp))}</div>
             <div class="min-w-0">
                 <div class="break-words text-[14px] font-semibold text-white">${top}</div>
-                <div class="mt-1 flex flex-wrap items-center gap-2 text-[10px] text-white/40">${metaHtml || '<span>Sin metadata extra</span>'}</div>
+                <div class="mt-0.5 flex flex-wrap items-center gap-2 text-[10px] text-white/40">${metaHtml || '<span>Sin metadata extra</span>'}</div>
             </div>
             <div class="text-left lg:text-center">
                 <span class="text-[0.95rem] font-black uppercase tracking-[0.12em] ${getCategoryTone(category)}">${category}</span>
             </div>
             <div class="text-left lg:text-right">
                 <div class="text-[1.15rem] font-black leading-none ${amountTone}">${formatAmount(tx)}</div>
-                <div class="mt-1 text-[10px] font-semibold text-white/40">${escapeHtml(formatFiat(tx))}</div>
+                <div class="mt-0.5 text-[10px] font-semibold text-white/40">${escapeHtml(formatFiat(tx))}</div>
             </div>
             <div class="text-left lg:text-right">
-                <div class="text-[1rem] font-black leading-none ${balanceTone}">${categoryBalance < 0 ? '-' : ''}${formatUsd(Math.abs(categoryBalance))}</div>
-                <div class="mt-1 text-[10px] font-medium text-white/35">Balance actual</div>
+                <div class="text-[1rem] font-black leading-none ${balanceTone}">${rowBalance < 0 ? '-' : ''}${formatUsd(Math.abs(rowBalance))}</div>
+                <div class="mt-0.5 text-[10px] font-medium text-white/35">Balance corrido</div>
             </div>
         </article>
     `;
@@ -279,14 +353,15 @@ const renderTransfers = (transfers = []) => {
         return;
     }
 
-    const filteredTransfers = allTransfers.filter((tx) => matchesSearch(tx, state.searchTerm));
+    const rowsWithBalance = buildRowsWithBalance(allTransfers);
+    const filteredRows = rowsWithBalance.filter(({ tx }) => matchesSearch(tx, state.searchTerm));
 
     if (count) {
-        const suffix = state.searchTerm ? ` | ${filteredTransfers.length} visibles` : '';
+        const suffix = state.searchTerm ? ` | ${filteredRows.length} visibles` : '';
         count.textContent = `Mostrando ${allTransfers.length} movimiento${allTransfers.length === 1 ? '' : 's'} de ${state.total}${suffix}`;
     }
 
-    if (filteredTransfers.length === 0) {
+    if (filteredRows.length === 0) {
         body.innerHTML = `
             <div class="px-4 py-10 text-center text-[14px] font-medium text-white/45 md:px-6">
                 No hay coincidencias en esta pagina.
@@ -297,7 +372,7 @@ const renderTransfers = (transfers = []) => {
         return;
     }
 
-    body.innerHTML = filteredTransfers.map((tx) => renderRow(tx, state.kpis)).join('');
+    body.innerHTML = filteredRows.map(({ tx, balance }) => renderRow(tx, balance)).join('');
     updatePaginationUI();
     if (scroll) scroll.scrollTop = 0;
 };
@@ -399,6 +474,7 @@ export const updateBalanceLedgerUI = (kpis = {}, context = {}) => {
     }
 
     if (!state.loadedOnce) {
+        state.pageNetByPage.clear();
         state.needsRefresh = true;
         state.total = 0;
         state.totalPages = 0;
@@ -409,11 +485,17 @@ export const updateBalanceLedgerUI = (kpis = {}, context = {}) => {
     }
 
     if (rangeChanged || apiChanged || tokenChanged) {
+        state.pageNetByPage.clear();
         state.needsRefresh = true;
         state.total = 0;
         state.totalPages = 0;
         updatePaginationUI();
         renderPlaceholder('Actualizando historial...');
         void fetchTransfersPage(1);
+        return;
+    }
+
+    if (state.currentTransfers.length > 0) {
+        renderTransfers(state.currentTransfers);
     }
 };

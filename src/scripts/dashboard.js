@@ -813,8 +813,16 @@ function updateMainKpis(kpis = {}, manualProfit = null) {
     const critical = kpis.critical || {};
     // Fallback legacy
     const summary = kpis.metrics || kpis.kpis || kpis.summary || {};
+    const audit = kpis.audit || {};
 
-    inject('kpi-balance', fUSDT(critical.balanceTotal ?? summary.totalBalance ?? summary.balance ?? 0));
+    const liveBalance =
+        summary.totalBalance ??
+        kpis.currentBalance ??
+        audit.realBalance ??
+        critical.balanceTotal ??
+        summary.balance ??
+        0;
+    inject('kpi-balance', fUSDT(liveBalance));
 
     const beValue = critical.breakEvenRate ?? summary.minBuyRate ?? summary.breakEven;
     inject('kpi-breakeven', beValue ? (typeof beValue === 'number' ? beValue.toFixed(2) : beValue) : '---');
