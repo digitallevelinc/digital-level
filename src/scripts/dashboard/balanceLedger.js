@@ -33,6 +33,10 @@ const formatNumber = (value, decimals = 2, locale = 'es-VE') => Number(value || 
 });
 
 const formatUsd = (value) => `$${formatNumber(value, 2, 'en-US')}`;
+const toFiniteNumber = (value) => {
+    const n = Number(value);
+    return Number.isFinite(n) ? n : 0;
+};
 
 const getCategory = (type) => {
     if (!type) return 'OTRO';
@@ -44,7 +48,7 @@ const getCategory = (type) => {
 };
 
 const getDirection = (type) => {
-    switch (type) {
+    switch (String(type || '').toUpperCase()) {
         case 'P2P_BUY':
         case 'PAY_RECEIVED':
         case 'DEPOSIT':
@@ -59,14 +63,68 @@ const getDirection = (type) => {
     }
 };
 
-const getSignedAmount = (tx) => Number(tx?.amount || 0) * getDirection(tx?.type);
+const getSignedAmount = (tx = {}) => {
+    const type = String(tx?.type || '').toUpperCase();
+    const status = String(tx?.status || '').toUpperCase();
+    const asset = String(tx?.asset || '').toUpperCase();
+    const pm = String(tx?.paymentMethod || '').toUpperCase();
+    const walletFrom = String(tx?.walletFrom || '').toUpperCase();
+    const walletTo = String(tx?.walletTo || '').toUpperCase();
+    const amount = toFiniteNumber(tx?.amount);
+
+    if (!amount) return 0;
+    if (status && status !== 'SUCCESS') return 0;
+
+    // Balance corrido del modulo: solo USDT.
+    if (asset && asset !== 'USDT') return 0;
+
+    let delta = 0;
+
+    switch (type) {
+        case 'P2P_BUY':
+        case 'PAY_RECEIVED':
+        case 'DEPOSIT':
+        case 'DIVIDEND':
+            delta += amount;
+            break;
+        case 'P2P_SELL':
+        case 'PAY_SENT':
+        case 'WITHDRAWAL':
+            delta -= amount;
+            break;
+        case 'CONVERT':
+        case 'SPOT_TRADE':
+            if (pm === 'CONVERT_IN' || pm === 'SPOT_SELL') delta += amount;
+            else if (pm === 'CONVERT_OUT' || pm === 'SPOT_BUY') delta -= amount;
+            break;
+        case 'INTERNAL_TRANSFER': {
+            const monitored = new Set(['MAIN', 'FUNDING', 'SPOT']);
+            const fromMonitored = monitored.has(walletFrom);
+            const toMonitored = monitored.has(walletTo);
+            if (fromMonitored && !toMonitored) delta -= amount;
+            else if (!fromMonitored && toMonitored) delta += amount;
+            break;
+        }
+        default:
+            break;
+    }
+
+    const fee = toFiniteNumber(tx?.fee);
+    const feeCurrency = String(tx?.feeCurrency || '').toUpperCase();
+    if (fee > 0 && (!feeCurrency || feeCurrency === 'USDT')) {
+        delta -= fee;
+    }
+
+    return delta;
+};
 
 const getLedgerAnchorBalance = (kpis = {}) => {
     const candidates = [
         kpis?.metrics?.totalBalance,
         kpis?.currentBalance,
         kpis?.audit?.realBalance,
-        kpis?.critical?.balanceTotal,
+        kpis?.metrics?.balance,
+        kpis?.summary?.balance,
     ];
 
     for (const candidate of candidates) {
@@ -75,10 +133,12 @@ const getLedgerAnchorBalance = (kpis = {}) => {
     }
 
     const wallets = kpis?.wallets || {};
-    return Number(wallets.balanceP2P || 0)
+    const walletsSum = Number(wallets.balanceP2P || 0)
         + Number(wallets.balancePay || 0)
         + Number(wallets.balanceRed || 0)
         + Number(wallets.balanceSwitch || 0);
+
+    return Number.isFinite(walletsSum) ? walletsSum : 0;
 };
 
 const getKnownNetBeforePage = (page) => {
@@ -139,6 +199,7 @@ const buildDescriptionTop = (tx) => {
 const buildDescriptionMeta = (tx, topLine = '') => {
     const parts = [];
     const rateText = formatRate(tx?.exchangeRate);
+    const status = String(tx?.status || '').toUpperCase();
 
     // Keep sender/receiver identity only in the top line to avoid redundancy.
     if (tx?.paymentMethod) parts.push(tx.paymentMethod);
@@ -152,6 +213,7 @@ const buildDescriptionMeta = (tx, topLine = '') => {
         parts.push(`${tx.walletFrom || '?'}->${tx.walletTo || '?'}`);
     }
     if (tx?.txHash || tx?.binanceRawId) parts.push(`TX ${tx.txHash || tx.binanceRawId}`);
+    if (status && status !== 'SUCCESS') parts.push(`STATUS ${status}`);
     if (tx?.notes && tx?.notes !== topLine) parts.push(tx.notes);
     return parts;
 };
@@ -404,7 +466,13 @@ const fetchTransfersPage = async (page = 1) => {
                 state.onAuthError?.();
                 return;
             }
-            throw new Error(`HTTP ${res.status}`);
+            let detail = '';
+            try {
+                detail = await res.text();
+            } catch {
+                detail = '';
+            }
+            throw new Error(`HTTP ${res.status}${detail ? ` - ${detail.slice(0, 160)}` : ''}`);
         }
 
         const payload = await res.json();
