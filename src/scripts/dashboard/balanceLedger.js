@@ -185,6 +185,12 @@ const formatRate = (rate) => {
     return n > 0 ? `RATE ${formatNumber(n, 2)}` : '';
 };
 
+const formatFeeMeta = (tx) => {
+    const fee = toFiniteNumber(tx?.fee);
+    if (fee <= 0) return '';
+    return `FEE ${formatUsd(fee)}`;
+};
+
 const maskCounterpartyName = (value) => {
     const raw = String(value ?? '').trim();
     if (!raw) return '';
@@ -199,10 +205,12 @@ const buildDescriptionTop = (tx) => {
 const buildDescriptionMeta = (tx, topLine = '') => {
     const parts = [];
     const rateText = formatRate(tx?.exchangeRate);
+    const feeText = formatFeeMeta(tx);
     const status = String(tx?.status || '').toUpperCase();
 
     // Keep sender/receiver identity only in the top line to avoid redundancy.
     if (tx?.paymentMethod) parts.push(tx.paymentMethod);
+    if (feeText) parts.push(feeText);
     if (rateText) parts.push(rateText);
     if (tx?.tradeType) parts.push(`TRADE ${tx.tradeType}`);
     if (tx?.orderNumber) parts.push(`ORDER ${tx.orderNumber}`);
@@ -212,7 +220,9 @@ const buildDescriptionMeta = (tx, topLine = '') => {
     if (tx?.walletFrom || tx?.walletTo) {
         parts.push(`${tx.walletFrom || '?'}->${tx.walletTo || '?'}`);
     }
-    if (tx?.txHash || tx?.binanceRawId) parts.push(`TX ${tx.txHash || tx.binanceRawId}`);
+    if (!tx?.orderNumber && (tx?.txHash || tx?.binanceRawId)) {
+        parts.push(`REF ${tx.txHash || tx.binanceRawId}`);
+    }
     if (status && status !== 'SUCCESS') parts.push(`STATUS ${status}`);
     if (tx?.notes && tx?.notes !== topLine) parts.push(tx.notes);
     return parts;

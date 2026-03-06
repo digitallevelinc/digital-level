@@ -200,11 +200,11 @@ function translateWarning(value) {
 
   const exactMap = {
     "Direct ads endpoint returned no active ads, using inferred mode from order history":
-      "No se detectaron ordenes P2P activas en modo directo. Se uso modo inferido por historial de ordenes.",
+      "No se detectaron ordenes P2P activas en modo directo. Se uso modo inferido por ordenes abiertas de hoy.",
     "Direct ads endpoint returned no data (unsupported or no permission)":
       "El endpoint directo no devolvio datos (sin soporte o sin permisos para esta cuenta).",
     "No inferred active ads found in current history window":
-      "No se detectaron ordenes P2P activas por historial. En modo inferido, solo aparecen ordenes con actividad reciente/en curso.",
+      "No se detectaron ordenes P2P abiertas hoy.",
     "Operator has no Binance API credentials configured":
       "El operador no tiene credenciales API de Binance configuradas.",
     "P2P client unavailable":
@@ -305,10 +305,7 @@ function renderRows(activeAds) {
       ? Number(ad.totalOrders)
       : null;
 
-    const ordersText =
-      openOrders !== null || totalOrders !== null
-        ? `${openOrders ?? 0} / ${totalOrders ?? 0}`
-        : "--";
+    const ordersText = openOrders !== null ? String(openOrders) : "--";
 
     const stateParts = [
       ad?.statusRaw ? translateStatus(ad.statusRaw) : null,
@@ -371,7 +368,7 @@ export async function refreshActiveAds(
     // 1) direct active ads detection first
     // 2) inferred history fallback only when direct has no active results
     params.set("mode", "auto");
-    params.set("days", "7");
+    params.set("days", "1");
     params.set("_ts", String(Date.now()));
 
     const res = await fetch(`${API_BASE}/api/p2p/ads/active?${params.toString()}`, {
@@ -409,7 +406,9 @@ export async function refreshActiveAds(
     const windowDays = Number(payload?.windowDays);
     const windowLabel =
       Number.isFinite(windowDays) && windowDays > 0
-        ? `${windowDays} dias`
+        ? windowDays === 1
+          ? "Hoy"
+          : `${windowDays} dias`
         : "--";
     const updatedAt = formatDateTime(payload?.detectedAt);
 

@@ -21,10 +21,11 @@ import CardHelp from './CardHelp.astro';
         </div>
         <CardHelp
           title="Ordenes P2P Activas"
-          description="Lista ordenes/anuncios que Binance detecta activos para el operador."
-          calculation="Activos = cantidad de ordenes/anuncios con estado operativo. Si no hay respuesta directa, el sistema infiere estado usando historial reciente de ordenes."
+          description="Lista de ordenes P2P realmente abiertas para el operador."
+          calculation="Activos = ordenes con estado operativo en curso durante hoy. Si no hay respuesta directa, el sistema cruza el estado con ordenes abiertas del dia."
           notes={[
-            "Se muestra fuente de deteccion: directo o inferido.",
+            "Solo permanecen filas con ordenes abiertas.",
+            "Al completarse o cerrarse una orden, sale del monitor.",
             "La tabla incluye precio, cantidad, liquidez en Bs, metodos y estado."
           ]}
           align="left"
@@ -99,7 +100,7 @@ import CardHelp from './CardHelp.astro';
           </span>
         </div>
         <div class="bg-black/20 p-3 rounded-xl border border-white/5 flex flex-col gap-1">
-          <span class="sentinel-label !text-[11px] text-white/70">Historial analizado</span>
+          <span class="sentinel-label !text-[11px] text-white/70">Ventana analizada</span>
           <span id="active-ads-window" class="sentinel-value-md !text-[1.1rem] text-white tracking-normal sm:!text-lg">
             --
           </span>
@@ -119,7 +120,7 @@ import CardHelp from './CardHelp.astro';
       </div>
 
       <p class="text-[13px] leading-6 text-white/60">
-        Directo: Binance reporta ordenes P2P activas. Inferido: se estima por historial de ordenes recientes.
+        Directo: Binance reporta ordenes P2P activas. Inferido: se valida usando solo ordenes abiertas del dia actual.
       </p>
 
       <p
@@ -137,7 +138,7 @@ import CardHelp from './CardHelp.astro';
               <th class="px-2 sm:px-3 py-2 font-black">Precio</th>
               <th class="px-2 sm:px-3 py-2 font-black">Cantidad / Liquidez Bs</th>
               <th class="px-2 sm:px-3 py-2 font-black">Metodos</th>
-              <th class="px-2 sm:px-3 py-2 font-black">Ordenes</th>
+              <th class="px-2 sm:px-3 py-2 font-black">Activas</th>
               <th class="px-2 sm:px-3 py-2 font-black">Estado</th>
             </tr>
           </thead>

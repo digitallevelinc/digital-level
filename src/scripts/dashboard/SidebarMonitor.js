@@ -125,8 +125,6 @@ function buildSpreadLabel(bank) {
 function buildPagoMovilLabel(bank, config = {}) {
     const limits = config?.bankPagoMovilLimitsVes && typeof config.bankPagoMovilLimitsVes === 'object'
         ? config.bankPagoMovilLimitsVes
-        : config?.bankSpendLimitsVes && typeof config.bankSpendLimitsVes === 'object'
-            ? config.bankSpendLimitsVes
         : {};
     const key = normalizeBankLimitKey(bank);
     const limit = Number(limits?.[key] || 0);
@@ -143,10 +141,14 @@ function buildPagoMovilLabel(bank, config = {}) {
     const remaining = Math.max(0, limit - consumed);
     return {
         value: `${fVESInline(remaining)} / ${fVESInline(limit)}`,
-        meta: consumed <= limit
-            ? `${fVESInline(consumed)} usado`
-            : `Exceso ${fVESInline(consumed - limit)}`,
-        progress: clampPercent((consumed / limit) * 100),
+        meta: consumed > limit
+            ? `Exceso ${fVESInline(consumed - limit)} | Reinicia 12:00`
+            : remaining <= 0.01
+                ? 'Tope agotado | Reinicia 12:00'
+                : consumed <= 0.01
+                    ? 'Reinicia 12:00'
+                    : `${fVESInline(consumed)} usado | Reinicia 12:00`,
+        progress: clampPercent((remaining / limit) * 100),
     };
 }
 
@@ -430,23 +432,15 @@ export function updateSidebarMonitor(kpis = {}, bankInsights = []) {
     if (!listContainer) return;
     listContainer.innerHTML = '';
     const promiseSummaryByBank = buildPromiseSummaryByBank(kpis);
-    const vesControlSummaryByBank = buildVesControlSummaryByBank(kpis);
-
     bankInsights.forEach((bank) => {
         const activeVerdicts = Number(bank.activeVerdictsCount || 0);
         const ops = Number(bank.transactionCount ?? bank.totalOps ?? ((bank.countSell || 0) + (bank.countBuy || 0)));
         const pagoMovil = buildPagoMovilLabel(bank, kpis.config || {});
-        const vesLimit = buildBankVesLimitLabel(
-            bank,
-            kpis.config || {},
-            vesControlSummaryByBank
-        );
         const spreadLabel = buildSpreadLabel(bank);
         const promiseLabel = buildPromiseLabel(bank, promiseSummaryByBank);
         const promiseTextClass = promiseLabel.pendingUsdt > 0 || promiseLabel.pendingFiat > 0
             ? 'text-amber-300'
             : 'text-white/90';
-        const vesBarClass = vesLimit.hasFlow ? 'bg-sky-400' : 'bg-slate-500/40';
         const statusLabel = `${ops} Ops | ${activeVerdicts} Activas`;
 
         const div = document.createElement('div');
@@ -483,16 +477,6 @@ export function updateSidebarMonitor(kpis = {}, bankInsights = []) {
             </div>
             <div class="h-1.5 w-full bg-white/10 rounded-full overflow-hidden mt-1">
                 <div class="h-full bg-[#F3BA2F] transition-all duration-700 ease-out" style="width: ${pagoMovil.progress}%"></div>
-            </div>
-            <div class="flex items-center justify-between gap-3 mt-2">
-                <span class="text-[11px] text-slate-500 font-black uppercase tracking-[0.18em]">Control VES</span>
-                <span class="text-[11px] text-slate-500 font-black tracking-tight">${vesLimit.meta}</span>
-            </div>
-            <div class="text-[13px] font-mono font-black tracking-tight text-white/90">
-                ${vesLimit.value}
-            </div>
-            <div class="h-1.5 w-full bg-white/10 rounded-full overflow-hidden mt-1">
-                <div class="h-full ${vesBarClass} transition-all duration-700 ease-out" style="width: ${vesLimit.progress}%"></div>
             </div>
         `;
         listContainer.appendChild(div);
