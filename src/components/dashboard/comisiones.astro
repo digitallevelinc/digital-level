@@ -2,14 +2,14 @@
 // Componente de Comisiones Globales - Sincronizado con Cards de Bancos
 import CardHelp from './CardHelp.astro';
 ---
-<div class="bg-[#161a1e] border border-gray-800 rounded-2xl p-6 shadow-lg transition-all hover:border-[#F3BA2F]/20 group flex flex-col justify-between min-h-[220px]">
+<div class="group flex min-h-[250px] flex-col justify-between rounded-[1.4rem] border border-gray-800 bg-[#161a1e] p-5 shadow-lg transition-all hover:border-[#F3BA2F]/20 sm:p-6">
     <div>
-        <div class="flex items-start justify-between gap-3 mb-2">
+        <div class="mb-3 flex items-start justify-between gap-3">
             <div class="flex items-center gap-2">
                 <div class="p-1.5 bg-[#F3BA2F]/10 rounded-lg">
                     <i class="fas fa-receipt text-[#F3BA2F] text-[10px]"></i>
                 </div>
-                <p class="sentinel-label text-white !text-xs uppercase font-black tracking-widest">Fee Balance Global</p>
+                <p class="sentinel-label text-white !text-[12px] sm:!text-[13px] uppercase font-black tracking-widest">Fee Balance Global</p>
             </div>
             <CardHelp
                 title="Fee Balance Global"
@@ -22,35 +22,35 @@ import CardHelp from './CardHelp.astro';
                 align="left"
             />
         </div>
-        <h3 id="fee-balance-total" class="text-4xl font-black text-white mt-1 tracking-tighter leading-none transition-colors">
+        <h3 id="fee-balance-total" class="mt-2 text-[2rem] font-black leading-none tracking-tight text-white transition-colors sm:text-[2.35rem]">
             0.00 USDT
         </h3>
-        <p class="text-[10px] text-white-500 font-bold uppercase tracking-[0.2em] mt-2 opacity-60">Deduccion acumulada del periodo</p>
+        <p class="mt-3 text-[11px] font-bold uppercase tracking-[0.18em] text-white-500 opacity-60 sm:text-[12px]">Deduccion acumulada del periodo</p>
     </div>
 
-    <div class="space-y-3 mt-6 pt-4 border-t border-white/5">
-        <div class="grid grid-cols-2 gap-3">
-            <div class="bg-black/40 p-3 rounded-xl border border-white/5 shadow-inner">
-                <p class="text-xs text-rose-500 font-black uppercase tracking-tighter mb-1.5 opacity-80">Fees Ventas</p>
+    <div class="mt-6 space-y-3 border-t border-white/5 pt-4">
+        <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div class="rounded-xl border border-white/5 bg-black/40 p-3.5 shadow-inner">
+                <p class="mb-1.5 text-[12px] font-black uppercase tracking-tight text-rose-500 opacity-80">Fees Ventas</p>
                 <div class="flex flex-col">
                     <div class="flex items-baseline gap-1">
-                        <span id="fee-sales-amount" class="text-white font-mono font-black text-[22px] tracking-tighter">0.00</span>
+                        <span id="fee-sales-amount" class="font-mono text-[24px] font-black tracking-tight text-white sm:text-[26px]">0.00</span>
                         <span class="text-[12px] text-rose-500/50 font-bold">USDT</span>
                     </div>
-                    <span class="text-[12px] text-white-500 font-bold uppercase mt-1">
+                    <span class="mt-1 text-[12px] font-bold uppercase text-white-500">
                         <span id="fee-sales-count" class="text-white">0</span> <span class="opacity-50">Ops</span>
                     </span>
                 </div>
             </div>
 
-            <div class="bg-black/40 p-3 rounded-xl border border-white/5 shadow-inner">
-                <p class="text-xs text-emerald-500 font-black uppercase tracking-tighter mb-1.5 opacity-80">Fees Compras</p>
+            <div class="rounded-xl border border-white/5 bg-black/40 p-3.5 shadow-inner">
+                <p class="mb-1.5 text-[12px] font-black uppercase tracking-tight text-emerald-500 opacity-80">Fees Compras</p>
                 <div class="flex flex-col">
                     <div class="flex items-baseline gap-1">
-                        <span id="fee-buys-amount" class="text-white font-mono font-black text-[22px] tracking-tighter">0.00</span>
+                        <span id="fee-buys-amount" class="font-mono text-[24px] font-black tracking-tight text-white sm:text-[26px]">0.00</span>
                         <span class="text-[12px] text-emerald-500/50 font-bold">USDT</span>
                     </div>
-                    <span class="text-[12px] text-white-500 font-bold uppercase mt-1">
+                    <span class="mt-1 text-[12px] font-bold uppercase text-white-500">
                         <span id="fee-buys-count" class="text-white">0</span> <span class="opacity-50">Ops</span>
                     </span>
                 </div>

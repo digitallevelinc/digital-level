@@ -3,7 +3,7 @@ import CardHelp from './CardHelp.astro';
 ---
 <div
   id="active-ads-card"
-  class="bg-[#161a1e] border border-white/10 rounded-2xl p-4 sm:p-7 shadow-lg transition-all hover:border-[#F3BA2F]/20"
+  class="rounded-[1.5rem] border border-white/10 bg-[#161a1e] p-5 shadow-lg transition-all hover:border-[#F3BA2F]/20 sm:p-7"
 >
   <div class="flex flex-col gap-5">
     <div class="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
@@ -12,10 +12,10 @@ import CardHelp from './CardHelp.astro';
           <i class="fas fa-bullhorn text-[#F3BA2F] text-sm"></i>
         </div>
         <div>
-          <p class="sentinel-label text-white !text-sm font-bold">
+          <p class="sentinel-label text-white !text-[13px] sm:!text-sm font-bold">
             Ordenes P2P Activas
           </p>
-          <p class="text-[12px] text-white/65 uppercase font-black tracking-[0.18em] mt-1">
+          <p class="mt-1 text-[12px] font-black uppercase tracking-[0.16em] text-white/65 sm:text-[13px]">
             Estado en tiempo real por operador
           </p>
         </div>
@@ -33,12 +33,12 @@ import CardHelp from './CardHelp.astro';
 
       <div class="flex items-center gap-3 self-start md:self-center">
         <div class="flex items-center gap-2">
-          <span class="text-[12px] uppercase font-black tracking-[0.18em] text-white/70">
+          <span class="text-[12px] uppercase font-black tracking-[0.16em] text-white/70 sm:text-[13px]">
             Activos:
           </span>
           <span
             id="active-ads-count"
-            class="text-xl font-mono font-bold text-[#F3BA2F] bg-[#F3BA2F]/10 px-3 py-1 rounded-lg border border-[#F3BA2F]/20"
+            class="rounded-lg border border-[#F3BA2F]/20 bg-[#F3BA2F]/10 px-3 py-1 font-mono text-[1.35rem] font-bold text-[#F3BA2F] sm:text-xl"
           >
             0
           </span>
@@ -48,7 +48,7 @@ import CardHelp from './CardHelp.astro';
           type="button"
           aria-expanded="false"
           aria-controls="active-ads-content"
-          class="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-white/10 bg-black/20 text-[11px] font-black uppercase tracking-[0.18em] text-white/70 hover:border-[#F3BA2F]/30 hover:text-[#F3BA2F] transition-all"
+          class="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-black/20 px-4 py-2 text-[11px] font-black uppercase tracking-[0.16em] text-white/70 transition-all hover:border-[#F3BA2F]/30 hover:text-[#F3BA2F] sm:text-[12px]"
         >
           <span id="active-ads-toggle-label">Expandir</span>
           <svg
@@ -72,19 +72,19 @@ import CardHelp from './CardHelp.astro';
     >
       <div class="bg-black/20 p-3 rounded-xl border border-white/5 flex flex-col gap-1">
         <span class="sentinel-label !text-[11px] text-white/70">Deteccion</span>
-        <span id="active-ads-collapsed-source" class="sentinel-value-md !text-base text-white tracking-normal">
+        <span id="active-ads-collapsed-source" class="sentinel-value-md !text-[1rem] text-white tracking-normal sm:!text-[1.05rem]">
           --
         </span>
       </div>
       <div class="bg-black/20 p-3 rounded-xl border border-white/5 flex flex-col gap-1">
         <span class="sentinel-label !text-[11px] text-white/70">Ultima revision</span>
-        <span id="active-ads-collapsed-updated" class="sentinel-value-md !text-base text-white tracking-normal">
+        <span id="active-ads-collapsed-updated" class="sentinel-value-md !text-[1rem] text-white tracking-normal sm:!text-[1.05rem]">
           --
         </span>
       </div>
       <div class="bg-black/20 p-3 rounded-xl border border-white/5 flex flex-col gap-1">
         <span class="sentinel-label !text-[11px] text-white/70">Liquidez total</span>
-        <span id="active-ads-collapsed-total-fiat" class="sentinel-value-md !text-base text-white tracking-normal">
+        <span id="active-ads-collapsed-total-fiat" class="sentinel-value-md !text-[1rem] text-white tracking-normal sm:!text-[1.05rem]">
           --
         </span>
       </div>
@@ -94,31 +94,31 @@ import CardHelp from './CardHelp.astro';
       <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <div class="bg-black/20 p-3 rounded-xl border border-white/5 flex flex-col gap-1">
           <span class="sentinel-label !text-[11px] text-white/70">Metodo de deteccion</span>
-          <span id="active-ads-source" class="sentinel-value-md !text-lg text-white tracking-normal">
+          <span id="active-ads-source" class="sentinel-value-md !text-[1.1rem] text-white tracking-normal sm:!text-lg">
             --
           </span>
         </div>
         <div class="bg-black/20 p-3 rounded-xl border border-white/5 flex flex-col gap-1">
           <span class="sentinel-label !text-[11px] text-white/70">Historial analizado</span>
-          <span id="active-ads-window" class="sentinel-value-md !text-lg text-white tracking-normal">
+          <span id="active-ads-window" class="sentinel-value-md !text-[1.1rem] text-white tracking-normal sm:!text-lg">
             --
           </span>
         </div>
         <div class="bg-black/20 p-3 rounded-xl border border-white/5 flex flex-col gap-1">
           <span class="sentinel-label !text-[11px] text-white/70">Ultima revision</span>
-          <span id="active-ads-updated" class="sentinel-value-md !text-lg text-white tracking-normal">
+          <span id="active-ads-updated" class="sentinel-value-md !text-[1.1rem] text-white tracking-normal sm:!text-lg">
             --
           </span>
         </div>
         <div class="bg-black/20 p-3 rounded-xl border border-white/5 flex flex-col gap-1">
           <span class="sentinel-label !text-[11px] text-white/70">Liquidez total (Bs)</span>
-          <span id="active-ads-total-fiat" class="sentinel-value-md !text-lg text-white tracking-normal">
+          <span id="active-ads-total-fiat" class="sentinel-value-md !text-[1.1rem] text-white tracking-normal sm:!text-lg">
             --
           </span>
         </div>
       </div>
 
-      <p class="text-[12px] text-white/60">
+      <p class="text-[13px] leading-6 text-white/60">
         Directo: Binance reporta ordenes P2P activas. Inferido: se estima por historial de ordenes recientes.
       </p>
 

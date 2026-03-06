@@ -2,12 +2,11 @@
 // src/components/dashboard/ProyeccionGanancias.astro
 import CardHelp from './CardHelp.astro';
 ---
-<div class="p-4 sm:p-6 rounded-xl border border-blue-500/30 bg-[#161a1e] hover:border-blue-500/60 transition-all shadow-lg flex flex-col h-full">
-  
-  <div class="flex justify-between items-center mb-4">
+<div class="flex h-full flex-col rounded-[1.4rem] border border-blue-500/30 bg-[#161a1e] p-5 shadow-lg transition-all hover:border-blue-500/60 sm:p-6">
+  <div class="mb-5 flex items-start justify-between gap-3">
     <div>
-      <span class="text-[12px] font-black uppercase tracking-widest text-white-400">Proyección de Escenarios</span>
-      <p class="text-[10px] text-white-500 uppercase font-bold mt-0.5">Basado en volumen actual</p>
+      <span class="text-[12px] font-black uppercase tracking-[0.18em] text-white-400 sm:text-[13px]">Proyeccion de Escenarios</span>
+      <p class="mt-1 text-[11px] font-bold uppercase tracking-[0.14em] text-white-500">Basado en volumen actual</p>
     </div>
     <div class="flex items-center gap-2">
       <CardHelp
@@ -19,7 +18,7 @@ import CardHelp from './CardHelp.astro';
           "Horizontes mas largos aplican penalizacion de confianza."
         ]}
       />
-      <div class="bg-blue-500/10 p-2.5 rounded-lg">
+      <div class="rounded-lg bg-blue-500/10 p-2.5">
         <i class="fas fa-magic text-blue-500 text-sm"></i>
       </div>
     </div>
@@ -27,29 +26,29 @@ import CardHelp from './CardHelp.astro';
 
   <div class="mb-6">
     <div class="flex items-baseline gap-2">
-      <span id="projected-profit-value" class="text-3xl sm:text-4xl font-mono font-bold text-white tracking-tighter">---</span>
-      <span class="text-sm font-bold text-white-600 uppercase">usdt</span>
+      <span id="projected-profit-value" class="font-mono text-[2rem] font-bold tracking-tight text-white sm:text-[2.35rem]">---</span>
+      <span class="text-[12px] font-bold uppercase text-white-600 sm:text-sm">usdt</span>
     </div>
-    <div class="flex items-center gap-2 mt-2">
-      <span id="projection-label" class="text-[12px] text-white-500 font-black uppercase tracking-widest">Estimado 1 día</span>
+    <div class="mt-2 flex items-center gap-2">
+      <span id="projection-label" class="text-[12px] font-black uppercase tracking-[0.16em] text-white-500 sm:text-[13px]">Estimado 1 dia</span>
     </div>
   </div>
 
-  <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-4">
-    <button class="proj-time-btn active bg-blue-500 text-black text-[10px] font-black py-1.5 rounded uppercase transition-all" data-days="1">1D</button>
-    <button class="proj-time-btn bg-white/5 text-gray-400 text-[10px] font-black py-1.5 rounded border border-white/5 hover:bg-blue-500/20 uppercase" data-days="7">7D</button>
-    <button class="proj-time-btn bg-white/5 text-gray-400 text-[10px] font-black py-1.5 rounded border border-white/5 hover:bg-blue-500/20 uppercase" data-days="15">15D</button>
-    <button class="proj-time-btn bg-white/5 text-gray-400 text-[10px] font-black py-1.5 rounded border border-white/5 hover:bg-blue-500/20 uppercase" data-days="30">1M</button>
+  <div class="mb-5 grid grid-cols-2 gap-2.5 sm:grid-cols-4">
+    <button class="proj-time-btn active rounded-lg bg-blue-500 py-2 text-[11px] font-black uppercase text-black transition-all" data-days="1">1D</button>
+    <button class="proj-time-btn rounded-lg border border-white/5 bg-white/5 py-2 text-[11px] font-black uppercase text-gray-400 hover:bg-blue-500/20" data-days="7">7D</button>
+    <button class="proj-time-btn rounded-lg border border-white/5 bg-white/5 py-2 text-[11px] font-black uppercase text-gray-400 hover:bg-blue-500/20" data-days="15">15D</button>
+    <button class="proj-time-btn rounded-lg border border-white/5 bg-white/5 py-2 text-[11px] font-black uppercase text-gray-400 hover:bg-blue-500/20" data-days="30">1M</button>
   </div>
 
-  <div class="mt-auto pt-4 border-t border-white/5 space-y-3">
-    <div class="flex justify-between items-center">
-      <span class="text-[10px] text-white-500 uppercase font-bold">Volumen Estimado</span>
-      <span id="proj-vol-detail" class="text-ls font-mono text-white-300 font-bold">---</span>
+  <div class="mt-auto space-y-3 border-t border-white/5 pt-4">
+    <div class="flex items-center justify-between">
+      <span class="text-[11px] font-bold uppercase tracking-[0.14em] text-white-500">Volumen Estimado</span>
+      <span id="proj-vol-detail" class="font-mono text-[15px] font-bold text-white-300 sm:text-base">---</span>
     </div>
-    <div class="flex justify-between items-center">
-      <span class="text-[10px] text-white-500 uppercase font-bold">Confianza de Algoritmo</span>
-      <span id="proj-confidence" class="text-ls font-mono text-emerald-500 font-bold">--%</span>
+    <div class="flex items-center justify-between">
+      <span class="text-[11px] font-bold uppercase tracking-[0.14em] text-white-500">Confianza de Algoritmo</span>
+      <span id="proj-confidence" class="font-mono text-[15px] font-bold text-emerald-500 sm:text-base">--%</span>
     </div>
   </div>
 </div>
