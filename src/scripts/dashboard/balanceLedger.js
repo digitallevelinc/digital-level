@@ -407,7 +407,7 @@ const renderRow = (tx, rowBalance) => {
             </div>
             <div class="text-left lg:text-right">
                 <div class="text-[1rem] font-black leading-none ${balanceTone}">${rowBalance < 0 ? '-' : ''}${formatUsd(Math.abs(rowBalance))}</div>
-                <div class="mt-0.5 text-[10px] font-medium text-white/35">Balance corrido</div>
+                <div class="mt-0.5 text-[10px] font-medium text-white/35">${escapeHtml(formatFiat(tx))}</div>
             </div>
         </article>
     `;

@@ -7,32 +7,20 @@ import CardHelp from './CardHelp.astro';
     <CardHelp
       title="Resumen de Profit"
       description="Card principal de rendimiento del periodo seleccionado."
-      calculation="Diferencia = wallet real - capital inicial del periodo. Profit generado = suma del profit neto consolidado por banco en el rango. Volumen total = suma USDT operada."
+      calculation="Wallet real = saldo verificado por API. Profit generado = suma del profit neto consolidado por banco en el rango. Volumen total = suma USDT operada."
       notes={[
-        "Capital inicial y wallet real permiten auditar desviaciones.",
-        "Si el gap es cercano a cero se marca como estado neutro."
+        "Se priorizan metricas operativas que no dupliquen Balance General.",
+        "El wallet real se mantiene como referencia viva del saldo verificado."
       ]}
       align="left"
     />
   </div>
 
-  <div class="grid grid-cols-1 gap-5 md:grid-cols-2">
-    <div class="relative rounded-xl border border-white/5 bg-black/20 p-5">
-      <span class="mb-2 block text-center text-[12px] font-black uppercase text-white-500 sm:text-[13px]">Capital Inicial del Periodo</span>
-      <div id="theoretical-balance" class="text-center font-mono text-[2rem] font-bold leading-none text-white sm:text-[2.3rem]">---</div>
-      <p class="mt-3 text-center text-[11px] font-bold uppercase tracking-[0.14em] text-white-600">Saldo al inicio del periodo</p>
-    </div>
-
+  <div class="grid grid-cols-1 gap-5">
     <div class="rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-5">
       <span class="mb-2 block text-center text-[12px] font-black uppercase text-white-500/60 sm:text-[13px]">Binance Wallet (API)</span>
       <div id="real-binance-balance" class="text-center font-mono text-[2rem] font-bold leading-none text-emerald-400 sm:text-[2.3rem]">---</div>
       <p class="mt-3 text-center text-[11px] font-bold uppercase tracking-[0.14em] text-white-600">Saldo real verificado</p>
-    </div>
-
-    <div id="balance-gap-container" class="flex flex-col justify-center rounded-xl border border-white/5 bg-black/20 p-5">
-      <span class="mb-2 block text-center text-[12px] font-black uppercase text-white-500 sm:text-[13px]">Diferencia Wallet vs Capital Inicial</span>
-      <div id="balance-gap-value" class="text-center font-mono text-[1.7rem] font-bold leading-none sm:text-[2rem]">---</div>
-      <div id="balance-gap-status" class="mt-3 text-center text-[10px] font-black uppercase tracking-[0.16em] text-rose-400 sm:text-[11px]">---</div>
     </div>
   </div>
 

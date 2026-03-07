@@ -6,29 +6,8 @@ export function updateProfitUI(kpis = {}, bankInsights = []) {
     const operations = kpis.operations || {};
     const audit = kpis.audit || {};
 
-    // 1. CAPITAL INICIAL (Dato maestro)
-    const CAPITAL_INICIAL = parseFloat(critical.capitalInicial || kpis.capitalInicial || 0);
-    inject('audit-initial-capital', fUSDT(CAPITAL_INICIAL));
-    inject('audit-period-days', audit.periodDays || 0);
-
-    // 2. PROFIT REAL (Desde Backend)
     const totalProfitUSDT = parseFloat(critical.profitTotalUSDT || 0);
 
-    // 3. BALANCE TEÓRICO (Desde Backend)
-    // 3. CAPITAL INICIAL (Desde Backend)
-    // Antes 'Balance Teórico', ahora representa el Capital Inicial del periodo seleccionado
-    const theoreticalTotal = parseFloat(audit.currentBalanceEstimate || critical.balanceTotal || 0);
-
-    // 4. ROI GLOBAL (Desde Backend)
-    const roiPercent = parseFloat(critical.globalMarginPercent || 0);
-
-    // --- INYECCIONES EN UI ---
-
-    // A. Balance Teórico
-    inject('theoretical-balance', fUSDT(theoreticalTotal));
-
-    // B. Balance Real (debe ser independiente del filtro temporal).
-    // Nunca usar critical.balanceTotal aquí porque ese valor representa el capital del periodo.
     const realBinanceSource =
         audit.realBalance ??
         kpis.metrics?.totalBalance ??
@@ -37,51 +16,19 @@ export function updateProfitUI(kpis = {}, bankInsights = []) {
     const realBinance = parseFloat(realBinanceSource || 0);
     inject('real-binance-balance', fUSDT(realBinance));
 
-    // C. Discrepancia / GAP (Ahora debería venir del backend, usamos fallback visual si no viene)
-    // C. PROFIT GENERADO (Discrepancy)
-    // Mapeamos audit.discrepancy como el Profit del periodo.
-    const gap = audit.discrepancy !== undefined ? parseFloat(audit.discrepancy) : (realBinance - theoreticalTotal);
-    inject('balance-gap-value', fUSDT(gap));
-
-    // D. Profit Total
     inject('audit-total-profit-display', fUSDT(totalProfitUSDT));
-
-    // E. Crecimiento %
-    inject('audit-growth-percent', `${roiPercent >= 0 ? '+' : ''}${roiPercent.toFixed(2)}%`);
-
-    // F. Volumen y Fees (Operaciones)
-    // F. Volumen y Fees (Operaciones)
     inject('audit-total-volume', fUSDT(parseFloat(operations.totalVolumeUSDT || 0)));
     inject('audit-total-fees', fUSDT(parseFloat(operations.totalFeesPaid || 0)));
 
-    // G. Datos Fiat (Request)
-    // Agregamos inyeccion para profitTotalFiat si existe elemento
     if (critical.profitTotalFiat) {
         inject('audit-profit-fiat', fVES(critical.profitTotalFiat), true);
     }
 
-    // Inyectar balances de canales (Visualización)
     const wallets = kpis.wallets || {};
     inject('channel-red', fUSDT(wallets.balanceRed || 0));
     inject('channel-switch', fUSDT(wallets.balanceSwitch || 0));
     inject('channel-p2p', fUSDT(wallets.balanceP2P || 0));
     inject('channel-pay', fUSDT(wallets.balancePay || 0));
-
-        // Lógica visual del GAP (Estado)
-    const gapStatus = document.getElementById('balance-gap-status');
-    const gapContainer = document.getElementById('balance-gap-container');
-    if (gapStatus && gapContainer) {
-        if (Math.abs(gap) < 2.0) {
-            gapStatus.textContent = "Sin Movimiento (Neutro)";
-            gapContainer.className = "bg-emerald-500/5 p-4 rounded-lg border border-emerald-500/20 flex flex-col justify-center";
-        } else if (gap < 0) {
-            gapStatus.textContent = "Diferencia Negativa";
-            gapContainer.className = "bg-rose-500/5 p-4 rounded-lg border border-rose-500/20 flex flex-col justify-center";
-        } else {
-            gapStatus.textContent = "Diferencia Positiva";
-            gapContainer.className = "bg-emerald-500/5 p-4 rounded-lg border border-emerald-500/20 flex flex-col justify-center";
-        }
-    }
 
     renderBankProfitList(bankInsights);
     renderProfitChart(kpis.chartData);
@@ -116,16 +63,13 @@ function renderProfitChart(chartData = []) {
     }
 
     if (!chartData || chartData.length === 0) {
-        // Optional: Show "No data" message?
         return;
     }
 
-    // Sort by date just in case
     const sortedData = [...chartData].sort((a, b) => new Date(a.date) - new Date(b.date));
 
     const labels = sortedData.map(d => {
         const date = new Date(d.date);
-        // Format: "Mon 12" (short day + date)
         return date.toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric' });
     });
 
@@ -140,7 +84,7 @@ function renderProfitChart(chartData = []) {
                 {
                     label: 'Profit (USDT)',
                     data: profitData,
-                    backgroundColor: '#4ade80', // emerald-400
+                    backgroundColor: '#4ade80',
                     stack: 'Stack 0',
                     order: 2,
                     yAxisID: 'y'
@@ -148,7 +92,7 @@ function renderProfitChart(chartData = []) {
                 {
                     label: 'Fees (USDT)',
                     data: feesData,
-                    backgroundColor: '#f87171', // red-400
+                    backgroundColor: '#f87171',
                     stack: 'Stack 0',
                     order: 3,
                     yAxisID: 'y'
@@ -157,7 +101,7 @@ function renderProfitChart(chartData = []) {
                     label: 'Capital',
                     data: capitalData,
                     type: 'line',
-                    borderColor: '#60a5fa', // blue-400
+                    borderColor: '#60a5fa',
                     borderWidth: 2,
                     pointRadius: 2,
                     tension: 0.3,
@@ -194,7 +138,7 @@ function renderProfitChart(chartData = []) {
                 },
                 legend: {
                     labels: {
-                        color: '#9ca3af', // gray-400
+                        color: '#9ca3af',
                         font: { size: 10 }
                     }
                 }
@@ -204,23 +148,21 @@ function renderProfitChart(chartData = []) {
                     grid: { color: 'rgba(255, 255, 255, 0.05)' },
                     ticks: { color: '#9ca3af' }
                 },
-                y: { // Profit & Fees Axis
+                y: {
                     type: 'linear',
                     display: true,
                     position: 'left',
                     grid: { color: 'rgba(255, 255, 255, 0.05)' },
                     ticks: { color: '#4ade80' }
                 },
-                y1: { // Capital Axis
+                y1: {
                     type: 'linear',
                     display: true,
                     position: 'right',
-                    grid: { drawOnChartArea: false }, // only want the grid lines for one axis to show up
+                    grid: { drawOnChartArea: false },
                     ticks: { color: '#60a5fa' }
                 }
             }
         }
     });
 }
-
-

@@ -1,75 +1,149 @@
 ---
 import Base from '../layouts/Base.astro';
 import Navbar from '../components/Navbar.tsx';
-import Footer from '../components/Footer.astro';
 ---
 
 <Base title="Acceso Operadores | Digital Level">
   <Navbar client:load />
 
-  <main class="relative pt-24 sm:pt-32 pb-14 sm:pb-20 bg-[#0b0e11] overflow-hidden">
-    <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[320px] h-[320px] sm:w-[500px] sm:h-[500px] bg-[#F3BA2F]/5 rounded-full blur-[120px] pointer-events-none"></div>
+  <main class="relative overflow-hidden bg-[#0b0e11] pb-14 pt-24 sm:pb-20 sm:pt-32">
+    <div class="pointer-events-none absolute left-1/2 top-1/2 h-[320px] w-[320px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[#F3BA2F]/5 blur-[120px] sm:h-[500px] sm:w-[500px]"></div>
 
-    <div class="flex items-center justify-center min-h-[60vh] px-4 sm:px-6 relative z-10">
-      <div class="w-full max-w-md bg-[#161a1e]/80 backdrop-blur-xl border border-gray-800 p-5 sm:p-8 rounded-2xl sm:rounded-3xl shadow-[0_20px_50px_rgba(0,0,0,0.5)]">
-        
-        <div class="text-center mb-8">
-          <div class="inline-flex p-2.5 sm:p-3 rounded-2xl bg-[#F3BA2F]/10 mb-4 border border-[#F3BA2F]/20">
-            <img src="/img/logo.png" alt="Digital Level Logo" class="w-10 h-10 sm:w-12 sm:h-12 object-contain" />
+    <div class="relative z-10 flex min-h-[60vh] items-center justify-center px-4 sm:px-6">
+      <div class="w-full max-w-md rounded-2xl border border-gray-800 bg-[#161a1e]/80 p-5 shadow-[0_20px_50px_rgba(0,0,0,0.5)] backdrop-blur-xl sm:rounded-3xl sm:p-8">
+        <div class="mb-8 text-center">
+          <div class="mb-4 inline-flex rounded-2xl border border-[#F3BA2F]/20 bg-[#F3BA2F]/10 p-2.5 sm:p-3">
+            <img src="/img/logo.png" alt="Digital Level Logo" class="h-10 w-10 object-contain sm:h-12 sm:w-12" />
           </div>
-          <h2 class="text-2xl sm:text-3xl font-black text-white tracking-tighter uppercase leading-tight">
+          <h2 class="text-2xl font-black uppercase leading-tight tracking-tighter text-white sm:text-3xl">
             DigitaLevel<span class="text-[#F3BA2F]"> Ecosystem</span>
           </h2>
-          <p class="text-gray-400 text-xs sm:text-sm mt-2 font-medium uppercase tracking-[0.12em] sm:tracking-widest">Unified Management Hub</p>
+          <p class="mt-2 text-xs font-medium uppercase tracking-[0.12em] text-gray-400 sm:text-sm sm:tracking-widest">
+            Unified Management Hub
+          </p>
         </div>
 
-        <form id="loginForm" class="space-y-5">
-          <div id="error-container" class="hidden bg-red-500/10 border border-red-500/20 text-red-500 text-[10px] font-bold uppercase p-3 rounded-xl text-center tracking-widest mb-4">
-          </div>
-          
-          <div>
-            <label class="block text-[10px] font-black uppercase tracking-[0.2em] text-[#F3BA2F] mb-2 ml-1">Usuario</label>
-            <input 
-              type="text" 
-              name="user" 
-              id="user"
-              required 
-              placeholder="Ej: admin"
-              class="w-full bg-[#0b0e11] border border-gray-700 rounded-2xl p-3.5 sm:p-4 text-white focus:border-[#F3BA2F] focus:ring-1 focus:ring-[#F3BA2F] transition-all outline-none placeholder:text-gray-600"
-            />
-          </div>
-          <div>
-            <label class="block text-[10px] font-black uppercase tracking-[0.2em] text-[#F3BA2F] mb-2 ml-1">PIN de Seguridad</label>
-            <input 
-              type="password" 
-              name="password" 
-              id="password"
-              required 
-              inputmode="numeric"
-              placeholder="••••••••"
-              class="w-full bg-[#0b0e11] border border-gray-800 rounded-2xl p-3.5 sm:p-4 text-white focus:border-[#F3BA2F] focus:ring-1 focus:ring-[#F3BA2F] transition-all outline-none"
-            />
-          </div>
+        <div
+          id="error-container"
+          class="mb-4 hidden rounded-xl border border-red-500/20 bg-red-500/10 p-3 text-center text-[10px] font-bold uppercase tracking-widest text-red-500"
+        ></div>
+        <div
+          id="status-container"
+          class="mb-4 hidden rounded-xl border border-[#F3BA2F]/20 bg-[#F3BA2F]/10 p-3 text-center text-[10px] font-bold uppercase tracking-widest text-[#F3BA2F]"
+        ></div>
 
-          <div class="pt-2">
-            <button 
-              type="submit" 
-              id="submitBtn"
-              class="w-full bg-[#F3BA2F] hover:bg-[#ffdb4d] text-black font-black py-3.5 sm:py-4 rounded-2xl transition-all transform hover:scale-[1.02] shadow-[0_10px_20px_rgba(243,186,47,0.15)] active:scale-95 uppercase text-xs sm:text-sm tracking-[0.15em] sm:tracking-widest"
+        <div id="loginAccessPanel">
+          <form id="loginForm" class="space-y-5">
+            <div>
+              <label class="ml-1 mb-2 block text-[10px] font-black uppercase tracking-[0.2em] text-[#F3BA2F]">Usuario</label>
+              <input
+                type="text"
+                name="user"
+                id="user"
+                required
+                placeholder="Ej: admin"
+                class="w-full rounded-2xl border border-gray-700 bg-[#0b0e11] p-3.5 text-white outline-none transition-all placeholder:text-gray-600 focus:border-[#F3BA2F] focus:ring-1 focus:ring-[#F3BA2F] sm:p-4"
+              />
+            </div>
+            <div>
+              <label class="ml-1 mb-2 block text-[10px] font-black uppercase tracking-[0.2em] text-[#F3BA2F]">PIN de Seguridad</label>
+              <input
+                type="password"
+                name="password"
+                id="password"
+                required
+                inputmode="numeric"
+                placeholder="........"
+                class="w-full rounded-2xl border border-gray-800 bg-[#0b0e11] p-3.5 text-white outline-none transition-all focus:border-[#F3BA2F] focus:ring-1 focus:ring-[#F3BA2F] sm:p-4"
+              />
+            </div>
+
+            <div class="pt-2">
+              <button
+                type="submit"
+                id="submitBtn"
+                class="w-full rounded-2xl bg-[#F3BA2F] py-3.5 text-xs font-black uppercase tracking-[0.15em] text-black shadow-[0_10px_20px_rgba(243,186,47,0.15)] transition-all hover:scale-[1.02] hover:bg-[#ffdb4d] active:scale-95 sm:py-4 sm:text-sm sm:tracking-widest"
+              >
+                Acceder al Sistema
+              </button>
+            </div>
+          </form>
+
+          <div class="pt-4 text-center">
+            <button
+              type="button"
+              id="adminForgotBtn"
+              class="inline-flex items-center justify-center rounded-xl border border-gray-700 bg-transparent px-4 py-2.5 text-[10px] font-black uppercase tracking-[0.16em] text-gray-300 transition-all hover:border-[#F3BA2F]/40 hover:bg-[#F3BA2F]/5"
             >
-              Acceder al Sistema
+              Recuperar Password Admin
             </button>
+            <p class="mt-3 text-[11px] leading-5 text-gray-500">
+              Solo para el admin principal. El enlace se envia al correo configurado.
+            </p>
           </div>
-        </form>
+        </div>
 
-        <p class="text-center mt-7 sm:mt-8 text-[9px] sm:text-[10px] text-gray-500 uppercase font-bold tracking-[0.12em] sm:tracking-widest">
-            Protocolo de Seguridad <span class="text-white">AES-256 (Sentinel Node)</span>
+        <div id="adminResetPanel" class="hidden mt-6 border-t border-gray-800 pt-6">
+          <div class="mb-5 text-center">
+            <h3 class="text-sm font-black uppercase tracking-[0.16em] text-white">Restaurar Password Admin</h3>
+            <p id="adminResetHint" class="mt-2 text-[11px] text-gray-400">
+              Define la nueva password del admin principal.
+            </p>
+          </div>
+          <form id="adminResetForm" class="space-y-4">
+            <div>
+              <label class="ml-1 mb-2 block text-[10px] font-black uppercase tracking-[0.2em] text-[#F3BA2F]">
+                Nueva Password
+              </label>
+              <input
+                type="password"
+                name="adminResetPassword"
+                id="adminResetPassword"
+                required
+                minlength="4"
+                placeholder="Minimo 4 caracteres"
+                class="w-full rounded-2xl border border-gray-700 bg-[#0b0e11] p-3.5 text-white outline-none transition-all placeholder:text-gray-600 focus:border-[#F3BA2F] focus:ring-1 focus:ring-[#F3BA2F] sm:p-4"
+              />
+            </div>
+            <div>
+              <label class="ml-1 mb-2 block text-[10px] font-black uppercase tracking-[0.2em] text-[#F3BA2F]">
+                Confirmar Password
+              </label>
+              <input
+                type="password"
+                name="adminResetPasswordConfirm"
+                id="adminResetPasswordConfirm"
+                required
+                minlength="4"
+                placeholder="Repite la nueva password"
+                class="w-full rounded-2xl border border-gray-700 bg-[#0b0e11] p-3.5 text-white outline-none transition-all placeholder:text-gray-600 focus:border-[#F3BA2F] focus:ring-1 focus:ring-[#F3BA2F] sm:p-4"
+              />
+            </div>
+            <div class="space-y-3 pt-1">
+              <button
+                type="submit"
+                id="adminResetSubmitBtn"
+                class="w-full rounded-2xl bg-[#F3BA2F] py-3.5 text-xs font-black uppercase tracking-[0.15em] text-black shadow-[0_10px_20px_rgba(243,186,47,0.15)] transition-all hover:scale-[1.02] hover:bg-[#ffdb4d] active:scale-95 sm:py-4 sm:text-sm sm:tracking-widest"
+              >
+                Restaurar Admin
+              </button>
+              <button
+                type="button"
+                id="adminResetCancelBtn"
+                class="w-full rounded-2xl border border-gray-700 bg-transparent py-3.5 text-[11px] font-black uppercase tracking-[0.12em] text-gray-300 transition-all hover:border-gray-500 sm:py-4 sm:text-xs"
+              >
+                Cancelar
+              </button>
+            </div>
+          </form>
+        </div>
+
+        <p class="mt-7 text-center text-[9px] font-bold uppercase tracking-[0.12em] text-gray-500 sm:mt-8 sm:text-[10px] sm:tracking-widest">
+          Protocolo de Seguridad <span class="text-white">AES-256 (Sentinel Node)</span>
         </p>
       </div>
     </div>
   </main>
-
-  
 </Base>
 
 <script>
@@ -78,10 +152,23 @@ import Footer from '../components/Footer.astro';
   const FALLBACK_LOGIN_TIMEOUT_MS = 5000;
   const DEFAULT_SUBMIT_TEXT = "ACCEDER AL SISTEMA";
   const VERIFYING_TEXT = "VERIFICANDO...";
+  const DEFAULT_FORGOT_TEXT = "RECUPERAR PASSWORD ADMIN";
 
-  const loginForm = document.getElementById('loginForm') as HTMLFormElement;
+  const loginForm = document.getElementById('loginForm') as HTMLFormElement | null;
+  const loginAccessPanel = document.getElementById('loginAccessPanel');
+  const userInput = document.getElementById('user') as HTMLInputElement | null;
   const errorContainer = document.getElementById('error-container');
-  const submitBtn = document.getElementById('submitBtn') as HTMLButtonElement;
+  const statusContainer = document.getElementById('status-container');
+  const submitBtn = document.getElementById('submitBtn') as HTMLButtonElement | null;
+  const adminForgotBtn = document.getElementById('adminForgotBtn') as HTMLButtonElement | null;
+  const adminResetPanel = document.getElementById('adminResetPanel');
+  const adminResetForm = document.getElementById('adminResetForm') as HTMLFormElement | null;
+  const adminResetHint = document.getElementById('adminResetHint');
+  const adminResetPasswordInput = document.getElementById('adminResetPassword') as HTMLInputElement | null;
+  const adminResetPasswordConfirmInput = document.getElementById('adminResetPasswordConfirm') as HTMLInputElement | null;
+  const adminResetSubmitBtn = document.getElementById('adminResetSubmitBtn') as HTMLButtonElement | null;
+  const adminResetCancelBtn = document.getElementById('adminResetCancelBtn') as HTMLButtonElement | null;
+  let pendingAdminReset: { username: string; token: string } | null = null;
 
   function setSubmitState(disabled: boolean, text: string) {
     if (!submitBtn) return;
@@ -89,9 +176,68 @@ import Footer from '../components/Footer.astro';
     submitBtn.innerText = text;
   }
 
+  function setAdminForgotState(disabled: boolean, text: string) {
+    if (!adminForgotBtn) return;
+    adminForgotBtn.disabled = disabled;
+    adminForgotBtn.innerText = text;
+  }
+
+  function setAdminResetState(disabled: boolean, text: string) {
+    if (!adminResetSubmitBtn) return;
+    adminResetSubmitBtn.disabled = disabled;
+    adminResetSubmitBtn.innerText = text;
+  }
+
+  function hideMessages() {
+    errorContainer?.classList.add('hidden');
+    statusContainer?.classList.add('hidden');
+  }
+
+  function showError(message: string) {
+    if (!errorContainer) return;
+    errorContainer.innerText = message;
+    errorContainer.classList.remove('hidden');
+    statusContainer?.classList.add('hidden');
+  }
+
+  function showStatus(message: string) {
+    if (!statusContainer) return;
+    statusContainer.innerText = message;
+    statusContainer.classList.remove('hidden');
+    errorContainer?.classList.add('hidden');
+  }
+
+  function toggleAdminResetMode(isActive: boolean) {
+    loginAccessPanel?.classList.toggle('hidden', isActive);
+    adminResetPanel?.classList.toggle('hidden', !isActive);
+  }
+
+  function focusAndRevealResetPanel() {
+    window.requestAnimationFrame(() => {
+      adminResetPanel?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      adminResetPasswordInput?.focus();
+    });
+  }
+
+  function openAdminResetPanel(username: string, token: string) {
+    pendingAdminReset = { username, token };
+    if (adminResetHint) {
+      adminResetHint.textContent = `Define la nueva password para ${username}. El enlace es de un solo uso.`;
+    }
+    toggleAdminResetMode(true);
+    focusAndRevealResetPanel();
+  }
+
+  function closeAdminResetPanel() {
+    pendingAdminReset = null;
+    adminResetForm?.reset();
+    toggleAdminResetMode(false);
+    userInput?.focus();
+  }
+
   async function fetchWithTimeout(url: string, init: RequestInit, timeoutMs: number): Promise<Response> {
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+    const timeoutId = window.setTimeout(() => controller.abort(), timeoutMs);
 
     try {
       return await fetch(url, { ...init, signal: controller.signal });
@@ -112,7 +258,7 @@ import Footer from '../components/Footer.astro';
     return status >= 500 || status === 404 || status === 429;
   }
 
-  async function attemptLoginCandidate(
+  async function attemptCandidate(
     candidate: { url: string; timeoutMs: number },
     requestInit: RequestInit
   ): Promise<{ response: Response; result: any }> {
@@ -129,21 +275,60 @@ import Footer from '../components/Footer.astro';
     return { response, result };
   }
 
-  loginForm?.addEventListener('submit', async (e) => {
-    e.preventDefault();
+  async function requestFromCandidates(
+    candidates: Array<{ url: string; timeoutMs: number }>,
+    requestInit: RequestInit
+  ): Promise<{ response: Response; result: any }> {
+    let response: Response | null = null;
+    let result: any = null;
+    let lastError: unknown = null;
+
+    for (let i = 0; i < candidates.length; i += 1) {
+      const candidate = candidates[i];
+      try {
+        const attempt = await attemptCandidate(candidate, requestInit);
+        response = attempt.response;
+        result = attempt.result;
+        break;
+      } catch (error: any) {
+        if (error?.response) {
+          response = error.response;
+          result = error.result ?? null;
+          if (i >= candidates.length - 1) break;
+          continue;
+        }
+        lastError = error;
+      }
+    }
+
+    if (!response) {
+      throw lastError || new Error("No se pudo conectar con la API");
+    }
+
+    return { response, result };
+  }
+
+  const urlParams = new URLSearchParams(window.location.search);
+  const resetToken = urlParams.get('admin-reset-token');
+  const resetUser = urlParams.get('admin-reset-user');
+  if (resetToken && resetUser) {
+    openAdminResetPanel(resetUser, resetToken);
+    showStatus("Define la nueva password del admin principal para completar la restauracion.");
+    window.history.replaceState({}, document.title, window.location.pathname);
+  }
+
+  loginForm?.addEventListener('submit', async (event) => {
+    event.preventDefault();
 
     setSubmitState(true, VERIFYING_TEXT);
-    if (errorContainer) errorContainer.classList.add('hidden');
+    hideMessages();
 
     const formData = new FormData(loginForm);
     const alias = String(formData.get('user') || '').trim();
     const pin = String(formData.get('password') || '').trim();
 
     if (!alias || !pin) {
-      if (errorContainer) {
-        errorContainer.innerText = "Debes ingresar usuario y PIN.";
-        errorContainer.classList.remove('hidden');
-      }
+      showError("Debes ingresar usuario y PIN.");
       setSubmitState(false, DEFAULT_SUBMIT_TEXT);
       return;
     }
@@ -151,54 +336,25 @@ import Footer from '../components/Footer.astro';
     try {
       const host = window.location.hostname.toLowerCase();
       const isLocal = host === 'localhost' || host === '127.0.0.1';
-      const sameOriginApi = "/api/auth/login";
-      const sameOriginPortalApi = "/portal/api/auth/login";
       const apiCandidates = isLocal
         ? [{ url: "http://localhost:3003/api/auth/login", timeoutMs: LOCAL_LOGIN_TIMEOUT_MS }]
         : [
-            { url: sameOriginApi, timeoutMs: PRIMARY_LOGIN_TIMEOUT_MS },
-            { url: sameOriginPortalApi, timeoutMs: FALLBACK_LOGIN_TIMEOUT_MS }
+            { url: "/api/auth/login", timeoutMs: PRIMARY_LOGIN_TIMEOUT_MS },
+            { url: "/portal/api/auth/login", timeoutMs: FALLBACK_LOGIN_TIMEOUT_MS }
           ];
 
-      const requestInit: RequestInit = {
+      const { response, result } = await requestFromCandidates(apiCandidates, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ alias, pin })
-      };
-
-      let response: Response | null = null;
-      let result: any = null;
-      let lastError: unknown = null;
-
-      for (let i = 0; i < apiCandidates.length; i++) {
-        const candidate = apiCandidates[i];
-        try {
-          const attempt = await attemptLoginCandidate(candidate, requestInit);
-          response = attempt.response;
-          result = attempt.result;
-          break;
-        } catch (error: any) {
-          if (error?.response) {
-            response = error.response;
-            result = error.result ?? null;
-            const hasNextCandidate = i < apiCandidates.length - 1;
-            if (!hasNextCandidate) break;
-            continue;
-          }
-          lastError = error;
-        }
-      }
-
-      if (!response) {
-        throw lastError || new Error("No se pudo conectar con la API de login");
-      }
+      });
 
       if (response.ok && result?.success) {
         if (result.role === 'admin') {
-          const protocol = window.location.protocol;
-          const hostname = window.location.hostname;
           const authToken = btoa(`${alias}:${pin}`);
-          const adminUrl = `${protocol}//${hostname}/admin/?authtoken=${authToken}`;
+          const adminUrl = isLocal
+            ? `http://localhost:3002/?authtoken=${authToken}`
+            : `${window.location.protocol}//${window.location.hostname}/admin/?authtoken=${authToken}`;
           setSubmitState(true, "REDIRIGIENDO A ADMIN...");
           window.location.href = adminUrl;
           return;
@@ -219,28 +375,117 @@ import Footer from '../components/Footer.astro';
         const apiBase = isLocal ? 'http://localhost:3003' : window.location.origin;
         localStorage.setItem('api_base', apiBase);
 
-        const maxAgeDays = 7;
-        const maxAge = maxAgeDays * 24 * 60 * 60;
+        const maxAge = 7 * 24 * 60 * 60;
         document.cookie = `session_token=${result.token}; Path=/; Max-Age=${maxAge}; SameSite=Lax`;
 
         window.location.href = role === 'investor' ? "/investor" : "/dashboard";
         return;
       }
 
-      if (errorContainer) {
-        errorContainer.innerText = result?.error || "Credenciales invalidas";
-        errorContainer.classList.remove('hidden');
-      }
-      setSubmitState(false, DEFAULT_SUBMIT_TEXT);
+      showError(result?.error || "Credenciales invalidas");
     } catch (error: any) {
-      const isTimeout = error?.name === 'AbortError';
-      if (errorContainer) {
-        errorContainer.innerText = isTimeout
+      showError(
+        error?.name === 'AbortError'
           ? "Tiempo de espera agotado verificando login. Intenta de nuevo."
-          : "Error: El motor Sentinel no responde (proxy/API).";
-        errorContainer.classList.remove('hidden');
-      }
+          : "Error: El motor Sentinel no responde (proxy/API)."
+      );
+    } finally {
       setSubmitState(false, DEFAULT_SUBMIT_TEXT);
     }
+  });
+
+  adminForgotBtn?.addEventListener('click', async () => {
+    const alias = String(userInput?.value || '').trim() || 'admin';
+    const host = window.location.hostname.toLowerCase();
+    const isLocal = host === 'localhost' || host === '127.0.0.1';
+    const candidates = isLocal
+      ? [{ url: "http://localhost:3003/api/auth/admin/forgot-password", timeoutMs: LOCAL_LOGIN_TIMEOUT_MS }]
+      : [
+          { url: "/api/auth/admin/forgot-password", timeoutMs: PRIMARY_LOGIN_TIMEOUT_MS },
+          { url: "/portal/api/auth/admin/forgot-password", timeoutMs: FALLBACK_LOGIN_TIMEOUT_MS }
+        ];
+
+    try {
+      hideMessages();
+      setAdminForgotState(true, "ENVIANDO...");
+      const { response, result } = await requestFromCandidates(candidates, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username: alias })
+      });
+
+      if (!response.ok) {
+        showError(result?.error || "No se pudo solicitar la restauracion");
+        return;
+      }
+
+      showStatus("Si el usuario corresponde al admin principal, enviamos el enlace al correo configurado.");
+    } catch (error: any) {
+      showError(error?.message || "No se pudo solicitar la restauracion");
+    } finally {
+      setAdminForgotState(false, DEFAULT_FORGOT_TEXT);
+    }
+  });
+
+  adminResetForm?.addEventListener('submit', async (event) => {
+    event.preventDefault();
+
+    if (!pendingAdminReset?.username || !pendingAdminReset?.token) {
+      showError("No hay una restauracion admin pendiente valida.");
+      return;
+    }
+
+    const newPassword = String(adminResetPasswordInput?.value || '').trim();
+    const confirmPassword = String(adminResetPasswordConfirmInput?.value || '').trim();
+
+    if (newPassword.length < 4) {
+      showError("La nueva password debe tener al menos 4 caracteres.");
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      showError("La confirmacion de password no coincide.");
+      return;
+    }
+
+    const host = window.location.hostname.toLowerCase();
+    const isLocal = host === 'localhost' || host === '127.0.0.1';
+    const candidates = isLocal
+      ? [{ url: "http://localhost:3003/api/auth/admin/reset-password", timeoutMs: LOCAL_LOGIN_TIMEOUT_MS }]
+      : [
+          { url: "/api/auth/admin/reset-password", timeoutMs: PRIMARY_LOGIN_TIMEOUT_MS },
+          { url: "/portal/api/auth/admin/reset-password", timeoutMs: FALLBACK_LOGIN_TIMEOUT_MS }
+        ];
+
+    try {
+      hideMessages();
+      setAdminResetState(true, "RESTAURANDO...");
+      const { response, result } = await requestFromCandidates(candidates, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          username: pendingAdminReset.username,
+          token: pendingAdminReset.token,
+          newPassword
+        })
+      });
+
+      if (!response.ok) {
+        showError(result?.error || "No se pudo restaurar la password admin");
+        return;
+      }
+
+      closeAdminResetPanel();
+      showStatus("Password admin restaurada. Ya puedes iniciar sesion desde este login.");
+    } catch (error: any) {
+      showError(error?.message || "No se pudo restaurar la password admin");
+    } finally {
+      setAdminResetState(false, "RESTAURAR ADMIN");
+    }
+  });
+
+  adminResetCancelBtn?.addEventListener('click', () => {
+    closeAdminResetPanel();
+    hideMessages();
   });
 </script>
