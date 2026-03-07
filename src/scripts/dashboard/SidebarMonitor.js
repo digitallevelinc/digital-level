@@ -98,18 +98,26 @@ function getBankMonitorSummary(kpis = {}, bankInsights = []) {
         (bank) => bank.ceilingRate,
         getSellWeight
     );
+    const referenceSellBanks = ceilingBanks.length > 0 ? ceilingBanks : sellReferenceBanks;
+    const referenceSellRateFromBanks = weightedAverage(
+        referenceSellBanks,
+        (bank) => bank.lastSellRate ?? bank.sellRate ?? bank.weightedAvgSellRate ?? bank.avgSellRate,
+        getSellWeight
+    );
     const avgSellRate = avgSellRateFromBanks > 0
         ? avgSellRateFromBanks
         : Number(kpis?.bankSummary?.generalSellRate || 0);
     const avgCeilingRate = avgCeilingRateFromBanks > 0
         ? avgCeilingRateFromBanks
         : Number(kpis?.bankSummary?.generalCeilingRate || 0);
+    const referenceSellRate = referenceSellRateFromBanks > 0 ? referenceSellRateFromBanks : avgSellRate;
 
     return {
         levelLabel,
         verificationPercent: Number(firstPercent || 0),
         avgCeilingRate,
         avgSellRate,
+        referenceSellRate,
         spreadProfitUsdt,
         spreadPercent: spreadBaseUsdt > 0 ? (spreadProfitUsdt / spreadBaseUsdt) * 100 : 0,
         banksWithCeiling: ceilingBanks.length,
@@ -366,7 +374,7 @@ export function updateSidebarMonitor(kpis = {}, bankInsights = []) {
     inject('side-ceiling-level-label', `TECHO (${String(bankSummary.levelLabel || 'Sin nivel').toUpperCase()})`);
     inject('side-ceiling-level-value', bankSummary.avgCeilingRate > 0 ? formatPlain(bankSummary.avgCeilingRate) : '0.00');
     inject('side-ceiling-level-meta', `${formatPlain(bankSummary.verificationPercent)}% | Techo prom. ponderado`);
-    inject('side-ceiling-sell-rate', `Venta prom. ponderada: ${formatPlain(bankSummary.avgSellRate)} VES/USDT`);
+    inject('side-ceiling-sell-rate', `Ultima venta de referencia: ${formatPlain(bankSummary.referenceSellRate)} VES/USDT`);
     inject('side-ceiling-level-badge', `${bankSummary.banksWithCeiling} Bancos`);
     inject('side-spread-value', formatSignedUsdt(bankSummary.spreadProfitUsdt));
     inject('side-spread-meta', `${formatPlain(bankSummary.spreadPercent)}%`);
