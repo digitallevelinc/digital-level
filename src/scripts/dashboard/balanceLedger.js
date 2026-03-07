@@ -207,9 +207,13 @@ const buildDescriptionMeta = (tx, topLine = '') => {
     const rateText = formatRate(tx?.exchangeRate);
     const feeText = formatFeeMeta(tx);
     const status = String(tx?.status || '').toUpperCase();
+    const asset = String(tx?.asset || '').toUpperCase();
+    const fiatCurrency = String(tx?.fiatCurrency || '').toUpperCase();
 
     // Keep sender/receiver identity only in the top line to avoid redundancy.
     if (tx?.paymentMethod) parts.push(tx.paymentMethod);
+    if (asset) parts.push(asset);
+    if (fiatCurrency) parts.push(fiatCurrency);
     if (feeText) parts.push(feeText);
     if (rateText) parts.push(rateText);
     if (tx?.tradeType) parts.push(`TRADE ${tx.tradeType}`);
@@ -219,9 +223,6 @@ const buildDescriptionMeta = (tx, topLine = '') => {
     }
     if (tx?.walletFrom || tx?.walletTo) {
         parts.push(`${tx.walletFrom || '?'}->${tx.walletTo || '?'}`);
-    }
-    if (!tx?.orderNumber && (tx?.txHash || tx?.binanceRawId)) {
-        parts.push(`REF ${tx.txHash || tx.binanceRawId}`);
     }
     if (status && status !== 'SUCCESS') parts.push(`STATUS ${status}`);
     if (tx?.notes && tx?.notes !== topLine) parts.push(tx.notes);
@@ -393,21 +394,21 @@ const renderRow = (tx, rowBalance) => {
 
     return `
         <article class="grid gap-2 px-4 py-2 md:px-5 lg:grid-cols-[128px_minmax(300px,1.5fr)_92px_minmax(150px,0.9fr)_minmax(150px,0.9fr)] lg:items-center">
-            <div class="text-[11px] font-semibold text-white/42">${escapeHtml(formatPostingDate(tx.timestamp))}</div>
+            <div class="text-[11px] font-semibold text-white/72">${escapeHtml(formatPostingDate(tx.timestamp))}</div>
             <div class="min-w-0">
                 <div class="break-words text-[14px] font-semibold text-white">${top}</div>
-                <div class="mt-0.5 flex flex-wrap items-center gap-2 text-[10px] text-white/40">${metaHtml || '<span>Sin metadata extra</span>'}</div>
+                <div class="mt-0.5 flex flex-wrap items-center gap-2 text-[10px] font-medium text-white/78">${metaHtml || '<span class="text-white/60">Sin metadata extra</span>'}</div>
             </div>
             <div class="text-left lg:text-center">
                 <span class="text-[0.95rem] font-black uppercase tracking-[0.12em] ${getCategoryTone(category)}">${category}</span>
             </div>
             <div class="text-left lg:text-right">
                 <div class="text-[1.15rem] font-black leading-none ${amountTone}">${formatAmount(tx)}</div>
-                <div class="mt-0.5 text-[10px] font-semibold text-white/40">${escapeHtml(formatFiat(tx))}</div>
+                <div class="mt-0.5 text-[10px] font-semibold text-white/72">${escapeHtml(formatFiat(tx))}</div>
             </div>
             <div class="text-left lg:text-right">
                 <div class="text-[1rem] font-black leading-none ${balanceTone}">${rowBalance < 0 ? '-' : ''}${formatUsd(Math.abs(rowBalance))}</div>
-                <div class="mt-0.5 text-[10px] font-medium text-white/35">${escapeHtml(formatFiat(tx))}</div>
+                <div class="mt-0.5 text-[10px] font-medium text-white/72">${escapeHtml(formatFiat(tx))}</div>
             </div>
         </article>
     `;
