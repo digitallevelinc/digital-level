@@ -37,6 +37,8 @@ const toFiniteNumber = (value) => {
     const n = Number(value);
     return Number.isFinite(n) ? n : 0;
 };
+const WRAPPED_NOTE_PATTERN = /[\(\{]\s*([^\)\}]+?)\s*[\)\}]/s;
+const PLAIN_NOTE_PATTERN = /^\s*([^()\{\}\n]+?)\s*$/s;
 
 const getCategory = (type) => {
     if (!type) return 'OTRO';
@@ -191,6 +193,79 @@ const formatFeeMeta = (tx) => {
     return `FEE ${formatUsd(fee)}`;
 };
 
+const parseStructuredNote = (note) => {
+    const raw = String(note ?? '').trim();
+    if (!raw) return null;
+
+    const wrapped = raw.match(WRAPPED_NOTE_PATTERN);
+    const plain = wrapped ? null : raw.match(PLAIN_NOTE_PATTERN);
+    const payload = wrapped?.[1]?.trim() ?? plain?.[1]?.trim();
+    if (!payload) return null;
+
+    const parts = payload
+        .split(/[;:]/)
+        .map((part) => part.trim())
+        .filter(Boolean);
+
+    if (parts.length < 2) return null;
+    return { raw, parts };
+};
+
+const parseFlexibleNumber = (value) => {
+    const cleaned = String(value ?? '').replace(/[^\d.,]/g, '');
+    if (!cleaned) return 0;
+
+    let normalized = cleaned;
+    if (cleaned.includes(',') && cleaned.includes('.')) {
+        normalized = cleaned.lastIndexOf(',') > cleaned.lastIndexOf('.')
+            ? cleaned.replace(/\./g, '').replace(',', '.')
+            : cleaned.replace(/,/g, '');
+    } else if (cleaned.includes(',')) {
+        normalized = cleaned.replace(',', '.');
+    }
+
+    const parsed = Number(normalized);
+    return Number.isFinite(parsed) ? parsed : 0;
+};
+
+const getPromiseMeta = (tx = {}) => {
+    const type = String(tx?.type || '').toUpperCase();
+    if (type !== 'PAY_SENT' && type !== 'PAY_RECEIVED') return null;
+
+    const structured = parseStructuredNote(tx?.notes);
+    if (!structured) return null;
+
+    const promiseUsdt = parseFlexibleNumber(structured.parts[2]);
+    if (promiseUsdt <= 0) return null;
+
+    const noteRate = parseFlexibleNumber(structured.parts[1]);
+    const exchangeRate = noteRate > 0 ? noteRate : getTxRate(tx);
+    if (exchangeRate <= 0) return null;
+
+    const actualUsdt = Math.abs(Number(tx?.amount || 0));
+    const actualFiat = resolveFiatAmount(tx);
+    const promisedFiat = promiseUsdt * exchangeRate;
+    const pendingUsdt = Math.max(0, promiseUsdt - actualUsdt);
+    const pendingFiat = Math.max(0, promisedFiat - actualFiat);
+
+    return {
+        rawNote: structured.raw,
+        exchangeRate,
+        promiseUsdt,
+        promisedFiat,
+        actualUsdt,
+        actualFiat,
+        pendingUsdt,
+        pendingFiat,
+        isReceiver: type === 'PAY_RECEIVED',
+    };
+};
+
+const getFiatLabel = (tx = {}) => {
+    const fiatCurrency = String(tx?.fiatCurrency || '').trim().toUpperCase();
+    return fiatCurrency || 'FIAT';
+};
+
 const maskCounterpartyName = (value) => {
     const raw = String(value ?? '').trim();
     if (!raw) return '';
@@ -209,6 +284,7 @@ const buildDescriptionMeta = (tx, topLine = '') => {
     const status = String(tx?.status || '').toUpperCase();
     const asset = String(tx?.asset || '').toUpperCase();
     const fiatCurrency = String(tx?.fiatCurrency || '').toUpperCase();
+    const promiseMeta = getPromiseMeta(tx);
 
     // Keep sender/receiver identity only in the top line to avoid redundancy.
     if (tx?.paymentMethod) parts.push(tx.paymentMethod);
@@ -225,7 +301,7 @@ const buildDescriptionMeta = (tx, topLine = '') => {
         parts.push(`${tx.walletFrom || '?'}->${tx.walletTo || '?'}`);
     }
     if (status && status !== 'SUCCESS') parts.push(`STATUS ${status}`);
-    if (tx?.notes && tx?.notes !== topLine) parts.push(tx.notes);
+    if (tx?.notes && tx?.notes !== topLine && tx.notes !== promiseMeta?.rawNote) parts.push(tx.notes);
     return parts;
 };
 
@@ -256,7 +332,7 @@ const resolveFiatAmount = (tx) => {
 
 const formatFiat = (tx) => {
     const fiatResolved = resolveFiatAmount(tx);
-    return `${formatNumber(fiatResolved, 2)} FIAT`;
+    return `${formatNumber(fiatResolved, 2)} ${getFiatLabel(tx)}`;
 };
 
 const formatAmount = (tx) => {
@@ -264,6 +340,49 @@ const formatAmount = (tx) => {
     const amount = Number(tx?.amount || 0);
     const sign = direction < 0 ? '-' : direction > 0 ? '+' : '';
     return `${sign}${formatUsd(Math.abs(amount))}`;
+};
+
+const formatPromiseUsdt = (value) => `${formatNumber(Math.abs(Number(value || 0)), 2, 'en-US')} USDT`;
+
+const formatPromiseFiat = (value, tx) => `${formatNumber(Math.abs(Number(value || 0)), 2)} ${getFiatLabel(tx)}`;
+
+const renderPromiseColumnMeta = (tx) => {
+    const promiseMeta = getPromiseMeta(tx);
+    if (!promiseMeta) {
+        return '<div class="pt-0.5 text-[12px] font-semibold text-white/20">--</div>';
+    }
+
+    const promiseTone = promiseMeta.isReceiver ? 'text-amber-200' : 'text-sky-200';
+    const promiseLabel = promiseMeta.isReceiver ? 'Promesa recibida' : 'Promesa';
+    const debtLabel = promiseMeta.pendingUsdt > 0.009 ? 'Pendiente' : 'Cubierta';
+    const debtTone = promiseMeta.pendingUsdt > 0.009 ? 'text-amber-200/95' : 'text-emerald-300/95';
+
+    return `
+        <div class="min-w-0 pt-0.5 text-right">
+            <div class="text-[10px] font-black uppercase tracking-[0.12em] ${promiseTone}">
+                ${escapeHtml(promiseLabel)}
+            </div>
+            <div class="mt-0.5 text-[13px] font-black leading-none text-white">
+                ${escapeHtml(formatPromiseUsdt(promiseMeta.promiseUsdt))}
+            </div>
+            <div class="mt-1 text-[11px] font-semibold text-white/72">
+                ${escapeHtml(formatPromiseFiat(promiseMeta.promisedFiat, tx))}
+            </div>
+            ${promiseMeta.isReceiver ? `
+                <div class="mt-2 space-y-1">
+                    <div class="text-[10px] font-black uppercase tracking-[0.12em] ${debtTone}">
+                        ${escapeHtml(debtLabel)}
+                    </div>
+                    <div class="mt-0.5 text-[12px] font-bold leading-none ${debtTone}">
+                        ${escapeHtml(formatPromiseUsdt(promiseMeta.pendingUsdt))}
+                    </div>
+                    <div class="mt-1 text-[10px] font-semibold text-white/65">
+                        ${escapeHtml(formatPromiseFiat(promiseMeta.pendingFiat, tx))}
+                    </div>
+                </div>
+            ` : ''}
+        </div>
+    `;
 };
 
 const getElements = () => ({
@@ -393,20 +512,23 @@ const renderRow = (tx, rowBalance) => {
     const metaHtml = meta.map((line) => `<span>${escapeHtml(line)}</span>`).join('<span class="text-white/18">|</span>');
 
     return `
-        <article class="grid gap-2 px-4 py-2 md:px-5 lg:grid-cols-[128px_minmax(300px,1.5fr)_92px_minmax(150px,0.9fr)_minmax(150px,0.9fr)] lg:items-center">
-            <div class="text-[11px] font-semibold text-white/72">${escapeHtml(formatPostingDate(tx.timestamp))}</div>
+        <article class="grid gap-2 px-4 py-2 md:px-5 lg:grid-cols-[128px_minmax(300px,1.5fr)_92px_minmax(150px,0.9fr)_minmax(220px,1.1fr)_minmax(150px,0.9fr)] lg:items-start">
+            <div class="pt-0.5 text-[11px] font-semibold text-white/72">${escapeHtml(formatPostingDate(tx.timestamp))}</div>
             <div class="min-w-0">
                 <div class="break-words text-[14px] font-semibold text-white">${top}</div>
                 <div class="mt-0.5 flex flex-wrap items-center gap-2 text-[10px] font-medium text-white/78">${metaHtml || '<span class="text-white/60">Sin metadata extra</span>'}</div>
             </div>
-            <div class="text-left lg:text-center">
+            <div class="pt-0.5 text-left lg:text-center">
                 <span class="text-[0.95rem] font-black uppercase tracking-[0.12em] ${getCategoryTone(category)}">${category}</span>
             </div>
-            <div class="text-left lg:text-right">
+            <div class="pt-0.5 text-left lg:text-right">
                 <div class="text-[1.15rem] font-black leading-none ${amountTone}">${formatAmount(tx)}</div>
                 <div class="mt-0.5 text-[10px] font-semibold text-white/72">${escapeHtml(formatFiat(tx))}</div>
             </div>
             <div class="text-left lg:text-right">
+                ${renderPromiseColumnMeta(tx)}
+            </div>
+            <div class="pt-0.5 text-left lg:text-right">
                 <div class="text-[1rem] font-black leading-none ${balanceTone}">${rowBalance < 0 ? '-' : ''}${formatUsd(Math.abs(rowBalance))}</div>
                 <div class="mt-0.5 text-[10px] font-medium text-white/72">${escapeHtml(formatFiat(tx))}</div>
             </div>

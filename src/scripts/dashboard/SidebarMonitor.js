@@ -353,6 +353,7 @@ export function updateSidebarMonitor(kpis = {}, bankInsights = []) {
     const summary = kpis.metrics || kpis.kpis || kpis.summary || {};
     const audit = kpis.audit || {};
     const critical = kpis.critical || {};
+    const completedCycles = kpis.judge?.completedCycles || {};
 
     const capitalInicial = parseFloat(critical.capitalInicial || kpis.capitalInicial || audit.initialCapital || 0);
     const profit = parseFloat(critical.profitTotalUSDT || summary.totalProfit || 0);
@@ -378,6 +379,11 @@ export function updateSidebarMonitor(kpis = {}, bankInsights = []) {
     inject('side-ceiling-level-badge', `${bankSummary.banksWithCeiling} Bancos`);
     inject('side-spread-value', formatSignedUsdt(bankSummary.spreadProfitUsdt));
     inject('side-spread-meta', `${formatPlain(bankSummary.spreadPercent)}%`);
+    const cyclesCount = Number(completedCycles.count || 0);
+    const cyclesTotalProfit = Number(completedCycles.totalProfit || 0);
+    const avgProfitPerCycle = cyclesCount > 0 ? cyclesTotalProfit / cyclesCount : 0;
+    inject('side-cycle-avg', formatPlain(avgProfitPerCycle));
+    inject('side-cycle-count', formatPlain(cyclesCount, 0));
 
     const spreadEl = document.getElementById('side-spread-value');
     if (spreadEl) {
@@ -441,22 +447,31 @@ export function updateSidebarMonitor(kpis = {}, bankInsights = []) {
     listContainer.innerHTML = '';
     const promiseSummaryByBank = buildPromiseSummaryByBank(kpis);
     bankInsights.forEach((bank) => {
-        const activeVerdicts = Number(bank.activeVerdictsCount || 0);
         const ops = Number(bank.transactionCount ?? bank.totalOps ?? ((bank.countSell || 0) + (bank.countBuy || 0)));
         const pagoMovil = buildPagoMovilLabel(bank, kpis.config || {});
         const spreadLabel = buildSpreadLabel(bank);
         const promiseLabel = buildPromiseLabel(bank, promiseSummaryByBank);
+        const performancePercent = Number(bank.profitPercent ?? bank.margin ?? 0);
         const promiseTextClass = promiseLabel.pendingUsdt > 0 || promiseLabel.pendingFiat > 0
             ? 'text-amber-300'
             : 'text-white/90';
-        const statusLabel = `${ops} Ops | ${activeVerdicts} Activas`;
+        const statusLabel = `${ops}/1000`;
+        const performanceClass = performancePercent >= 0
+            ? 'border-emerald-500/20 bg-emerald-500/10 text-emerald-300'
+            : 'border-rose-500/20 bg-rose-500/10 text-rose-300';
+        const performanceLabel = `${performancePercent >= 0 ? '+' : ''}${formatPlain(performancePercent, 2)}%`;
 
         const div = document.createElement('div');
         div.className = 'bg-white/[0.02] p-4 rounded-xl border border-white/5 flex flex-col gap-2.5 transition-all hover:bg-white/[0.04]';
         div.innerHTML = `
             <div class="flex justify-between items-start">
                 <div class="flex flex-col">
-                    <span class="text-[13px] font-black text-white uppercase italic tracking-wider">${bank.bankName || bank.bank}</span>
+                    <div class="flex items-center gap-2 flex-wrap">
+                        <span class="text-[13px] font-black text-white uppercase italic tracking-wider">${bank.bankName || bank.bank}</span>
+                        <span class="inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-black tracking-tight ${performanceClass}">
+                            ${performanceLabel}
+                        </span>
+                    </div>
                     <span class="text-[11px] text-[#F3BA2F] font-black uppercase mt-1 tracking-wide">
                         ${statusLabel}
                     </span>

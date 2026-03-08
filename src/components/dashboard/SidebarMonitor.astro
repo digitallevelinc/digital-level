@@ -38,9 +38,25 @@
                     </div>
                 </div>
                 <div class="bg-[#101419] p-4 rounded-xl border border-white/6">
-                    <p class="text-[9px] font-black text-slate-500 uppercase tracking-[0.18em]">Spread</p>
-                    <p id="side-spread-value" class="text-[1.2rem] mt-2 font-mono font-black text-emerald-400 tracking-tight">0.00 USDT</p>
-                    <p id="side-spread-meta" class="text-[9px] text-slate-500 uppercase font-black tracking-[0.14em] mt-1">0.00%</p>
+                    <div class="flex items-start justify-between gap-4">
+                        <div>
+                            <p class="text-[9px] font-black text-slate-500 uppercase tracking-[0.18em]">Spread</p>
+                            <p id="side-spread-value" class="text-[1.2rem] mt-2 font-mono font-black text-emerald-400 tracking-tight">0.00 USDT</p>
+                            <p id="side-spread-meta" class="text-[9px] text-slate-500 uppercase font-black tracking-[0.14em] mt-1">0.00%</p>
+                        </div>
+                        <div class="grid min-w-[156px] grid-cols-2 gap-4 text-right">
+                            <div>
+                                <p class="text-[8px] font-black text-slate-500 uppercase tracking-[0.16em]">Prom/ciclo</p>
+                                <p id="side-cycle-avg" class="mt-1.5 text-[15px] leading-none font-mono font-black text-white tracking-tight">0.00</p>
+                                <p class="text-[9px] text-slate-400 font-black uppercase tracking-[0.14em] mt-1.5">USDT</p>
+                            </div>
+                            <div>
+                                <p class="text-[8px] font-black text-slate-500 uppercase tracking-[0.16em]">Ciclos</p>
+                                <p id="side-cycle-count" class="mt-1.5 text-[15px] leading-none font-mono font-black text-white tracking-tight">0</p>
+                                <p class="text-[9px] text-slate-400 font-black uppercase tracking-[0.14em] mt-1.5">Totales</p>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
 
