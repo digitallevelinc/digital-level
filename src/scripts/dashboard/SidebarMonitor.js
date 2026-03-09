@@ -300,12 +300,17 @@ function buildPromiseLabel(bank, promiseSummaryByBank = new Map()) {
     };
 }
 
-function buildVesControlSummaryByBank(kpis = {}) {
+function buildVesControlSummaryByBank(kpis = {}, bankInsights = []) {
     const openVerdicts = Array.isArray(kpis?.judge?.openVerdicts) ? kpis.judge.openVerdicts : [];
+    const knownBankKeys = new Set(
+        (Array.isArray(bankInsights) ? bankInsights : [])
+            .map((bank) => normalizeBankName(bank?.bankName || bank?.bank))
+            .filter(Boolean)
+    );
     const summary = new Map();
 
     openVerdicts.forEach((verdict) => {
-        const bankKey = normalizeBankName(verdict?.paymentMethod);
+        const bankKey = resolveVerdictBankKey(verdict, knownBankKeys) || normalizeBankName(verdict?.paymentMethod);
         if (!bankKey) return;
 
         const saleRate = Number(verdict?.saleRate || 0);
@@ -495,7 +500,7 @@ export function updateSidebarMonitor(kpis = {}, bankInsights = []) {
     if (!listContainer) return;
     listContainer.innerHTML = '';
     const promiseSummaryByBank = buildPromiseSummaryByBank(kpis, bankInsights);
-    const vesControlSummaryByBank = buildVesControlSummaryByBank(kpis);
+    const vesControlSummaryByBank = buildVesControlSummaryByBank(kpis, bankInsights);
     bankInsights.forEach((bank) => {
         const ops = Number(bank.monthlyTransactionCount ?? bank.transactionCount ?? bank.totalOps ?? ((bank.countSell || 0) + (bank.countBuy || 0)));
         const vesControl = buildBankVesLimitLabel(bank, kpis.config || {}, vesControlSummaryByBank);
