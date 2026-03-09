@@ -5,22 +5,23 @@ import CardHelp from './CardHelp.astro';
     <div class="px-4 py-3 md:px-5">
         <div class="flex flex-col gap-2 lg:flex-row lg:items-start lg:justify-between">
             <div>
-                <p class="text-[11px] font-black uppercase tracking-[0.24em] text-[#F3BA2F]">Balance Module</p>
-                <h3 class="mt-1.5 text-[1.2rem] font-black uppercase tracking-[0.04em] text-white md:text-[1.45rem]">Control de Capital</h3>
+                <p class="text-[11px] font-black uppercase tracking-[0.24em] text-[#F3BA2F]">Balance General</p>
+                <h3 class="mt-1.5 text-[1.2rem] font-black uppercase tracking-[0.04em] text-white md:text-[1.45rem]">Balance General</h3>
                 <p class="mt-1.5 max-w-3xl text-[13px] leading-6 text-white/60">
-                    Historial operativo
-                    <span class="font-black text-white/82">RED / PAY / P2P</span>.
-                    Carga diferida con scroll interno y paginacion para revisar el extracto sin frenar el dashboard.
+                    Historial operativo consolidado con
+                    <span class="font-black text-white/82">RED / PAY / P2P / PARSEO</span>.
+                    La cobertura local ahora se refleja como una transaccion informativa mas dentro del extracto.
                 </p>
             </div>
             <CardHelp
-                title="Control de Capital"
+                title="Balance General"
                 description="Lectura historica del extracto operativo, cargada bajo demanda."
-                calculation="Cada fila clasifica el flujo en RED, PAY o P2P. El historial se pide por paginas al backend cuando abres el modulo o navegas entre paginas."
+                calculation="Cada fila clasifica el flujo en RED, PAY, P2P o PARSEO. Si existe cobertura local activa, aparece resumida dentro del ledger."
                 notes={[
                     "No bloquea la carga inicial del dashboard.",
                     "Scroll interno para listas largas.",
-                    "Negativos en rojo y fiat como referencia secundaria."
+                    "Negativos en rojo y fiat como referencia secundaria.",
+                    "El parseo 2.0 ya no vive como modulo aparte."
                 ]}
                 align="left"
             />
@@ -30,10 +31,10 @@ import CardHelp from './CardHelp.astro';
     <div id="balance-ledger-panel" class="border-t border-white/8">
         <div class="flex items-center justify-between gap-4 px-4 py-2.5 md:px-5">
             <div>
-                <div class="text-[13px] font-black uppercase tracking-[0.14em] text-white">Movimientos</div>
+                <div class="text-[13px] font-black uppercase tracking-[0.14em] text-white">Transacciones</div>
                 <div id="balance-ledger-count" class="mt-0.5 text-sm text-white/45">Cargando historial...</div>
             </div>
-            <span class="text-[11px] font-black uppercase tracking-[0.16em] text-white/35">Historial Live</span>
+            <span class="text-[11px] font-black uppercase tracking-[0.16em] text-white/35">Ledger Live</span>
         </div>
 
         <div class="border-t border-white/8 px-4 py-2.5 md:px-5">
@@ -82,13 +83,14 @@ import CardHelp from './CardHelp.astro';
                 </div>
             </div>
 
-            <div class="mt-2 hidden grid-cols-[128px_minmax(300px,1.5fr)_92px_minmax(150px,0.9fr)_minmax(220px,1.1fr)_minmax(150px,0.9fr)] gap-4 border-y border-white/8 px-2 py-2 text-[10px] font-black uppercase tracking-[0.16em] text-white/30 lg:grid">
+            <div class="mt-2 hidden grid-cols-[128px_minmax(260px,1.5fr)_92px_minmax(140px,0.9fr)_minmax(200px,1.1fr)_minmax(140px,0.9fr)_minmax(90px,0.7fr)] gap-4 border-y border-white/8 px-2 py-2 text-[10px] font-black uppercase tracking-[0.16em] text-white/30 lg:grid">
                 <span>Fecha</span>
                 <span>Descripcion</span>
                 <span class="text-center">Tipo</span>
                 <span class="text-right">Monto</span>
                 <span class="text-right">Promesa</span>
                 <span class="text-right">Balance</span>
+                <span class="text-right">Spread</span>
             </div>
 
             <div id="balance-ledger-scroll" class="custom-scrollbar max-h-[70dvh] lg:max-h-[680px] overflow-y-auto pr-1">

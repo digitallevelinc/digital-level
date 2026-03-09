@@ -2,7 +2,7 @@
 import flatpickr from "flatpickr";
 import { Spanish } from "flatpickr/dist/l10n/es.js";
 import { fUSDT, fVES, inject } from './dashboard/utils.js';
-import { updateDispersorUI } from './dashboard/dispersor.js';
+// import { updateDispersorUI } from './dashboard/dispersor.js'; // REMOVED
 import { updateProfitUI } from './dashboard/profit.js';
 import { updateComisionOperadorUI } from './dashboard/comisionOp.js';
 import { initPayrollWithdrawalsUI, refreshPayrollSummary, refreshPayrollWithdrawalHistory, setPayrollRange } from './dashboard/payrollWithdrawals.js';
@@ -332,6 +332,10 @@ function normalizeKpiBankData(kpis = {}) {
             profit: Number(i.profit || 0),
             profitPercent: Number(i.profitPercent || i.margin || 0),
             activeVerdictsCount: Number(i.activeVerdictsCount || 0),
+            avgBuyRate: Number(i.avgBuyRate || 0),
+            avgSellRate: Number(i.avgSellRate || 0),
+            buyRate: Number(i.buyRate || i.avgBuyRate || 0),
+            sellRate: Number(i.sellRate || i.avgSellRate || 0),
             ceilingRate: Number(i.ceilingRate || 0),
             ceilingAppliedPercent: Number(i.ceilingAppliedPercent || 0),
             currentCycleSaleUSDT: Number(i.currentCycleSaleUSDT || 0),
@@ -381,6 +385,10 @@ function normalizeKpiBankData(kpis = {}) {
                 profit: 0,
                 profitPercent: 0,
                 activeVerdictsCount: 0,
+                avgBuyRate: 0,
+                avgSellRate: 0,
+                buyRate: 0,
+                sellRate: 0,
                 weightedAvgBuyRate: 0,
                 weightedAvgSellRate: 0,
                 ceilingRate: 0,
@@ -482,6 +490,10 @@ export async function updateDashboard(API_BASE, token, alias, range = {}, opts =
                 profit: Number(i.profit || 0),
                 profitPercent: Number(i.profitPercent || i.margin || 0),
                 activeVerdictsCount: Number(i.activeVerdictsCount || 0),
+                avgBuyRate: Number(i.avgBuyRate || 0),
+                avgSellRate: Number(i.avgSellRate || 0),
+                buyRate: Number(i.buyRate || i.avgBuyRate || 0),
+                sellRate: Number(i.sellRate || i.avgSellRate || 0),
                 ceilingRate: Number(i.ceilingRate || 0),
                 ceilingAppliedPercent: Number(i.ceilingAppliedPercent || 0),
                 currentCycleSaleUSDT: Number(i.currentCycleSaleUSDT || 0),
@@ -542,6 +554,10 @@ export async function updateDashboard(API_BASE, token, alias, range = {}, opts =
                     profit: 0,
                     profitPercent: 0,
                     activeVerdictsCount: 0,
+                    avgBuyRate: 0,
+                    avgSellRate: 0,
+                    buyRate: 0,
+                    sellRate: 0,
                     weightedAvgBuyRate: 0,
                     weightedAvgSellRate: 0,
                     ceilingRate: 0,
@@ -600,10 +616,10 @@ export async function updateDashboard(API_BASE, token, alias, range = {}, opts =
 
         // --- PANEL DE BANCOS E INSIGHTS ---
         if (bankData.length > 0) {
-            updateBancosUI(bankData);
+            updateBancosUI(bankData, kpis);
         }
 
-        updateDispersorUI(kpis);
+        // updateDispersorUI(kpis); // REMOVED
 
         // Sincronizamos el Profit UI (usando datos críticos del backend)
         updateProfitUI(kpis, bankData);
@@ -618,7 +634,8 @@ export async function updateDashboard(API_BASE, token, alias, range = {}, opts =
             apiBase: API_BASE,
             token,
             range: mainRange,
-            onAuthError: handleExpiredSession
+            onAuthError: handleExpiredSession,
+            bankData
         });
         await refreshActiveAds(API_BASE, token, {
             signal: dashboardAbortController?.signal,
@@ -799,8 +816,8 @@ function highlightPreset(preset) {
     if (!group) return;
     group.querySelectorAll('.kpi-preset-btn').forEach(btn => {
         const isActive = btn.getAttribute('data-preset') === preset;
-        btn.classList.toggle('border-[#F3BA2F]', isActive);
-        btn.classList.toggle('bg-[#F3BA2F]/10', isActive);
+        btn.classList.toggle('kpi-preset-btn-active', isActive);
+        btn.classList.toggle('border-gray-800', !isActive);
     });
 }
 

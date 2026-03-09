@@ -12,8 +12,115 @@ const formatSignedUsdtPlain = (val) => {
     return `${sign}${num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USDT`;
 };
 
-export function updateBancosUI(insights = []) {
+export function updateBancosUI(insights = [], kpis = {}) {
     if (!insights) return;
+
+    const normalizeBankName = (value) => {
+        const raw = String(value || '').trim().toLowerCase();
+        if (!raw) return '';
+        if (raw.includes('bbva') || raw.includes('provincial')) return 'provincial';
+        if (raw.includes('mercantil')) return 'mercantil';
+        if (raw.includes('banesco')) return 'banesco';
+        if (raw.includes('bnc')) return 'bnc';
+        if (raw.includes('bancamiga')) return 'bancamiga';
+        if (raw.includes('fintech') || raw === 'bank') return 'bank';
+        return raw.replace(/\s+/g, '');
+    };
+
+    const normalizeBankLimitKey = (bank) => normalizeBankName(bank?.bankName || bank?.bank || '');
+    const clampPercent = (value) => Math.max(0, Math.min(100, Number(value || 0)));
+    const formatVesInline = (value) => Number(value || 0).toLocaleString('es-VE', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+    });
+
+    const buildVesControlSummaryByBank = (inputKpis = {}) => {
+        const openVerdicts = Array.isArray(inputKpis?.judge?.openVerdicts) ? inputKpis.judge.openVerdicts : [];
+        const summary = new Map();
+
+        openVerdicts.forEach((verdict) => {
+            const bankKey = normalizeBankName(verdict?.paymentMethod);
+            if (!bankKey) return;
+
+            const saleRate = Number(verdict?.saleRate || 0);
+            const fallbackExpectedFiat = Number(verdict?.fiatReceived || 0);
+            const expectedUsdt = Number(verdict?.expectedRebuyUsdt ?? verdict?.saleAmount ?? 0);
+            const expectedFiat = Number(
+                verdict?.expectedRebuyFiat
+                ?? (expectedUsdt > 0 && saleRate > 0 ? expectedUsdt * saleRate : fallbackExpectedFiat)
+                ?? 0
+            );
+
+            let remainingFiat = Number(verdict?.remainingFiat);
+            if (!Number.isFinite(remainingFiat)) {
+                const consumedFiat = Number(verdict?.consumedRebuyFiat || 0);
+                remainingFiat = Math.max(0, expectedFiat - Math.max(0, consumedFiat));
+            }
+
+            const boundedExpected = Math.max(0, expectedFiat);
+            const boundedRemaining = Math.min(Math.max(0, remainingFiat), boundedExpected);
+            const consumed = Math.max(0, boundedExpected - boundedRemaining);
+
+            const bucket = summary.get(bankKey) || {
+                inflowFiat: 0,
+                availableFiat: 0,
+                consumedFiat: 0,
+            };
+
+            bucket.inflowFiat += boundedExpected;
+            bucket.availableFiat += boundedRemaining;
+            bucket.consumedFiat += consumed;
+
+            summary.set(bankKey, bucket);
+        });
+
+        return summary;
+    };
+
+    const buildBankVesLimitLabel = (bank, vesControlSummaryByBank = new Map()) => {
+        const key = normalizeBankLimitKey(bank);
+        const dynamicSummary = vesControlSummaryByBank.get(key);
+
+        if (!dynamicSummary) {
+            return {
+                value: '0.00 / 0.00',
+                meta: 'Sin flujo activo',
+                progress: 0,
+            };
+        }
+
+        const available = Number(dynamicSummary.availableFiat || 0);
+        const consumed = Number(dynamicSummary.consumedFiat || 0);
+        const inflowFiat = Number(dynamicSummary.inflowFiat || 0);
+        let effectiveCap = Math.max(0, inflowFiat, available + consumed);
+
+        if (available > effectiveCap) {
+            effectiveCap = available;
+        }
+
+        if (effectiveCap <= 0) {
+            return {
+                value: '0.00 / 0.00',
+                meta: 'Sin flujo activo',
+                progress: 0,
+            };
+        }
+
+        const progress = available <= 0 ? 0 : clampPercent((available / effectiveCap) * 100);
+        const burned = Math.max(0, effectiveCap - available);
+
+        return {
+            value: `${formatVesInline(available)} / ${formatVesInline(effectiveCap)}`,
+            meta: burned <= 0.01
+                ? 'Barra llena'
+                : available <= 0.01
+                    ? 'Lote quemado'
+                    : `${formatVesInline(burned)} gastado`,
+            progress,
+        };
+    };
+
+    const vesControlSummaryByBank = buildVesControlSummaryByBank(kpis);
 
     const getBankId = (name) => {
         const lower = name.toLowerCase().trim();
@@ -59,7 +166,10 @@ export function updateBancosUI(insights = []) {
             beSale: document.getElementById(`bank-be-sale-${id}`),
             spreadUsdt: document.getElementById(`bank-spread-usdt-${id}`),
             spreadPercent: document.getElementById(`bank-spread-percent-${id}`),
-            pmBadge: document.getElementById(`bank-pm-badge-${id}`)
+            pmBadge: document.getElementById(`bank-pm-badge-${id}`),
+            vesValue: document.getElementById(`bank-ves-value-${id}`),
+            vesMeta: document.getElementById(`bank-ves-meta-${id}`),
+            vesBar: document.getElementById(`bank-ves-bar-${id}`)
         };
 
         const fiatBal = safeFloat(b.fiatBalance);
@@ -223,6 +333,11 @@ export function updateBancosUI(insights = []) {
                 ui.margin.className = 'bg-rose-500/10 text-rose-400 px-5 py-2 rounded-full border border-rose-500/20 text-[13px] font-black shadow-lg';
             }
         }
+
+        const vesControl = buildBankVesLimitLabel(b, vesControlSummaryByBank);
+        if (ui.vesValue) ui.vesValue.textContent = vesControl.value;
+        if (ui.vesMeta) ui.vesMeta.textContent = vesControl.meta;
+        if (ui.vesBar) ui.vesBar.style.width = `${vesControl.progress}%`;
     });
 
     sortBankCards(insights, getBankId);

@@ -176,20 +176,61 @@ function normalizeBankLimitKey(bank) {
     return normalizeBankName(bank?.bankName || bank?.bank || '');
 }
 
+function resolveVerdictBankKey(verdict = {}, knownBankKeys = new Set()) {
+    const candidates = [
+        verdict?.bankName,
+        verdict?.bank,
+        verdict?.paymentMethod,
+        verdict?.paymentMethodResolved,
+        verdict?.pmBank,
+        verdict?.counterpartyBank,
+        verdict?.metadata?.bankName,
+        verdict?.metadata?.paymentMethod,
+        verdict?.meta?.bankName,
+        verdict?.meta?.paymentMethod,
+    ];
+
+    for (const candidate of candidates) {
+        const normalized = normalizeBankName(candidate);
+        if (!normalized) continue;
+        if (knownBankKeys.size === 0 || knownBankKeys.has(normalized)) return normalized;
+    }
+
+    const blob = String(
+        verdict?.notes
+        || verdict?.rawNote
+        || verdict?.note
+        || verdict?.paymentMethod
+        || ''
+    ).toLowerCase();
+    if (blob && knownBankKeys.size > 0) {
+        for (const key of knownBankKeys) {
+            if (blob.includes(key)) return key;
+        }
+    }
+
+    return normalizeBankName(verdict?.paymentMethod);
+}
+
 function isPromiseVerdict(verdict) {
     const parseMode = String(verdict?.parseMode || '').trim().toUpperCase();
     if (parseMode === 'PROMISE' || parseMode === 'GLOBAL_PROMISE') return true;
     return Number(verdict?.expectedRebuyUsdt || 0) > 0 || Number(verdict?.expectedRebuyFiat || 0) > 0;
 }
 
-function buildPromiseSummaryByBank(kpis = {}) {
+function buildPromiseSummaryByBank(kpis = {}, bankInsights = []) {
     const openVerdicts = Array.isArray(kpis?.judge?.openVerdicts) ? kpis.judge.openVerdicts : [];
+    const knownBankKeys = new Set(
+        (Array.isArray(bankInsights) ? bankInsights : [])
+            .map((bank) => normalizeBankName(bank?.bankName || bank?.bank))
+            .filter(Boolean)
+    );
     const summary = new Map();
 
     openVerdicts.forEach((verdict) => {
         if (!isPromiseVerdict(verdict)) return;
 
-        const bankKey = normalizeBankName(verdict?.paymentMethod);
+        const bankKey = resolveVerdictBankKey(verdict, knownBankKeys);
         if (!bankKey) return;
 
         const fallbackUsdt = Number(verdict?.saleAmount || 0);
@@ -238,12 +279,20 @@ function buildPromiseLabel(bank, promiseSummaryByBank = new Map()) {
     const pendingUsdt = Number(promise.pendingUsdt || 0);
     const pendingFiat = Number(promise.pendingFiat || 0);
     const promisedUsdt = Number(promise.promisedUsdt || 0);
+    const promisedFiat = Number(promise.promisedFiat || 0);
+    const hasPromise = promisedUsdt > 0 || promise.activePromises > 0;
+    const hasPending = pendingUsdt > 0.00001 || pendingFiat > 0.00001;
 
     return {
         value: `${formatUsdtInline(pendingUsdt)} | ${fVESInline(pendingFiat)} VES`,
-        meta: promise.activePromises > 0
-            ? `${promise.activePromises} activa${promise.activePromises === 1 ? '' : 's'}`
+        meta: hasPromise
+            ? (hasPending
+                ? `Pendiente de promesa (${promise.activePromises} activa${promise.activePromises === 1 ? '' : 's'})`
+                : `Promesa cubierta (${promise.activePromises} activa${promise.activePromises === 1 ? '' : 's'})`)
             : 'Sin promesa activa',
+        promisedLine: hasPromise
+            ? `${formatUsdtInline(promisedUsdt)} | ${fVESInline(promisedFiat)} VES`
+            : '',
         progress: promisedUsdt > 0 ? clampPercent((pendingUsdt / promisedUsdt) * 100) : 0,
         pendingUsdt,
         pendingFiat,
@@ -445,9 +494,11 @@ export function updateSidebarMonitor(kpis = {}, bankInsights = []) {
     const listContainer = document.getElementById('side-banks-list');
     if (!listContainer) return;
     listContainer.innerHTML = '';
-    const promiseSummaryByBank = buildPromiseSummaryByBank(kpis);
+    const promiseSummaryByBank = buildPromiseSummaryByBank(kpis, bankInsights);
+    const vesControlSummaryByBank = buildVesControlSummaryByBank(kpis);
     bankInsights.forEach((bank) => {
-        const ops = Number(bank.transactionCount ?? bank.totalOps ?? ((bank.countSell || 0) + (bank.countBuy || 0)));
+        const ops = Number(bank.monthlyTransactionCount ?? bank.transactionCount ?? bank.totalOps ?? ((bank.countSell || 0) + (bank.countBuy || 0)));
+        const vesControl = buildBankVesLimitLabel(bank, kpis.config || {}, vesControlSummaryByBank);
         const pagoMovil = buildPagoMovilLabel(bank, kpis.config || {});
         const spreadLabel = buildSpreadLabel(bank);
         const promiseLabel = buildPromiseLabel(bank, promiseSummaryByBank);
@@ -488,8 +539,23 @@ export function updateSidebarMonitor(kpis = {}, bankInsights = []) {
                 <span class="text-[11px] text-slate-500 font-black uppercase tracking-[0.18em]">Parseo 2.0</span>
                 <span class="text-[11px] text-slate-500 font-black tracking-tight">${promiseLabel.meta}</span>
             </div>
+            ${promiseLabel.promisedLine ? `
+                <div class="text-[11px] font-mono font-black tracking-tight text-sky-200/95">
+                    Prometido: ${promiseLabel.promisedLine}
+                </div>
+            ` : ''}
             <div class="text-[13px] font-mono font-black tracking-tight ${promiseTextClass}">
-                ${promiseLabel.value}
+                Pendiente: ${promiseLabel.value}
+            </div>
+            <div class="flex items-center justify-between gap-3 mt-1">
+                <span class="text-[11px] text-slate-500 font-black uppercase tracking-[0.18em]">Control VES</span>
+                <span class="text-[11px] text-slate-500 font-black tracking-tight">${vesControl.meta}</span>
+            </div>
+            <div class="text-[13px] font-mono font-black tracking-tight text-white/90">
+                ${vesControl.value}
+            </div>
+            <div class="h-1.5 w-full bg-white/10 rounded-full overflow-hidden mt-1">
+                <div class="h-full bg-[#F3BA2F] transition-all duration-700 ease-out" style="width: ${vesControl.progress}%"></div>
             </div>
             <div class="flex items-center justify-between gap-3 mt-1">
                 <span class="text-[11px] text-slate-500 font-black uppercase tracking-[0.18em]">Pago Movil</span>

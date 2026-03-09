@@ -18,6 +18,7 @@ const state = {
     searchTerm: '',
     currentTransfers: [],
     pageNetByPage: new Map(),
+    bankData: [],
 };
 
 const escapeHtml = (value) => String(value ?? '')
@@ -39,9 +40,11 @@ const toFiniteNumber = (value) => {
 };
 const WRAPPED_NOTE_PATTERN = /[\(\{]\s*([^\)\}]+?)\s*[\)\}]/s;
 const PLAIN_NOTE_PATTERN = /^\s*([^()\{\}\n]+?)\s*$/s;
+const PROMISE_ACTIVATION_MAX_USDT = 0.011;
 
 const getCategory = (type) => {
     if (!type) return 'OTRO';
+    if (type === 'DISPERSOR_PENDING') return 'PARSEO';
     if (type.startsWith('P2P_')) return 'P2P';
     if (type.startsWith('PAY_')) return 'PAY';
     if (type === 'DEPOSIT' || type === 'WITHDRAWAL' || type === 'DIVIDEND') return 'RED';
@@ -165,6 +168,8 @@ const getCategoryTone = (category) => {
             return 'text-violet-300';
         case 'SWITCH':
             return 'text-emerald-300';
+        case 'PARSEO':
+            return 'text-amber-500';
         default:
             return 'text-white/55';
     }
@@ -229,6 +234,7 @@ const parseFlexibleNumber = (value) => {
 };
 
 const getPromiseMeta = (tx = {}) => {
+    if (tx?.syntheticPromiseMeta) return tx.syntheticPromiseMeta;
     const type = String(tx?.type || '').toUpperCase();
     if (type !== 'PAY_SENT' && type !== 'PAY_RECEIVED') return null;
 
@@ -242,9 +248,21 @@ const getPromiseMeta = (tx = {}) => {
     const exchangeRate = noteRate > 0 ? noteRate : getTxRate(tx);
     if (exchangeRate <= 0) return null;
 
-    const actualUsdt = Math.abs(Number(tx?.amount || 0));
-    const actualFiat = resolveFiatAmount(tx);
+    const txAmountUsdt = Math.abs(Number(tx?.amount || 0));
+    const txAmountFiat = resolveFiatAmount(tx);
     const promisedFiat = promiseUsdt * exchangeRate;
+    const isReceiver = type === 'PAY_RECEIVED';
+
+    // Convencion operativa: las promesas se activan con un micro-monto (0.01 USDT).
+    // Si PAY_RECEIVED trae un monto mayor, no se considera parte del flujo de promesa.
+    if (isReceiver && txAmountUsdt > PROMISE_ACTIVATION_MAX_USDT) {
+        return null;
+    }
+
+    // PAY_RECEIVED se usa como activador de promesa (ej: 0.01 con nota),
+    // no como abono real que deba descontar del pendiente de la promesa.
+    const actualUsdt = isReceiver ? 0 : txAmountUsdt;
+    const actualFiat = isReceiver ? 0 : txAmountFiat;
     const pendingUsdt = Math.max(0, promiseUsdt - actualUsdt);
     const pendingFiat = Math.max(0, promisedFiat - actualFiat);
 
@@ -257,7 +275,7 @@ const getPromiseMeta = (tx = {}) => {
         actualFiat,
         pendingUsdt,
         pendingFiat,
-        isReceiver: type === 'PAY_RECEIVED',
+        isReceiver,
     };
 };
 
@@ -336,6 +354,7 @@ const formatFiat = (tx) => {
 };
 
 const formatAmount = (tx) => {
+    if (tx?.type === 'DISPERSOR_PENDING') return 'INFO';
     const direction = getDirection(tx?.type);
     const amount = Number(tx?.amount || 0);
     const sign = direction < 0 ? '-' : direction > 0 ? '+' : '';
@@ -350,6 +369,37 @@ const renderPromiseColumnMeta = (tx) => {
     const promiseMeta = getPromiseMeta(tx);
     if (!promiseMeta) {
         return '<div class="pt-0.5 text-[12px] font-semibold text-white/20">--</div>';
+    }
+
+    if (String(tx?.type || '').toUpperCase() === 'DISPERSOR_PENDING') {
+        const localTone = promiseMeta.actualUsdt > 0.009 ? 'text-emerald-300/95' : 'text-white/45';
+        const pendingTone = promiseMeta.pendingUsdt > 0.009 ? 'text-amber-200/95' : 'text-emerald-300/95';
+
+        return `
+            <div class="min-w-0 pt-0.5 text-right">
+                <div class="text-[10px] font-black uppercase tracking-[0.12em] text-sky-200">
+                    Promesa total
+                </div>
+                <div class="mt-0.5 text-[13px] font-black leading-none text-white">
+                    ${escapeHtml(formatPromiseUsdt(promiseMeta.promiseUsdt))}
+                </div>
+                <div class="mt-1 text-[11px] font-semibold text-white/72">
+                    ${escapeHtml(formatPromiseFiat(promiseMeta.promisedFiat, tx))}
+                </div>
+                <div class="mt-2 text-[10px] font-black uppercase tracking-[0.12em] ${localTone}">
+                    Local
+                </div>
+                <div class="mt-0.5 text-[12px] font-bold leading-none ${localTone}">
+                    ${escapeHtml(formatPromiseUsdt(promiseMeta.actualUsdt))}
+                </div>
+                <div class="mt-2 text-[10px] font-black uppercase tracking-[0.12em] ${pendingTone}">
+                    Pendiente externo
+                </div>
+                <div class="mt-0.5 text-[12px] font-bold leading-none ${pendingTone}">
+                    ${escapeHtml(formatPromiseUsdt(promiseMeta.pendingUsdt))}
+                </div>
+            </div>
+        `;
     }
 
     const promiseTone = promiseMeta.isReceiver ? 'text-amber-200' : 'text-sky-200';
@@ -483,7 +533,45 @@ const matchesSearch = (tx, searchTerm) => {
 };
 
 const buildRowsWithBalance = (transfers = []) => {
-    const rows = Array.isArray(transfers) ? transfers : [];
+    let rows = Array.isArray(transfers) ? [...transfers] : [];
+    
+    if (state.page === 1) {
+        const dispersor = state.kpis?.judge?.dispersor || state.kpis?.dispersor;
+        const pendingUsdt = Number(dispersor?.pendingUsdt || 0);
+        const promisedUsdt = Number(dispersor?.promisedUsdt || 0);
+        const activePromises = Number(dispersor?.activePromises || 0);
+        
+        if (promisedUsdt > 0 || activePromises > 0) {
+            const pendingFiat = Number(dispersor?.pendingFiat || 0);
+            const recoveredUsdt = Number(dispersor?.recoveredUsdtLocal || 0);
+            const recoveredFiat = Number(dispersor?.recoveredFiatLocal || 0);
+            const promisedFiat = Number(dispersor?.promisedFiat || 0);
+            
+            const syntheticTx = {
+                id: 'synthetic-dispersor',
+                timestamp: Date.now(),
+                type: 'DISPERSOR_PENDING',
+                amount: 0,
+                asset: 'USDT',
+                fiatAmount: 0,
+                fiatCurrency: 'VES',
+                status: 'PENDING',
+                counterpartyName: 'Cobertura local consolidada',
+                notes: 'Parseo 2.0 integrado al balance general.',
+                paymentMethod: 'BALANCE GENERAL',
+                syntheticPromiseMeta: {
+                    isReceiver: true,
+                    promiseUsdt: promisedUsdt,
+                    promisedFiat: promisedFiat > 0 ? promisedFiat : (pendingFiat + recoveredFiat),
+                    actualUsdt: recoveredUsdt,
+                    actualFiat: recoveredFiat,
+                    pendingUsdt: pendingUsdt,
+                    pendingFiat: pendingFiat
+                }
+            };
+            rows.unshift(syntheticTx);
+        }
+    }
     const pageNet = rows.reduce((sum, tx) => sum + getSignedAmount(tx), 0);
     state.pageNetByPage.set(state.page, pageNet);
 
@@ -501,6 +589,154 @@ const buildRowsWithBalance = (transfers = []) => {
     });
 };
 
+const normalizeBankKey = (value) => {
+    const raw = String(value || '').toLowerCase().trim();
+    if (!raw) return '';
+    if (raw.includes('pago') || raw.includes('movil')) return '';
+    if (raw.includes('bbva') || raw.includes('provincial')) return 'provincial';
+    if (raw.includes('mercantil')) return 'mercantil';
+    if (raw.includes('banesco')) return 'banesco';
+    if (raw.includes('bancamiga')) return 'bancamiga';
+    if (raw === 'bank' || raw.includes('fintech')) return 'bank';
+    if (raw.includes('bnc')) return 'bnc';
+    return raw.replace(/\s+/g, '');
+};
+
+const matchTxToBank = (tx) => {
+    const txBankKey = normalizeBankKey(tx?.bankName || tx?.bank || tx?.paymentMethod);
+    if (!txBankKey || !state.bankData.length) return null;
+
+    return state.bankData.find((bank) => {
+        const bankKey = normalizeBankKey(bank?.bank || bank?.bankName);
+        if (!bankKey) return false;
+        return bankKey === txBankKey || txBankKey.includes(bankKey) || bankKey.includes(txBankKey);
+    }) || null;
+};
+
+const getWeightedRateFromBanks = (rateCandidates = [], weightCandidates = []) => {
+    if (!Array.isArray(state.bankData) || state.bankData.length === 0) return 0;
+
+    let weightedSum = 0;
+    let totalWeight = 0;
+
+    state.bankData.forEach((bank) => {
+        const rate = rateCandidates
+            .map((key) => Number(bank?.[key] || 0))
+            .find((value) => value > 0) || 0;
+
+        if (rate <= 0) return;
+
+        const weight = weightCandidates
+            .map((key) => Number(bank?.[key] || 0))
+            .find((value) => value > 0) || 1;
+
+        weightedSum += rate * weight;
+        totalWeight += weight;
+    });
+
+    if (totalWeight <= 0) return 0;
+    return weightedSum / totalWeight;
+};
+
+const getFallbackBuyReferenceRate = () => {
+    const directCandidates = [
+        state.kpis?.operations?.weightedAvgBuyRate,
+        state.kpis?.rates?.buyRate,
+        state.kpis?.rates?.buy,
+        state.kpis?.summary?.minBuyRate,
+        state.kpis?.critical?.breakEvenRate,
+    ];
+
+    for (const candidate of directCandidates) {
+        const n = Number(candidate || 0);
+        if (n > 0) return n;
+    }
+
+    return getWeightedRateFromBanks(
+        ['weightedAvgBuyRate', 'avgBuyRate', 'buyRate'],
+        ['buyVolUSDT', 'realizedVolumeUSDT']
+    );
+};
+
+const getFallbackSellReferenceRate = () => {
+    const directCandidates = [
+        state.kpis?.bankSummary?.referenceSellRate,
+        state.kpis?.bankSummary?.generalSellRate,
+        state.kpis?.operations?.weightedAvgSellRate,
+        state.kpis?.rates?.sellRate,
+        state.kpis?.rates?.sell,
+        state.kpis?.bankSummary?.generalCeilingRate,
+        state.kpis?.critical?.breakEvenRate,
+    ];
+
+    for (const candidate of directCandidates) {
+        const n = Number(candidate || 0);
+        if (n > 0) return n;
+    }
+
+    return getWeightedRateFromBanks(
+        ['lastSellRate', 'sellRate', 'avgSellRate', 'weightedAvgSellRate', 'ceilingRate'],
+        ['sellVolUSDT', 'realizedVolumeUSDT', 'spreadSellUsdt']
+    );
+};
+
+const getFallbackSpreadPercent = () => {
+    const candidates = [
+        state.kpis?.bankSummary?.spreadPercent,
+        state.kpis?.critical?.globalMarginPercent,
+        state.kpis?.metrics?.globalMarginPct,
+    ];
+
+    for (const candidate of candidates) {
+        const n = Number(candidate || 0);
+        if (n !== 0 && Number.isFinite(n)) return n;
+    }
+
+    return 0;
+};
+
+const computeTxSpread = (tx = {}) => {
+    const type = String(tx?.type || '').toUpperCase();
+    if (type !== 'P2P_SELL' && type !== 'P2P_BUY') return 0;
+
+    const txRate = getTxRate(tx);
+    if (txRate <= 0) return 0;
+
+    const amount = Math.abs(Number(tx?.amount || 0));
+    if (amount <= 0) return 0;
+
+    const bank = matchTxToBank(tx);
+    if (type === 'P2P_SELL') {
+        const avgBuyRate = Number(bank?.weightedAvgBuyRate || bank?.avgBuyRate || bank?.buyRate || 0) || getFallbackBuyReferenceRate();
+        if (avgBuyRate <= 0) {
+            const fallbackSpreadPct = getFallbackSpreadPercent();
+            if (fallbackSpreadPct === 0) return 0;
+            return amount * (fallbackSpreadPct / 100);
+        }
+
+        const spreadFiat = (txRate - avgBuyRate) * amount;
+        return spreadFiat / txRate;
+    }
+
+    const referenceSellRate = Number(
+        bank?.lastSellRate
+        || bank?.sellRate
+        || bank?.avgSellRate
+        || bank?.weightedAvgSellRate
+        || bank?.ceilingRate
+        || 0
+    ) || getFallbackSellReferenceRate();
+
+    if (referenceSellRate <= 0) {
+        const fallbackSpreadPct = getFallbackSpreadPercent();
+        if (fallbackSpreadPct === 0) return 0;
+        return amount * (fallbackSpreadPct / 100);
+    }
+
+    const spreadFiat = (referenceSellRate - txRate) * amount;
+    return spreadFiat / referenceSellRate;
+};
+
 const renderRow = (tx, rowBalance) => {
     const category = getCategory(tx.type);
     const signedAmount = getSignedAmount(tx);
@@ -511,8 +747,45 @@ const renderRow = (tx, rowBalance) => {
     const meta = buildDescriptionMeta(tx, topRaw);
     const metaHtml = meta.map((line) => `<span>${escapeHtml(line)}</span>`).join('<span class="text-white/18">|</span>');
 
+    const spreadVal = computeTxSpread(tx);
+    const spreadHtml = spreadVal !== 0 
+        ? `<div class="pt-0.5 text-[12px] font-bold ${spreadVal > 0 ? 'text-emerald-300' : 'text-red-400'}">${spreadVal > 0 ? '+' : '-'}${formatUsd(Math.abs(spreadVal))}</div>`
+        : `<div class="pt-0.5 text-[12px] font-semibold text-white/20">--</div>`;
+
+    const orderText = tx?.orderNumber ? `ORDER ${escapeHtml(tx.orderNumber)}` : '';
+    const methodText = tx?.paymentMethod ? escapeHtml(String(tx.paymentMethod).toUpperCase()) : '';
+
     return `
-        <article class="grid gap-2 px-4 py-2 md:px-5 lg:grid-cols-[128px_minmax(300px,1.5fr)_92px_minmax(150px,0.9fr)_minmax(220px,1.1fr)_minmax(150px,0.9fr)] lg:items-start">
+        <article class="grid gap-2 px-4 py-2 md:px-5 lg:grid-cols-[128px_minmax(260px,1.5fr)_92px_minmax(140px,0.9fr)_minmax(200px,1.1fr)_minmax(140px,0.9fr)_minmax(90px,0.7fr)] lg:items-start">
+            <div class="px-0.5 py-1.5 lg:hidden">
+                <div class="flex items-start justify-between gap-3">
+                    <div class="min-w-0">
+                        <div class="text-[0.8rem] font-black uppercase tracking-[0.12em] ${getCategoryTone(category)}">${category}</div>
+                        <div class="mt-1 text-[11px] font-semibold text-white/62">${escapeHtml(formatPostingDate(tx.timestamp))}</div>
+                    </div>
+                    <div class="text-right">
+                        <div class="text-[1.35rem] font-black leading-none ${amountTone}">${formatAmount(tx)}</div>
+                        <div class="mt-1 text-[11px] font-semibold text-white/65">${escapeHtml(formatFiat(tx))}</div>
+                    </div>
+                </div>
+
+                <div class="mt-2.5 break-words text-[13px] font-semibold text-white/92">${top}</div>
+
+                <div class="mt-2 grid grid-cols-2 gap-x-3 gap-y-1.5 text-[12px]">
+                    <div class="text-white/65">Balance</div>
+                    <div class="text-right ${balanceTone} font-black">${rowBalance < 0 ? '-' : ''}${formatUsd(Math.abs(rowBalance))}</div>
+                    <div class="text-white/65">Spread</div>
+                    <div class="text-right ${spreadVal > 0 ? 'text-emerald-300' : spreadVal < 0 ? 'text-red-400' : 'text-white/35'} font-black">
+                        ${spreadVal > 0 ? '+' : spreadVal < 0 ? '-' : ''}${spreadVal !== 0 ? formatUsd(Math.abs(spreadVal)) : '--'}
+                    </div>
+                    ${orderText ? `<div class="text-white/65">Orden</div><div class="text-right text-white/82 font-semibold">${orderText.replace('ORDER ', '')}</div>` : ''}
+                    ${methodText ? `<div class="text-white/65">Metodo</div><div class="text-right text-white/82 font-semibold">${methodText}</div>` : ''}
+                </div>
+
+                <div class="mt-2 flex flex-wrap items-center gap-1.5 text-[10px] font-medium text-white/52">${metaHtml || ''}</div>
+            </div>
+
+            <div class="hidden lg:contents">
             <div class="pt-0.5 text-[11px] font-semibold text-white/72">${escapeHtml(formatPostingDate(tx.timestamp))}</div>
             <div class="min-w-0">
                 <div class="break-words text-[14px] font-semibold text-white">${top}</div>
@@ -530,7 +803,10 @@ const renderRow = (tx, rowBalance) => {
             </div>
             <div class="pt-0.5 text-left lg:text-right">
                 <div class="text-[1rem] font-black leading-none ${balanceTone}">${rowBalance < 0 ? '-' : ''}${formatUsd(Math.abs(rowBalance))}</div>
-                <div class="mt-0.5 text-[10px] font-medium text-white/72">${escapeHtml(formatFiat(tx))}</div>
+            </div>
+            <div class="pt-0.5 text-left lg:text-right">
+                ${spreadHtml}
+            </div>
             </div>
         </article>
     `;
@@ -668,6 +944,7 @@ export const updateBalanceLedgerUI = (kpis = {}, context = {}) => {
     state.token = String(context?.token || '').trim();
     state.range = nextRange;
     state.onAuthError = typeof context?.onAuthError === 'function' ? context.onAuthError : null;
+    state.bankData = Array.isArray(context?.bankData) ? context.bankData : [];
 
     const { searchInput } = getElements();
     if (searchInput && searchInput.value !== state.searchTerm) {

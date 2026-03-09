@@ -163,6 +163,21 @@ const banks = [
                     </div>
                 </div>
 
+                <div class="mt-2 bg-[#F3BA2F]/[0.03] border border-[#F3BA2F]/10 rounded-xl overflow-hidden shadow-inner">
+                    <div class="bg-[#F3BA2F]/10 px-3 py-1.5 flex justify-between items-center border-b border-[#F3BA2F]/10">
+                        <div class="flex items-center gap-2">
+                            <span class="text-xs font-black text-[#F3BA2F] uppercase tracking-[0.15em]">VES por Ventas</span>
+                        </div>
+                        <span id={`bank-ves-meta-${b.id}`} class="text-sm font-mono font-bold text-[#F3BA2F]">Sin flujo activo</span>
+                    </div>
+                    <div class="bg-black/10 p-2 rounded-xl border border-white/[0.03]">
+                        <div id={`bank-ves-value-${b.id}`} class="text-white font-mono text-sm font-bold truncate">0.00 / 0.00</div>
+                        <div class="h-1.5 w-full bg-white/10 rounded-full overflow-hidden mt-2">
+                            <div id={`bank-ves-bar-${b.id}`} class="h-full bg-[#F3BA2F] transition-all duration-700 ease-out" style="width: 0%"></div>
+                        </div>
+                    </div>
+                </div>
+
                 <div class="pt-3 border-t border-white/10 flex justify-center sm:justify-end items-center mt-auto">
                     <div id={`bank-margin-${b.id}`} class="bg-emerald-500/10 text-emerald-400 px-3 py-1.5 rounded-full border border-emerald-500/20 text-sm font-black shadow-lg">
                         0.00%
