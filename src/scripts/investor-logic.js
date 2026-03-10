@@ -16,6 +16,65 @@ const fPercent = (val) => new Intl.NumberFormat('en-US', {
     minimumFractionDigits: 2
 }).format(val / 100);
 
+const parseDateSafe = (value) => {
+    if (!value) return null;
+
+    if (value instanceof Date) {
+        return Number.isNaN(value.getTime()) ? null : new Date(value.getTime());
+    }
+
+    if (typeof value === 'string') {
+        const raw = value.trim();
+        if (!raw) return null;
+
+        const ymd = raw.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+        if (ymd) {
+            const [, y, m, d] = ymd;
+            return new Date(Date.UTC(Number(y), Number(m) - 1, Number(d)));
+        }
+
+        const ym = raw.match(/^(\d{4})-(\d{2})$/);
+        if (ym) {
+            const [, y, m] = ym;
+            return new Date(Date.UTC(Number(y), Number(m) - 1, 1));
+        }
+    }
+
+    const parsed = new Date(value);
+    return Number.isNaN(parsed.getTime()) ? null : parsed;
+};
+
+const fStartDate = (value) => {
+    const parsed = parseDateSafe(value);
+    if (!parsed) return 'SIN FECHA';
+
+    return new Intl.DateTimeFormat('es-ES', {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric',
+        timeZone: 'UTC'
+    }).format(parsed).replace('.', '').toUpperCase();
+};
+
+const resolveInvestorStartDate = (hub = {}) => {
+    const explicitDate = hub.startDate || hub.start_date || hub.investorSince || hub.fechaInicio;
+    if (explicitDate) return explicitDate;
+
+    const historyDates = (hub.history || [])
+        .map((point) => parseDateSafe(point?.date))
+        .filter(Boolean)
+        .sort((a, b) => a.getTime() - b.getTime());
+
+    if (historyDates.length > 0) return historyDates[0];
+
+    const monthlyDates = (hub.monthlyPerformance || [])
+        .map((point) => parseDateSafe(point?.month))
+        .filter(Boolean)
+        .sort((a, b) => a.getTime() - b.getTime());
+
+    return monthlyDates.length > 0 ? monthlyDates[0] : null;
+};
+
 /**
  * Inyector de texto seguro en el DOM
  */
@@ -55,6 +114,7 @@ export async function updateInvestorDashboard(API_BASE, token) {
         let commissionPercentage = 0;
         let history = [];
         let monthlyPerformance = [];
+        let investorStartDate = null;
 
         // --- LÓGICA ROL INVESTOR ---
         if (data.role === 'investor' && data.investorHub) {
@@ -97,6 +157,8 @@ export async function updateInvestorDashboard(API_BASE, token) {
                 netProfit: m.profit,    // JSON usa profit, Componente usa netProfit
                 roi: m.roi
             }));
+
+            investorStartDate = resolveInvestorStartDate(hub);
         }
         // --- FALLBACK LEGACY ---
         else {
@@ -125,6 +187,7 @@ export async function updateInvestorDashboard(API_BASE, token) {
             const name = userInfo.name || userInfo.alias || 'Inversionista';
             inject('inv-name', name);
         } catch (e) { }
+        inject('inv-start-date', fStartDate(investorStartDate));
 
         // --- KPIs Principales ---
         inject('inv-base-deposit', fUSDT(capitalBaseInversor));

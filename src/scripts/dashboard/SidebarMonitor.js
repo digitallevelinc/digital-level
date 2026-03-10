@@ -176,6 +176,14 @@ function normalizeBankLimitKey(bank) {
     return normalizeBankName(bank?.bankName || bank?.bank || '');
 }
 
+function resolveConfiguredBankSpendLimit(bank, config = {}) {
+    const limits = config?.bankSpendLimitsVes && typeof config.bankSpendLimitsVes === 'object'
+        ? config.bankSpendLimitsVes
+        : {};
+    const key = normalizeBankLimitKey(bank);
+    return Number(limits?.[key] || 0);
+}
+
 function resolveVerdictBankKey(verdict = {}, knownBankKeys = new Set()) {
     const candidates = [
         verdict?.bankName,
@@ -267,7 +275,28 @@ function buildPromiseSummaryByBank(kpis = {}, bankInsights = []) {
     return summary;
 }
 
-function buildPromiseLabel(bank, promiseSummaryByBank = new Map()) {
+function buildExternalPromiseFallback(kpis = {}) {
+    const dispersor = kpis?.judge?.dispersor || kpis?.dispersor || {};
+    const promisedUsdt = Number(dispersor?.promisedUsdt || 0);
+    const promisedFiat = Number(dispersor?.promisedFiat || 0);
+    const pendingUsdt = Number(dispersor?.pendingUsdt || 0);
+    const pendingFiat = Number(dispersor?.pendingFiat || 0);
+    const activePromises = Number(dispersor?.activePromises || 0);
+    const hasPromise = promisedUsdt > 0 || activePromises > 0;
+    const hasPending = pendingUsdt > 0.00001 || pendingFiat > 0.00001;
+
+    return {
+        hasPromise,
+        hasPending,
+        promisedUsdt,
+        promisedFiat,
+        pendingUsdt,
+        pendingFiat,
+        activePromises,
+    };
+}
+
+function buildPromiseLabel(bank, promiseSummaryByBank = new Map(), externalPromiseFallback = null) {
     const key = normalizeBankLimitKey(bank);
     const promise = promiseSummaryByBank.get(key) || {
         promisedUsdt: 0,
@@ -283,17 +312,57 @@ function buildPromiseLabel(bank, promiseSummaryByBank = new Map()) {
     const hasPromise = promisedUsdt > 0 || promise.activePromises > 0;
     const hasPending = pendingUsdt > 0.00001 || pendingFiat > 0.00001;
 
+    if (hasPromise) {
+        return {
+            value: `${formatUsdtInline(pendingUsdt)} | ${fVESInline(pendingFiat)} VES`,
+            meta: hasPending
+                ? `Pendiente de promesa (${promise.activePromises} activa${promise.activePromises === 1 ? '' : 's'})`
+                : `Promesa cubierta (${promise.activePromises} activa${promise.activePromises === 1 ? '' : 's'})`,
+            promisedLine: `${formatUsdtInline(promisedUsdt)} | ${fVESInline(promisedFiat)} VES`,
+            promisedLabel: 'Prometido',
+            promisedLineClass: 'text-sky-200/95',
+            pendingLabel: 'Pendiente',
+            progress: promisedUsdt > 0 ? clampPercent((pendingUsdt / promisedUsdt) * 100) : 0,
+            pendingUsdt,
+            pendingFiat,
+            activePromises: Number(promise.activePromises || 0),
+        };
+    }
+
+    if (externalPromiseFallback?.hasPromise) {
+        const externalActivePromises = Number(externalPromiseFallback.activePromises || 0);
+        const externalPendingUsdt = Number(externalPromiseFallback.pendingUsdt || 0);
+        const externalPendingFiat = Number(externalPromiseFallback.pendingFiat || 0);
+        const externalPromisedUsdt = Number(externalPromiseFallback.promisedUsdt || 0);
+        const externalPromisedFiat = Number(externalPromiseFallback.promisedFiat || 0);
+        const externalHasPending = externalPromiseFallback.hasPending;
+
+        return {
+            value: `${formatUsdtInline(externalPendingUsdt)} | ${fVESInline(externalPendingFiat)} VES`,
+            meta: externalHasPending
+                ? `Promesa recibida (${externalActivePromises} activa${externalActivePromises === 1 ? '' : 's'})`
+                : `Promesa recibida cubierta (${externalActivePromises} activa${externalActivePromises === 1 ? '' : 's'})`,
+            promisedLine: `${formatUsdtInline(externalPromisedUsdt)} | ${fVESInline(externalPromisedFiat)} VES`,
+            promisedLabel: 'Te prometieron',
+            promisedLineClass: 'text-amber-200/95',
+            pendingLabel: 'Pendiente externo',
+            progress: externalPromisedUsdt > 0
+                ? clampPercent((externalPendingUsdt / externalPromisedUsdt) * 100)
+                : 0,
+            pendingUsdt: externalPendingUsdt,
+            pendingFiat: externalPendingFiat,
+            activePromises: externalActivePromises,
+        };
+    }
+
     return {
         value: `${formatUsdtInline(pendingUsdt)} | ${fVESInline(pendingFiat)} VES`,
-        meta: hasPromise
-            ? (hasPending
-                ? `Pendiente de promesa (${promise.activePromises} activa${promise.activePromises === 1 ? '' : 's'})`
-                : `Promesa cubierta (${promise.activePromises} activa${promise.activePromises === 1 ? '' : 's'})`)
-            : 'Sin promesa activa',
-        promisedLine: hasPromise
-            ? `${formatUsdtInline(promisedUsdt)} | ${fVESInline(promisedFiat)} VES`
-            : '',
-        progress: promisedUsdt > 0 ? clampPercent((pendingUsdt / promisedUsdt) * 100) : 0,
+        meta: 'Sin promesa activa',
+        promisedLine: '',
+        promisedLabel: 'Prometido',
+        promisedLineClass: 'text-sky-200/95',
+        pendingLabel: 'Pendiente',
+        progress: 0,
         pendingUsdt,
         pendingFiat,
         activePromises: Number(promise.activePromises || 0),
@@ -350,9 +419,81 @@ function buildVesControlSummaryByBank(kpis = {}, bankInsights = []) {
     return summary;
 }
 
+function buildLatestCycleByBank(kpis = {}, bankInsights = []) {
+    const openVerdicts = Array.isArray(kpis?.judge?.openVerdicts) ? kpis.judge.openVerdicts : [];
+    const knownBankKeys = new Set(
+        (Array.isArray(bankInsights) ? bankInsights : [])
+            .map((bank) => normalizeBankName(bank?.bankName || bank?.bank))
+            .filter(Boolean)
+    );
+    const latest = new Map();
+
+    openVerdicts.forEach((verdict) => {
+        const bankKey = resolveVerdictBankKey(verdict, knownBankKeys) || normalizeBankName(verdict?.paymentMethod);
+        if (!bankKey) return;
+
+        const createdAtMs = new Date(verdict?.createdAt || verdict?.timestamp || 0).getTime() || 0;
+        const prev = latest.get(bankKey);
+        if (prev && prev.createdAtMs > createdAtMs) return;
+
+        const saleRate = Number(verdict?.saleRate || 0);
+        const fallbackExpectedUsdt = Number(verdict?.saleAmount || 0);
+        const fallbackExpectedFiat = Number(verdict?.fiatReceived || 0);
+        const expectedUsdt = Number(verdict?.expectedRebuyUsdt ?? fallbackExpectedUsdt);
+        const expectedFiat = Number(
+            verdict?.expectedRebuyFiat
+            ?? (expectedUsdt > 0 && saleRate > 0 ? expectedUsdt * saleRate : fallbackExpectedFiat)
+            ?? 0
+        );
+
+        let remainingFiat = Number(verdict?.remainingFiat);
+        if (!Number.isFinite(remainingFiat)) {
+            const consumedFiat = Number(verdict?.consumedRebuyFiat || 0);
+            remainingFiat = Math.max(0, expectedFiat - Math.max(0, consumedFiat));
+        }
+
+        const cycleTotalFiat = Math.max(0, expectedFiat);
+        const cycleRemainingFiat = Math.min(cycleTotalFiat, Math.max(0, remainingFiat));
+        const cycleTotalUsdt = Math.max(0, expectedUsdt);
+
+        latest.set(bankKey, {
+            createdAtMs,
+            cycleTotalFiat,
+            cycleRemainingFiat,
+            cycleTotalUsdt,
+        });
+    });
+
+    return latest;
+}
+
 function buildBankVesLimitLabel(bank, _config = {}, vesControlSummaryByBank = new Map()) {
     const key = normalizeBankLimitKey(bank);
     const dynamicSummary = vesControlSummaryByBank.get(key);
+    const configuredLimit = resolveConfiguredBankSpendLimit(bank, _config);
+
+    if (configuredLimit > 0) {
+        const rawAvailable = dynamicSummary
+            ? Number(dynamicSummary.availableFiat || 0)
+            : configuredLimit;
+        const available = Math.min(configuredLimit, Math.max(0, rawAvailable));
+        const burned = Math.max(0, configuredLimit - available);
+        const progress = configuredLimit > 0 ? clampPercent((available / configuredLimit) * 100) : 0;
+
+        return {
+            value: `${fVESInline(available)} / ${fVESInline(configuredLimit)}`,
+            meta: burned <= 0.01
+                ? 'Barra llena'
+                : available <= 0.01
+                    ? 'Lote quemado'
+                    : `${fVESInline(burned)} quemado`,
+            progress,
+            limit: configuredLimit,
+            current: available,
+            hasFlow: true,
+        };
+    }
+
     const hasDynamic = Boolean(dynamicSummary);
     if (!hasDynamic) {
         return {
@@ -422,15 +563,16 @@ export function updateSidebarMonitor(kpis = {}, bankInsights = []) {
 
     const diferencia = critical.balanceGap !== undefined ? parseFloat(critical.balanceGap) : (binance - teorico);
     const bankSummary = getBankMonitorSummary(kpis, bankInsights);
+    const judgeBreakdown = Array.isArray(kpis?.judge?.bankBreakdown) ? kpis.judge.bankBreakdown : [];
+    const judgeByBank = new Map(
+        judgeBreakdown
+            .map((entry) => [normalizeBankName(entry?.bank), entry])
+            .filter(([key]) => Boolean(key))
+    );
 
     inject('side-teorico', fUSDT(teorico));
     inject('side-binance', fUSDT(binance));
     inject('side-profit-total', fUSDT(profit));
-    inject('side-ceiling-level-label', `TECHO (${String(bankSummary.levelLabel || 'Sin nivel').toUpperCase()})`);
-    inject('side-ceiling-level-value', bankSummary.avgCeilingRate > 0 ? formatPlain(bankSummary.avgCeilingRate) : '0.00');
-    inject('side-ceiling-level-meta', `${formatPlain(bankSummary.verificationPercent)}% | Techo prom. ponderado`);
-    inject('side-ceiling-sell-rate', `Ultima venta de referencia: ${formatPlain(bankSummary.referenceSellRate)} VES/USDT`);
-    inject('side-ceiling-level-badge', `${bankSummary.banksWithCeiling} Bancos`);
     inject('side-spread-value', formatSignedUsdt(bankSummary.spreadProfitUsdt));
     inject('side-spread-meta', `${formatPlain(bankSummary.spreadPercent)}%`);
     const cyclesCount = Number(completedCycles.count || 0);
@@ -500,18 +642,126 @@ export function updateSidebarMonitor(kpis = {}, bankInsights = []) {
     if (!listContainer) return;
     listContainer.innerHTML = '';
     const promiseSummaryByBank = buildPromiseSummaryByBank(kpis, bankInsights);
-    const vesControlSummaryByBank = buildVesControlSummaryByBank(kpis, bankInsights);
-    bankInsights.forEach((bank) => {
+    const hasLocalPromisesOverall = Array.from(promiseSummaryByBank.values()).some((bucket) => (
+        Number(bucket?.promisedUsdt || 0) > 0 || Number(bucket?.activePromises || 0) > 0
+    ));
+    const externalPromiseFallback = hasLocalPromisesOverall
+        ? null
+        : buildExternalPromiseFallback(kpis);
+    const latestCycleByBank = buildLatestCycleByBank(kpis, bankInsights);
+    const bankCards = bankInsights.map((bank) => {
         const ops = Number(bank.monthlyTransactionCount ?? bank.transactionCount ?? bank.totalOps ?? ((bank.countSell || 0) + (bank.countBuy || 0)));
-        const vesControl = buildBankVesLimitLabel(bank, kpis.config || {}, vesControlSummaryByBank);
         const pagoMovil = buildPagoMovilLabel(bank, kpis.config || {});
         const spreadLabel = buildSpreadLabel(bank);
-        const promiseLabel = buildPromiseLabel(bank, promiseSummaryByBank);
+        const promiseLabel = buildPromiseLabel(bank, promiseSummaryByBank, externalPromiseFallback);
+        const bankKey = normalizeBankLimitKey(bank);
+        const judgeBank = judgeByBank.get(bankKey) || {};
+        const latestCycle = latestCycleByBank.get(bankKey) || {};
+        const completedByJudge = Number(judgeBank.completedCycles || 0);
+        const completedByInsight = Number(bank.completedCycles || 0);
+        const cyclesCompleted = Math.max(completedByJudge, completedByInsight, 0);
+        const explicitCeiling = Number(
+            latestCycle.cycleTotalFiat
+            || judgeBank.currentCycleTotalFiat
+            || bank.currentCycleTotalFiat
+            || 0
+        );
+        const explicitRemaining = Number(
+            latestCycle.cycleRemainingFiat
+            || judgeBank.currentCycleFiatRemaining
+            || bank.currentCycleFiatRemaining
+            || 0
+        );
+        const bankCeiling = explicitCeiling > 0 ? explicitCeiling : 0;
+        const bankRemaining = bankCeiling > 0
+            ? Math.min(bankCeiling, Math.max(0, explicitRemaining))
+            : 0;
+        const burned = Math.max(0, bankCeiling - bankRemaining);
+        const vesControl = bankCeiling > 0
+            ? {
+                value: `${fVESInline(bankRemaining)} / ${fVESInline(bankCeiling)}`,
+                meta: burned <= 0.01
+                    ? 'Barra llena'
+                    : bankRemaining <= 0.01
+                        ? 'Lote quemado'
+                        : `${fVESInline(burned)} quemado`,
+                progress: clampPercent((bankRemaining / bankCeiling) * 100),
+                limit: bankCeiling,
+                current: bankRemaining,
+                hasFlow: true,
+            }
+            : {
+                value: '0.00 / 0.00',
+                meta: 'Sin ciclo activo',
+                progress: 0,
+                limit: 0,
+                current: 0,
+                hasFlow: false,
+            };
+        const explicitCeilingUsdt = Number(
+            latestCycle.cycleTotalUsdt
+            || judgeBank.currentCycleSaleUSDT
+            || bank.currentCycleSaleUSDT
+            || 0
+        );
+        const ceilingRate = Number(
+            bank.ceilingRate
+            || bank.lastSellRate
+            || bank.sellRate
+            || bank.weightedAvgSellRate
+            || bank.avgSellRate
+            || bankSummary.referenceSellRate
+            || 0
+        );
+        const inferredCeilingUsdt = bankCeiling > 0 && ceilingRate > 0 ? (bankCeiling / ceilingRate) : 0;
+        const bankCeilingUsdt = explicitCeilingUsdt > 0 ? explicitCeilingUsdt : inferredCeilingUsdt;
+
+        return {
+            bank,
+            ops,
+            vesControl,
+            pagoMovil,
+            spreadLabel,
+            promiseLabel,
+            cyclesCompleted,
+            bankCeiling,
+            bankCeilingUsdt,
+        };
+    });
+
+    const activeBankCards = bankCards.filter((entry) => Number(entry.bankCeiling || 0) > 0);
+    const bankCeilings = activeBankCards
+        .map((entry) => Number(entry.bankCeiling || 0))
+        .filter((value) => value > 0);
+    const bankCeilingsUsdt = activeBankCards
+        .map((entry) => Number(entry.bankCeilingUsdt || 0))
+        .filter((value) => value > 0);
+    const averageBankCeiling = bankCeilings.length
+        ? bankCeilings.reduce((sum, value) => sum + value, 0) / bankCeilings.length
+        : 0;
+    const averageBankCeilingUsdt = bankCeilingsUsdt.length
+        ? bankCeilingsUsdt.reduce((sum, value) => sum + value, 0) / bankCeilingsUsdt.length
+        : 0;
+
+    inject('side-ceiling-level-label', 'TECHO GENERAL');
+    inject(
+        'side-ceiling-level-value',
+        averageBankCeiling > 0 || averageBankCeilingUsdt > 0
+            ? `${formatPlain(averageBankCeiling)} VES | ${formatPlain(averageBankCeilingUsdt)} USDT`
+            : '0.00 VES | 0.00 USDT'
+    );
+    inject('side-ceiling-level-meta', bankCeilings.length > 0
+        ? `Promedio simple de ${formatPlain(bankCeilings.length, 0)} techos`
+        : 'Sin techos por banco');
+    inject('side-ceiling-sell-rate', `Nivel ${String(bankSummary.levelLabel || 'Sin nivel').toUpperCase()} | ${formatPlain(bankSummary.verificationPercent)}%`);
+    inject('side-ceiling-level-badge', `${formatPlain(activeBankCards.length, 0)} Bancos`);
+
+    bankCards.forEach(({ bank, ops, vesControl, pagoMovil, spreadLabel, promiseLabel, cyclesCompleted, bankCeiling, bankCeilingUsdt }) => {
         const performancePercent = Number(bank.profitPercent ?? bank.margin ?? 0);
         const promiseTextClass = promiseLabel.pendingUsdt > 0 || promiseLabel.pendingFiat > 0
             ? 'text-amber-300'
             : 'text-white/90';
-        const statusLabel = `${ops}/1000`;
+        const statusLabel = `Ciclos ${formatPlain(cyclesCompleted, 0)} | Ops ${formatPlain(ops, 0)}`;
         const performanceClass = performancePercent >= 0
             ? 'border-emerald-500/20 bg-emerald-500/10 text-emerald-300'
             : 'border-rose-500/20 bg-rose-500/10 text-rose-300';
@@ -545,12 +795,12 @@ export function updateSidebarMonitor(kpis = {}, bankInsights = []) {
                 <span class="text-[11px] text-slate-500 font-black tracking-tight">${promiseLabel.meta}</span>
             </div>
             ${promiseLabel.promisedLine ? `
-                <div class="text-[11px] font-mono font-black tracking-tight text-sky-200/95">
-                    Prometido: ${promiseLabel.promisedLine}
+                <div class="text-[11px] font-mono font-black tracking-tight ${promiseLabel.promisedLineClass}">
+                    ${promiseLabel.promisedLabel}: ${promiseLabel.promisedLine}
                 </div>
             ` : ''}
             <div class="text-[13px] font-mono font-black tracking-tight ${promiseTextClass}">
-                Pendiente: ${promiseLabel.value}
+                ${promiseLabel.pendingLabel}: ${promiseLabel.value}
             </div>
             <div class="flex items-center justify-between gap-3 mt-1">
                 <span class="text-[11px] text-slate-500 font-black uppercase tracking-[0.18em]">Control VES</span>
@@ -558,6 +808,11 @@ export function updateSidebarMonitor(kpis = {}, bankInsights = []) {
             </div>
             <div class="text-[13px] font-mono font-black tracking-tight text-white/90">
                 ${vesControl.value}
+            </div>
+            <div class="text-[11px] font-mono font-black tracking-tight text-[#F3BA2F]">
+                Techo: ${bankCeiling > 0 || bankCeilingUsdt > 0
+            ? `${fVESInline(bankCeiling)} VES | ${formatPlain(bankCeilingUsdt)} USDT`
+            : '0.00 VES | 0.00 USDT'}
             </div>
             <div class="h-1.5 w-full bg-white/10 rounded-full overflow-hidden mt-1">
                 <div class="h-full bg-[#F3BA2F] transition-all duration-700 ease-out" style="width: ${vesControl.progress}%"></div>
