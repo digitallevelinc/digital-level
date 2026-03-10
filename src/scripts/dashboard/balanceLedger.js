@@ -38,9 +38,22 @@ const toFiniteNumber = (value) => {
     const n = Number(value);
     return Number.isFinite(n) ? n : 0;
 };
+const normalizeTextToken = (value) => String(value ?? '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase();
 const WRAPPED_NOTE_PATTERN = /[\(\{]\s*([^\)\}]+?)\s*[\)\}]/s;
 const PLAIN_NOTE_PATTERN = /^\s*([^()\{\}\n]+?)\s*$/s;
 const PROMISE_ACTIVATION_MAX_USDT = 0.011;
+
+const isSettlementTransfer = (tx = {}) => {
+    const excludedReason = String(tx?.excludedReason || '').trim().toUpperCase();
+    if (excludedReason === 'INTER_OPERATOR_SETTLEMENT') return true;
+
+    const note = normalizeTextToken(tx?.notes || '');
+    if (!note) return false;
+    return /\bliq\b/.test(note) || /\bliquidacion\b/.test(note) || /\bliquidar\b/.test(note);
+};
 
 const getCategory = (type) => {
     if (!type) return 'OTRO';
@@ -164,6 +177,8 @@ const getCategoryTone = (category) => {
             return 'text-[#f7c948]';
         case 'PAY':
             return 'text-sky-300';
+        case 'LIQUID':
+            return 'text-rose-300';
         case 'RED':
             return 'text-violet-300';
         case 'SWITCH':
@@ -738,10 +753,17 @@ const computeTxSpread = (tx = {}) => {
 };
 
 const renderRow = (tx, rowBalance) => {
-    const category = getCategory(tx.type);
+    const isSettlement = isSettlementTransfer(tx);
+    const category = isSettlement ? 'LIQUID' : getCategory(tx.type);
     const signedAmount = getSignedAmount(tx);
     const amountTone = signedAmount < 0 ? 'text-red-400' : 'text-white';
     const balanceTone = rowBalance < 0 ? 'text-red-400' : 'text-white';
+    const rowTone = isSettlement
+        ? 'bg-rose-500/[0.06] ring-1 ring-rose-400/35'
+        : '';
+    const typePillTone = isSettlement
+        ? 'inline-flex items-center rounded-md border border-rose-300/55 bg-rose-400/12 px-2 py-0.5 text-[0.8rem] text-rose-200 shadow-[0_0_0_1px_rgba(251,113,133,0.25)]'
+        : '';
     const topRaw = buildDescriptionTop(tx);
     const top = escapeHtml(topRaw);
     const meta = buildDescriptionMeta(tx, topRaw);
@@ -756,11 +778,11 @@ const renderRow = (tx, rowBalance) => {
     const methodText = tx?.paymentMethod ? escapeHtml(String(tx.paymentMethod).toUpperCase()) : '';
 
     return `
-        <article class="grid gap-2 px-4 py-2 md:px-5 lg:grid-cols-[128px_minmax(260px,1.5fr)_92px_minmax(140px,0.9fr)_minmax(200px,1.1fr)_minmax(140px,0.9fr)_minmax(90px,0.7fr)] lg:items-start">
+        <article class="grid gap-2 px-4 py-2 md:px-5 lg:grid-cols-[128px_minmax(260px,1.5fr)_92px_minmax(140px,0.9fr)_minmax(200px,1.1fr)_minmax(140px,0.9fr)_minmax(90px,0.7fr)] lg:items-start ${rowTone}">
             <div class="px-0.5 py-1.5 lg:hidden">
                 <div class="flex items-start justify-between gap-3">
                     <div class="min-w-0">
-                        <div class="text-[0.8rem] font-black uppercase tracking-[0.12em] ${getCategoryTone(category)}">${category}</div>
+                        <div class="text-[0.8rem] font-black uppercase tracking-[0.12em] ${getCategoryTone(category)} ${typePillTone}">${category}</div>
                         <div class="mt-1 text-[11px] font-semibold text-white/62">${escapeHtml(formatPostingDate(tx.timestamp))}</div>
                     </div>
                     <div class="text-right">
@@ -792,7 +814,7 @@ const renderRow = (tx, rowBalance) => {
                 <div class="mt-0.5 flex flex-wrap items-center gap-2 text-[10px] font-medium text-white/78">${metaHtml || '<span class="text-white/60">Sin metadata extra</span>'}</div>
             </div>
             <div class="pt-0.5 text-left lg:text-center">
-                <span class="text-[0.95rem] font-black uppercase tracking-[0.12em] ${getCategoryTone(category)}">${category}</span>
+                <span class="text-[0.95rem] font-black uppercase tracking-[0.12em] ${getCategoryTone(category)} ${typePillTone}">${category}</span>
             </div>
             <div class="pt-0.5 text-left lg:text-right">
                 <div class="text-[1.15rem] font-black leading-none ${amountTone}">${formatAmount(tx)}</div>
