@@ -103,6 +103,52 @@ function resolveApiBase() {
     return selected;
 }
 
+function normalizeBankKey(value) {
+    const raw = String(value || '')
+        .trim()
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '');
+    if (!raw) return '';
+    if (raw.includes('bbva') || raw.includes('provincial')) return 'provincial';
+    if (raw.includes('mercantil')) return 'mercantil';
+    if (raw.includes('banesco')) return 'banesco';
+    if (raw.includes('bnc')) return 'bnc';
+    if (raw.includes('bancamiga')) return 'bancamiga';
+    if (raw.includes('fintech') || raw === 'bank') return 'bank';
+    return raw.replace(/[^a-z0-9]/g, '');
+}
+
+function bankLabelFromKey(bankKey) {
+    switch (String(bankKey || '').toLowerCase()) {
+        case 'provincial': return 'BBVA/Provincial';
+        case 'mercantil': return 'Mercantil';
+        case 'banesco': return 'Banesco';
+        case 'bnc': return 'BNC';
+        case 'bancamiga': return 'Bancamiga';
+        case 'bank': return 'BANK';
+        default: {
+            const compact = String(bankKey || '').trim();
+            if (!compact) return 'Banco extra';
+            return compact.charAt(0).toUpperCase() + compact.slice(1);
+        }
+    }
+}
+
+function getRequiredBankKeys(kpis = {}) {
+    const defaults = ['mercantil', 'banesco', 'bnc', 'provincial', 'bancamiga', 'bank'];
+    const spendLimits = kpis?.config?.bankSpendLimitsVes || {};
+    const pagoMovilLimits = kpis?.config?.bankPagoMovilLimitsVes || {};
+    const configured = [
+        ...Object.keys(spendLimits || {}),
+        ...Object.keys(pagoMovilLimits || {}),
+    ]
+        .map(normalizeBankKey)
+        .filter(Boolean);
+
+    return Array.from(new Set([...defaults, ...configured]));
+}
+
 function handleExpiredSession() {
     if (authRedirecting) return;
     authRedirecting = true;
@@ -529,28 +575,22 @@ export async function updateDashboard(API_BASE, token, alias, range = {}, opts =
 
         // --- FALLBACK VISUAL: Asegurar que todos los bancos del DOM tengan datos (aunque sean ceros) ---
         // Lista hardcodeada que debe coincidir con bancos.astro (BBVABank eliminado)
-        const defaultBanks = ['Mercantil', 'Banesco', 'BNC', 'BBVA/Provincial', 'Bancamiga', 'BANK'];
+        const requiredBankKeys = getRequiredBankKeys(kpis);
+        const globalFavorites = Array.isArray(kpis.favorites) ? kpis.favorites : [];
+        const favoriteKeys = new Set(globalFavorites.map(normalizeBankKey).filter(Boolean));
 
-        defaultBanks.forEach(dbParams => {
-            // Buscamos si ya existe en bankData (normalizando nombres)
-            const exists = bankData.find(b => {
-                const bId = (b.bank || '').toLowerCase().trim();
-                const dbId = dbParams.toLowerCase().trim();
-                if (bId === dbId) return true;
-                if (dbId.includes('provincial') && bId.includes('provincial')) return true;
-                return false;
-            });
-
+        requiredBankKeys.forEach((bankKey) => {
+            const exists = bankData.some((bank) => normalizeBankKey(bank.bank || bank.bankName) === bankKey);
             if (!exists) {
-                // FIX: Check against global favorites list from API (case-insensitive)
-                const globalFavorites = kpis.favorites || [];
-                const isFav = globalFavorites.some(f => f.toLowerCase().trim() === dbParams.toLowerCase().trim());
+                const bankLabel = bankLabelFromKey(bankKey);
+                const isFav = favoriteKeys.has(bankKey);
 
                 bankData.push({
-                    bank: dbParams,
-                    bankName: dbParams,
+                    bank: bankLabel,
+                    bankName: bankLabel,
                     // Campos Source of Truth (Inicializados en 0)
                     fiatBalance: 0,
+                    usdtBalance: 0,
                     profit: 0,
                     profitPercent: 0,
                     activeVerdictsCount: 0,
