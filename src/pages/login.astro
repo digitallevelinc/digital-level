@@ -16,7 +16,7 @@ import Navbar from '../components/Navbar.tsx';
             <img src="/img/logo.png" alt="Digital Level Logo" class="h-10 w-10 object-contain sm:h-12 sm:w-12" />
           </div>
           <h2 class="text-2xl font-black uppercase leading-tight tracking-tighter text-white sm:text-3xl">
-            DigitaLevel<span class="text-[#F3BA2F]"> Ecosystem</span>
+            Digital Level<span class="text-[#F3BA2F]"> Ecosystem</span>
           </h2>
           <p class="mt-2 text-xs font-medium uppercase tracking-[0.12em] text-gray-400 sm:text-sm sm:tracking-widest">
             Unified Management Hub
@@ -150,6 +150,7 @@ import Navbar from '../components/Navbar.tsx';
   const LOCAL_LOGIN_TIMEOUT_MS = 8000;
   const PRIMARY_LOGIN_TIMEOUT_MS = 10000;
   const FALLBACK_LOGIN_TIMEOUT_MS = 5000;
+  const MAX_LOGIN_FLOW_TIMEOUT_MS = 22000;
   const DEFAULT_SUBMIT_TEXT = "ACCEDER AL SISTEMA";
   const VERIFYING_TEXT = "VERIFICANDO...";
   const DEFAULT_FORGOT_TEXT = "RECUPERAR PASSWORD ADMIN";
@@ -235,12 +236,43 @@ import Navbar from '../components/Navbar.tsx';
     userInput?.focus();
   }
 
+  function resolveRoleTarget(role: string) {
+    return role === 'investor' ? "/investor" : "/dashboard";
+  }
+
+  function redirectToRole(role: string) {
+    const target = resolveRoleTarget(role);
+    const redirectLabel = role === 'investor'
+      ? "REDIRIGIENDO A INVERSOR..."
+      : "REDIRIGIENDO A DASHBOARD...";
+
+    setSubmitState(true, redirectLabel);
+    window.location.assign(target);
+
+    window.setTimeout(() => {
+      if (window.location.pathname.startsWith('/login')) {
+        window.location.replace(target);
+      }
+    }, 1500);
+  }
+
   async function fetchWithTimeout(url: string, init: RequestInit, timeoutMs: number): Promise<Response> {
     const controller = new AbortController();
-    const timeoutId = window.setTimeout(() => controller.abort(), timeoutMs);
+    let timeoutId = 0;
+    const timeoutPromise = new Promise<Response>((_, reject) => {
+      timeoutId = window.setTimeout(() => {
+        controller.abort();
+        const timeoutError = new Error(`timeout_after_${timeoutMs}ms`);
+        (timeoutError as any).name = 'AbortError';
+        reject(timeoutError);
+      }, timeoutMs);
+    });
 
     try {
-      return await fetch(url, { ...init, signal: controller.signal });
+      return await Promise.race<Response>([
+        fetch(url, { ...init, signal: controller.signal }),
+        timeoutPromise,
+      ]);
     } finally {
       clearTimeout(timeoutId);
     }
@@ -311,6 +343,13 @@ import Navbar from '../components/Navbar.tsx';
   const urlParams = new URLSearchParams(window.location.search);
   const resetToken = urlParams.get('admin-reset-token');
   const resetUser = urlParams.get('admin-reset-user');
+
+  const existingToken = localStorage.getItem('auth_token') || localStorage.getItem('session_token');
+  const existingRole = localStorage.getItem('user_role') || 'operator';
+  if (existingToken && !resetToken && !resetUser) {
+    window.location.replace(resolveRoleTarget(existingRole));
+  }
+
   if (resetToken && resetUser) {
     openAdminResetPanel(resetUser, resetToken);
     showStatus("Define la nueva password del admin principal para completar la restauracion.");
@@ -332,6 +371,11 @@ import Navbar from '../components/Navbar.tsx';
       setSubmitState(false, DEFAULT_SUBMIT_TEXT);
       return;
     }
+
+    const watchdogId = window.setTimeout(() => {
+      showError("No fue posible completar el login. Revisa conexion/proxy y vuelve a intentar.");
+      setSubmitState(false, DEFAULT_SUBMIT_TEXT);
+    }, MAX_LOGIN_FLOW_TIMEOUT_MS);
 
     try {
       const host = window.location.hostname.toLowerCase();
@@ -376,9 +420,10 @@ import Navbar from '../components/Navbar.tsx';
         localStorage.setItem('api_base', apiBase);
 
         const maxAge = 7 * 24 * 60 * 60;
-        document.cookie = `session_token=${result.token}; Path=/; Max-Age=${maxAge}; SameSite=Lax`;
+        const secureAttr = window.location.protocol === 'https:' ? '; Secure' : '';
+        document.cookie = `session_token=${encodeURIComponent(result.token)}; Path=/; Max-Age=${maxAge}; SameSite=Lax${secureAttr}`;
 
-        window.location.href = role === 'investor' ? "/investor" : "/dashboard";
+        redirectToRole(role);
         return;
       }
 
@@ -390,6 +435,7 @@ import Navbar from '../components/Navbar.tsx';
           : "Error: El motor Sentinel no responde (proxy/API)."
       );
     } finally {
+      clearTimeout(watchdogId);
       setSubmitState(false, DEFAULT_SUBMIT_TEXT);
     }
   });
