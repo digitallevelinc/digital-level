@@ -1,4 +1,6 @@
 const CARACAS_TZ = 'America/Caracas';
+const LEDGER_CHANNELS = Object.freeze(['P2P', 'PAY']);
+const LEDGER_CHANNEL_SET = new Set(LEDGER_CHANNELS);
 
 const state = {
     apiBase: '',
@@ -19,6 +21,7 @@ const state = {
     currentTransfers: [],
     pageNetByPage: new Map(),
     bankData: [],
+    closingBalance: null,
 };
 
 const escapeHtml = (value) => String(value ?? '')
@@ -63,6 +66,11 @@ const getCategory = (type) => {
     if (type === 'DEPOSIT' || type === 'WITHDRAWAL' || type === 'DIVIDEND') return 'RED';
     if (type === 'INTERNAL_TRANSFER') return 'SWITCH';
     return 'OTRO';
+};
+
+const isLedgerChannelAllowed = (tx = {}) => {
+    const category = getCategory(String(tx?.type || '').toUpperCase());
+    return LEDGER_CHANNEL_SET.has(category);
 };
 
 const getDirection = (type) => {
@@ -137,6 +145,19 @@ const getSignedAmount = (tx = {}) => {
 };
 
 const getLedgerAnchorBalance = (kpis = {}) => {
+    const payloadClosingBalance = Number(state.closingBalance);
+    if (Number.isFinite(payloadClosingBalance)) {
+        return payloadClosingBalance;
+    }
+
+    const wallets = kpis?.wallets || {};
+    const isolatedWalletsSum = Number(wallets.balanceP2P || 0)
+        + Number(wallets.balancePay || 0);
+
+    if (Number.isFinite(isolatedWalletsSum)) {
+        return isolatedWalletsSum;
+    }
+
     const candidates = [
         kpis?.metrics?.totalBalance,
         kpis?.currentBalance,
@@ -150,11 +171,8 @@ const getLedgerAnchorBalance = (kpis = {}) => {
         if (Number.isFinite(n)) return n;
     }
 
-    const wallets = kpis?.wallets || {};
     const walletsSum = Number(wallets.balanceP2P || 0)
-        + Number(wallets.balancePay || 0)
-        + Number(wallets.balanceRed || 0)
-        + Number(wallets.balanceSwitch || 0);
+        + Number(wallets.balancePay || 0);
 
     return Number.isFinite(walletsSum) ? walletsSum : 0;
 };
@@ -470,7 +488,7 @@ const sanitizeDateValue = (value) => {
 const isSameRange = (a = {}, b = {}) => sanitizeDateValue(a?.from) === sanitizeDateValue(b?.from)
     && sanitizeDateValue(a?.to) === sanitizeDateValue(b?.to);
 
-const buildTransfersUrl = (apiBase, range = {}, page = 1, limit = 12) => {
+const buildTransfersUrl = (apiBase, range = {}, page = 1, limit = 12, includeChannels = true) => {
     const params = new URLSearchParams();
     const from = sanitizeDateValue(range?.from);
     const to = sanitizeDateValue(range?.to);
@@ -478,6 +496,9 @@ const buildTransfersUrl = (apiBase, range = {}, page = 1, limit = 12) => {
     if (to) params.set('to', to);
     params.set('page', String(page));
     params.set('limit', String(limit));
+    if (includeChannels) {
+        params.set('channels', LEDGER_CHANNELS.join(','));
+    }
     params.set('_ts', String(Date.now()));
     return `${String(apiBase || '').replace(/\/+$/, '')}/api/transfers?${params.toString()}`;
 };
@@ -511,6 +532,7 @@ const renderError = (message) => {
     if (count) count.textContent = 'No se pudo cargar el historial';
     state.total = 0;
     state.totalPages = 0;
+    state.closingBalance = null;
     updatePaginationUI();
     renderPlaceholder(message, 'text-rose-300');
 };
@@ -587,6 +609,8 @@ const buildRowsWithBalance = (transfers = []) => {
             rows.unshift(syntheticTx);
         }
     }
+    rows = rows.filter((tx) => isLedgerChannelAllowed(tx));
+
     const pageNet = rows.reduce((sum, tx) => sum + getSignedAmount(tx), 0);
     state.pageNetByPage.set(state.page, pageNet);
 
@@ -839,19 +863,20 @@ const renderTransfers = (transfers = []) => {
     if (!body) return;
 
     const allTransfers = Array.isArray(transfers) ? transfers : [];
-    state.currentTransfers = allTransfers;
+    const scopedTransfers = allTransfers.filter((tx) => isLedgerChannelAllowed(tx));
+    state.currentTransfers = scopedTransfers;
 
-    if (allTransfers.length === 0) {
+    if (scopedTransfers.length === 0) {
         renderEmpty();
         return;
     }
 
-    const rowsWithBalance = buildRowsWithBalance(allTransfers);
+    const rowsWithBalance = buildRowsWithBalance(scopedTransfers);
     const filteredRows = rowsWithBalance.filter(({ tx }) => matchesSearch(tx, state.searchTerm));
 
     if (count) {
         const suffix = state.searchTerm ? ` | ${filteredRows.length} visibles` : '';
-        count.textContent = `Mostrando ${allTransfers.length} movimiento${allTransfers.length === 1 ? '' : 's'} de ${state.total}${suffix}`;
+        count.textContent = `Mostrando ${scopedTransfers.length} movimiento${scopedTransfers.length === 1 ? '' : 's'} de ${state.total}${suffix}`;
     }
 
     if (filteredRows.length === 0) {
@@ -884,13 +909,26 @@ const fetchTransfersPage = async (page = 1) => {
     updatePaginationUI();
 
     try {
-        const res = await fetch(buildTransfersUrl(state.apiBase, state.range, page, state.limit), {
+        let res = await fetch(buildTransfersUrl(state.apiBase, state.range, page, state.limit, true), {
             headers: {
                 'Authorization': `Bearer ${state.token}`
             },
             cache: 'no-store',
             signal: state.abortController.signal
         });
+
+        if (!res.ok && res.status !== 401 && res.status !== 403) {
+            const fallbackRes = await fetch(buildTransfersUrl(state.apiBase, state.range, page, state.limit, false), {
+                headers: {
+                    'Authorization': `Bearer ${state.token}`
+                },
+                cache: 'no-store',
+                signal: state.abortController.signal
+            });
+            if (fallbackRes.ok) {
+                res = fallbackRes;
+            }
+        }
 
         if (!res.ok) {
             if (res.status === 401 || res.status === 403) {
@@ -913,6 +951,8 @@ const fetchTransfersPage = async (page = 1) => {
         state.total = Number(pagination.total || 0);
         state.totalPages = Number(pagination.totalPages || 0);
         state.page = Number(pagination.page || page);
+        const payloadClosingBalance = Number(payload?.closingBalance);
+        state.closingBalance = Number.isFinite(payloadClosingBalance) ? payloadClosingBalance : null;
         state.loadedOnce = true;
         state.needsRefresh = false;
 
@@ -975,6 +1015,7 @@ export const updateBalanceLedgerUI = (kpis = {}, context = {}) => {
 
     if (!state.loadedOnce) {
         state.pageNetByPage.clear();
+        state.closingBalance = null;
         state.needsRefresh = true;
         state.total = 0;
         state.totalPages = 0;
@@ -986,6 +1027,7 @@ export const updateBalanceLedgerUI = (kpis = {}, context = {}) => {
 
     if (rangeChanged || apiChanged || tokenChanged) {
         state.pageNetByPage.clear();
+        state.closingBalance = null;
         state.needsRefresh = true;
         state.total = 0;
         state.totalPages = 0;
