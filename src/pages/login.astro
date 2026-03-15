@@ -154,6 +154,9 @@ import Navbar from '../components/Navbar.tsx';
   const DEFAULT_SUBMIT_TEXT = "ACCEDER AL SISTEMA";
   const VERIFYING_TEXT = "VERIFICANDO...";
   const DEFAULT_FORGOT_TEXT = "RECUPERAR PASSWORD ADMIN";
+  const sessionStore = window.sessionStorage;
+  const legacyLocalStore = window.localStorage;
+  const LEGACY_SHARED_AUTH_KEYS = ['session_token', 'auth_token', 'user_role', 'user_info', 'operator_alias'];
 
   const loginForm = document.getElementById('loginForm') as HTMLFormElement | null;
   const loginAccessPanel = document.getElementById('loginAccessPanel');
@@ -170,6 +173,14 @@ import Navbar from '../components/Navbar.tsx';
   const adminResetSubmitBtn = document.getElementById('adminResetSubmitBtn') as HTMLButtonElement | null;
   const adminResetCancelBtn = document.getElementById('adminResetCancelBtn') as HTMLButtonElement | null;
   let pendingAdminReset: { username: string; token: string } | null = null;
+
+  function purgeLegacySharedAuth() {
+    try {
+      LEGACY_SHARED_AUTH_KEYS.forEach((key) => legacyLocalStore.removeItem(key));
+    } catch (_error) {
+      // Ignore storage failures; sessionStorage is the source of truth.
+    }
+  }
 
   function setSubmitState(disabled: boolean, text: string) {
     if (!submitBtn) return;
@@ -344,8 +355,9 @@ import Navbar from '../components/Navbar.tsx';
   const resetToken = urlParams.get('admin-reset-token');
   const resetUser = urlParams.get('admin-reset-user');
 
-  const existingToken = localStorage.getItem('auth_token') || localStorage.getItem('session_token');
-  const existingRole = localStorage.getItem('user_role') || 'operator';
+  purgeLegacySharedAuth();
+  const existingToken = sessionStore.getItem('auth_token') || sessionStore.getItem('session_token');
+  const existingRole = sessionStore.getItem('user_role') || 'operator';
   if (existingToken && !resetToken && !resetUser) {
     window.location.replace(resolveRoleTarget(existingRole));
   }
@@ -404,24 +416,21 @@ import Navbar from '../components/Navbar.tsx';
           return;
         }
 
-        localStorage.setItem('session_token', result.token);
-        localStorage.setItem('auth_token', result.token);
+        purgeLegacySharedAuth();
+        sessionStore.setItem('session_token', result.token);
+        sessionStore.setItem('auth_token', result.token);
 
         const role = result.role || 'operator';
         const user = role === 'investor' ? result.investor : (result.operator || {});
-        localStorage.setItem('user_role', role);
-        localStorage.setItem('user_info', JSON.stringify(user));
+        sessionStore.setItem('user_role', role);
+        sessionStore.setItem('user_info', JSON.stringify(user));
 
         if (user.alias) {
-          localStorage.setItem('operator_alias', user.alias);
+          sessionStore.setItem('operator_alias', user.alias);
         }
 
         const apiBase = isLocal ? 'http://localhost:3003' : window.location.origin;
         localStorage.setItem('api_base', apiBase);
-
-        const maxAge = 7 * 24 * 60 * 60;
-        const secureAttr = window.location.protocol === 'https:' ? '; Secure' : '';
-        document.cookie = `session_token=${encodeURIComponent(result.token)}; Path=/; Max-Age=${maxAge}; SameSite=Lax${secureAttr}`;
 
         redirectToRole(role);
         return;

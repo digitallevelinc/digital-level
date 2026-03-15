@@ -83,6 +83,8 @@ const inject = (id, val) => {
     if (el) el.textContent = val;
 };
 
+const sessionStore = window.sessionStorage;
+
 /**
  * Orquestador de datos para el Portal del Inversionista
  * @param {string} API_BASE - URL de la API
@@ -183,7 +185,7 @@ export async function updateInvestorDashboard(API_BASE, token) {
 
         // Nombre
         try {
-            const userInfo = JSON.parse(localStorage.getItem('user_info') || '{}');
+            const userInfo = JSON.parse(sessionStore.getItem('user_info') || '{}');
             const name = userInfo.name || userInfo.alias || 'Inversionista';
             inject('inv-name', name);
         } catch (e) { }

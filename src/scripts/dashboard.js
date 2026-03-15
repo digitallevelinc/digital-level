@@ -18,6 +18,9 @@ const KPI_REQUEST_TIMEOUT_MS = 12000;
 const KPI_APPLY_BUTTON_TEXT = "Actualizar Reporte";
 const LOCAL_API_FALLBACK = "http://localhost:3003";
 const CARACAS_TZ = "America/Caracas";
+const sessionStore = window.sessionStorage;
+const legacyLocalStore = window.localStorage;
+const LEGACY_SHARED_AUTH_KEYS = ['auth_token', 'session_token', 'user_role', 'user_info', 'operator_alias'];
 let dashboardIntervalId = null;
 let dashboardAbortController = null;
 let dashboardRequestSeq = 0;
@@ -103,6 +106,18 @@ function resolveApiBase() {
     return selected;
 }
 
+function purgeLegacySharedAuth() {
+    try {
+        LEGACY_SHARED_AUTH_KEYS.forEach((key) => legacyLocalStore.removeItem(key));
+    } catch (_error) {
+        // Ignore storage failures; sessionStorage is the source of truth.
+    }
+}
+
+function clearTabAuth() {
+    LEGACY_SHARED_AUTH_KEYS.forEach((key) => sessionStore.removeItem(key));
+}
+
 function normalizeBankKey(value) {
     const raw = String(value || '')
         .trim()
@@ -153,13 +168,8 @@ function handleExpiredSession() {
     if (authRedirecting) return;
     authRedirecting = true;
 
-    localStorage.removeItem('auth_token');
-    localStorage.removeItem('session_token');
-    localStorage.removeItem('user_role');
-    localStorage.removeItem('user_info');
-    localStorage.removeItem('operator_alias');
-
-    document.cookie = "session_token=; Path=/; Max-Age=0; SameSite=Lax";
+    purgeLegacySharedAuth();
+    clearTabAuth();
     window.location.href = '/login';
 }
 
@@ -169,24 +179,25 @@ function handleExpiredSession() {
  */
 export async function initDashboard() {
     console.log("Sentinel Dashboard: Sincronizando módulos...");
+    purgeLegacySharedAuth();
     initCardHelpTooltips();
     initActiveAdsToggle();
 
     const API_BASE = resolveApiBase();
-    const token = localStorage.getItem('auth_token') || localStorage.getItem('session_token');
+    const token = sessionStore.getItem('auth_token') || sessionStore.getItem('session_token');
 
     // Recuperar alias con soporte Multi-Rol
     let alias = 'Operador';
     try {
-        const userInfoStr = localStorage.getItem('user_info');
+        const userInfoStr = sessionStore.getItem('user_info');
         if (userInfoStr) {
             const user = JSON.parse(userInfoStr);
-            alias = user.alias || localStorage.getItem('operator_alias') || 'Usuario';
+            alias = user.alias || sessionStore.getItem('operator_alias') || 'Usuario';
         } else {
-            alias = localStorage.getItem('operator_alias') || 'Operador';
+            alias = sessionStore.getItem('operator_alias') || 'Operador';
         }
     } catch (e) {
-        alias = localStorage.getItem('operator_alias') || 'Operador';
+        alias = sessionStore.getItem('operator_alias') || 'Operador';
     }
 
     if (!token) {
@@ -197,10 +208,10 @@ export async function initDashboard() {
 
     const logoutBtn = document.getElementById('logout-btn');
     logoutBtn?.addEventListener('click', () => {
-        localStorage.clear();
+        purgeLegacySharedAuth();
+        clearTabAuth();
         // Limpieza de cookie también si es posible, aunque suele ser HttpOnly o gestionada por servidor.
         // Forzamos expiración de cookie cliente
-        document.cookie = "session_token=; Path=/; Max-Age=0; SameSite=Lax";
         window.location.href = '/login';
     });
 

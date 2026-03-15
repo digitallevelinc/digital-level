@@ -55,6 +55,9 @@ import MonthlyPerformanceTable from '../components/dashboard/investor/MonthlyPer
 
 <script>
   const LOCAL_API_FALLBACK = 'http://localhost:3003';
+  const sessionStore = window.sessionStorage;
+  const legacyLocalStore = window.localStorage;
+  const LEGACY_SHARED_AUTH_KEYS = ['auth_token', 'session_token', 'user_role', 'user_info', 'operator_alias'];
 
   function normalizeApiBase(value) {
     const raw = String(value || '').trim();
@@ -106,24 +109,33 @@ import MonthlyPerformanceTable from '../components/dashboard/investor/MonthlyPer
     return selected;
   }
 
+  function purgeLegacySharedAuth() {
+    try {
+      LEGACY_SHARED_AUTH_KEYS.forEach((key) => legacyLocalStore.removeItem(key));
+    } catch (_error) {
+      // Ignore storage failures; sessionStorage is the source of truth.
+    }
+  }
+
+  function clearTabAuth() {
+    LEGACY_SHARED_AUTH_KEYS.forEach((key) => sessionStore.removeItem(key));
+  }
+
   // Logout Logic
   const logoutBtn = document.getElementById('logout-btn');
   if (logoutBtn) {
     logoutBtn.addEventListener('click', () => {
-      localStorage.removeItem('auth_token');
-      localStorage.removeItem('session_token');
-      localStorage.removeItem('user_role');
-      localStorage.removeItem('user_info');
-      localStorage.removeItem('operator_alias');
-      localStorage.removeItem('api_base');
+      purgeLegacySharedAuth();
+      clearTabAuth();
       window.location.href = '/login';
     });
   }
 
   import { updateInvestorDashboard } from '../scripts/investor-logic.js';
   
+  purgeLegacySharedAuth();
   const API_BASE = resolveApiBase();
-  const token = localStorage.getItem('auth_token') || localStorage.getItem('session_token');
+  const token = sessionStore.getItem('auth_token') || sessionStore.getItem('session_token');
 
   if(token) {
     updateInvestorDashboard(API_BASE, token);

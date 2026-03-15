@@ -1,17 +1,7 @@
 import { defineMiddleware } from "astro:middleware";
 
-export const onRequest = defineMiddleware((context, next) => {
-  const { url, cookies, redirect } = context;
-
-  // Si el usuario intenta entrar a cualquier ruta de dashboard
-  if (url.pathname.startsWith("/dashboard")) {
-    const session = cookies.get("session_token");
-    
-    // Si no hay sesión activa, lo mandamos al login
-    if (!session) {
-      return redirect("/login");
-    }
-  }
-
+export const onRequest = defineMiddleware((_context, next) => {
+  // Auth is handled client-side with sessionStorage so each tab can keep
+  // an independent Sentinel session without cross-tab cookie collisions.
   return next();
 });

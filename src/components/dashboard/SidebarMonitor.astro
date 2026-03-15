@@ -132,7 +132,7 @@
 
     // Ocultar para Inversores
     try {
-        const userInfo = JSON.parse(localStorage.getItem('user_info') || '{}');
+        const userInfo = JSON.parse(sessionStorage.getItem('user_info') || '{}');
         if (userInfo.role === 'investor' || window.location.pathname.includes('investor')) {
             const container = trigger?.closest('.fixed');
             if (container) container.style.display = 'none';
