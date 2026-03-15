@@ -275,28 +275,7 @@ function buildPromiseSummaryByBank(kpis = {}, bankInsights = []) {
     return summary;
 }
 
-function buildExternalPromiseFallback(kpis = {}) {
-    const dispersor = kpis?.judge?.dispersor || kpis?.dispersor || {};
-    const promisedUsdt = Number(dispersor?.promisedUsdt || 0);
-    const promisedFiat = Number(dispersor?.promisedFiat || 0);
-    const pendingUsdt = Number(dispersor?.pendingUsdt || 0);
-    const pendingFiat = Number(dispersor?.pendingFiat || 0);
-    const activePromises = Number(dispersor?.activePromises || 0);
-    const hasPromise = promisedUsdt > 0 || activePromises > 0;
-    const hasPending = pendingUsdt > 0.00001 || pendingFiat > 0.00001;
-
-    return {
-        hasPromise,
-        hasPending,
-        promisedUsdt,
-        promisedFiat,
-        pendingUsdt,
-        pendingFiat,
-        activePromises,
-    };
-}
-
-function buildPromiseLabel(bank, promiseSummaryByBank = new Map(), externalPromiseFallback = null) {
+function buildPromiseLabel(bank, promiseSummaryByBank = new Map()) {
     const key = normalizeBankLimitKey(bank);
     const promise = promiseSummaryByBank.get(key) || {
         promisedUsdt: 0,
@@ -326,32 +305,6 @@ function buildPromiseLabel(bank, promiseSummaryByBank = new Map(), externalPromi
             pendingUsdt,
             pendingFiat,
             activePromises: Number(promise.activePromises || 0),
-        };
-    }
-
-    if (externalPromiseFallback?.hasPromise) {
-        const externalActivePromises = Number(externalPromiseFallback.activePromises || 0);
-        const externalPendingUsdt = Number(externalPromiseFallback.pendingUsdt || 0);
-        const externalPendingFiat = Number(externalPromiseFallback.pendingFiat || 0);
-        const externalPromisedUsdt = Number(externalPromiseFallback.promisedUsdt || 0);
-        const externalPromisedFiat = Number(externalPromiseFallback.promisedFiat || 0);
-        const externalHasPending = externalPromiseFallback.hasPending;
-
-        return {
-            value: `${formatUsdtInline(externalPendingUsdt)} | ${fVESInline(externalPendingFiat)} VES`,
-            meta: externalHasPending
-                ? `Promesa recibida (${externalActivePromises} activa${externalActivePromises === 1 ? '' : 's'})`
-                : `Promesa recibida cubierta (${externalActivePromises} activa${externalActivePromises === 1 ? '' : 's'})`,
-            promisedLine: `${formatUsdtInline(externalPromisedUsdt)} | ${fVESInline(externalPromisedFiat)} VES`,
-            promisedLabel: 'Te prometieron',
-            promisedLineClass: 'text-amber-200/95',
-            pendingLabel: 'Pendiente externo',
-            progress: externalPromisedUsdt > 0
-                ? clampPercent((externalPendingUsdt / externalPromisedUsdt) * 100)
-                : 0,
-            pendingUsdt: externalPendingUsdt,
-            pendingFiat: externalPendingFiat,
-            activePromises: externalActivePromises,
         };
     }
 
@@ -642,18 +595,12 @@ export function updateSidebarMonitor(kpis = {}, bankInsights = []) {
     if (!listContainer) return;
     listContainer.innerHTML = '';
     const promiseSummaryByBank = buildPromiseSummaryByBank(kpis, bankInsights);
-    const hasLocalPromisesOverall = Array.from(promiseSummaryByBank.values()).some((bucket) => (
-        Number(bucket?.promisedUsdt || 0) > 0 || Number(bucket?.activePromises || 0) > 0
-    ));
-    const externalPromiseFallback = hasLocalPromisesOverall
-        ? null
-        : buildExternalPromiseFallback(kpis);
     const latestCycleByBank = buildLatestCycleByBank(kpis, bankInsights);
     const bankCards = bankInsights.map((bank) => {
         const ops = Number(bank.monthlyTransactionCount ?? bank.transactionCount ?? bank.totalOps ?? ((bank.countSell || 0) + (bank.countBuy || 0)));
         const pagoMovil = buildPagoMovilLabel(bank, kpis.config || {});
         const spreadLabel = buildSpreadLabel(bank);
-        const promiseLabel = buildPromiseLabel(bank, promiseSummaryByBank, externalPromiseFallback);
+        const promiseLabel = buildPromiseLabel(bank, promiseSummaryByBank);
         const bankKey = normalizeBankLimitKey(bank);
         const judgeBank = judgeByBank.get(bankKey) || {};
         const latestCycle = latestCycleByBank.get(bankKey) || {};
@@ -742,22 +689,38 @@ export function updateSidebarMonitor(kpis = {}, bankInsights = []) {
     const averageBankCeilingUsdt = bankCeilingsUsdt.length
         ? bankCeilingsUsdt.reduce((sum, value) => sum + value, 0) / bankCeilingsUsdt.length
         : 0;
+    const fallbackCeilingRate = Number(
+        bankSummary.avgCeilingRate
+        || bankSummary.referenceSellRate
+        || bankSummary.avgSellRate
+        || 0
+    );
 
     inject('side-ceiling-level-label', 'TECHO GENERAL');
     inject(
         'side-ceiling-level-value',
         averageBankCeiling > 0 || averageBankCeilingUsdt > 0
             ? `${formatPlain(averageBankCeiling)} VES | ${formatPlain(averageBankCeilingUsdt)} USDT`
-            : '0.00 VES | 0.00 USDT'
+            : (fallbackCeilingRate > 0
+                ? `${formatPlain(fallbackCeilingRate)} VES | -- USDT`
+                : '0.00 VES | 0.00 USDT')
     );
     inject('side-ceiling-level-meta', bankCeilings.length > 0
         ? `Promedio simple de ${formatPlain(bankCeilings.length, 0)} techos`
-        : 'Sin techos por banco');
+        : (fallbackCeilingRate > 0
+            ? 'Tasa techo ponderada sin ciclo activo'
+            : 'Sin techos por banco'));
     inject('side-ceiling-sell-rate', `Nivel ${String(bankSummary.levelLabel || 'Sin nivel').toUpperCase()} | ${formatPlain(bankSummary.verificationPercent)}%`);
     inject('side-ceiling-level-badge', `${formatPlain(activeBankCards.length, 0)} Bancos`);
 
     bankCards.forEach(({ bank, ops, vesControl, pagoMovil, spreadLabel, promiseLabel, cyclesCompleted, bankCeiling, bankCeilingUsdt }) => {
         const performancePercent = Number(bank.profitPercent ?? bank.margin ?? 0);
+        const hasReliablePerformanceBase = (
+            Math.abs(Number(bank.spreadSellUsdt || 0)) > 0.0001
+            || Math.abs(Number(bank.realizedVolumeUSDT || 0)) > 0.0001
+            || Math.abs(Number(bank.sellVolUSDT || 0)) > 0.0001
+        );
+        const showPerformanceBadge = Number.isFinite(performancePercent) && hasReliablePerformanceBase;
         const promiseTextClass = promiseLabel.pendingUsdt > 0 || promiseLabel.pendingFiat > 0
             ? 'text-amber-300'
             : 'text-white/90';
@@ -774,9 +737,11 @@ export function updateSidebarMonitor(kpis = {}, bankInsights = []) {
                 <div class="flex flex-col">
                     <div class="flex items-center gap-2 flex-wrap">
                         <span class="text-[13px] font-black text-white uppercase italic tracking-wider">${bank.bankName || bank.bank}</span>
-                        <span class="inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-black tracking-tight ${performanceClass}">
-                            ${performanceLabel}
-                        </span>
+                        ${showPerformanceBadge ? `
+                            <span class="inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-black tracking-tight ${performanceClass}">
+                                ${performanceLabel}
+                            </span>
+                        ` : ''}
                     </div>
                     <span class="text-[11px] text-[#F3BA2F] font-black uppercase mt-1 tracking-wide">
                         ${statusLabel}
