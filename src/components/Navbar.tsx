@@ -90,7 +90,7 @@ export default function NavbarReact() {
             <a href="/" className="flex items-center gap-3 transition-transform hover:scale-105">
               <img className="h-10 w-auto" src="/img/logo.png" alt="Logo Digital Level" />
               <span className="text-xl font-bold text-white tracking-tighter uppercase">
-                DIGITA<span className="text-[#F3BA2F]">LEVEL</span>
+                DIGITAL<span className="text-[#F3BA2F]"> LEVEL</span>
               </span>
             </a>
           </div>
@@ -196,7 +196,7 @@ export default function NavbarReact() {
               <div className="mt-8 space-y-1">
                 <p className="text-[10px] uppercase font-black text-[#F3BA2F] tracking-widest">In God We Trust</p>
                 <p className="text-[9px] uppercase font-bold text-gray-500 tracking-tighter">
-                  © {displayFullDate} Digita Level
+                  © {displayFullDate} Digital Level
                 </p>
               </div>
             </div>

@@ -8,20 +8,20 @@ import CardHelp from './CardHelp.astro';
                 <p class="text-[11px] font-black uppercase tracking-[0.24em] text-[#F3BA2F]">Balance General</p>
                 <h3 class="mt-1.5 text-[1.2rem] font-black uppercase tracking-[0.04em] text-white md:text-[1.45rem]">Balance General</h3>
                 <p class="mt-1.5 max-w-3xl text-[13px] leading-6 text-white/60">
-                    Historial operativo consolidado con
-                    <span class="font-black text-white/82">RED / PAY / P2P / PARSEO</span>.
-                    La cobertura local ahora se refleja como una transaccion informativa mas dentro del extracto.
+                    Historial operativo aislado para
+                    <span class="font-black text-white/82">PAY / P2P</span>.
+                    Se excluyen movimientos internos de otros modulos para una lectura limpia del arbitraje.
                 </p>
             </div>
             <CardHelp
                 title="Balance General"
                 description="Lectura historica del extracto operativo, cargada bajo demanda."
-                calculation="Cada fila clasifica el flujo en RED, PAY, P2P o PARSEO. Si existe cobertura local activa, aparece resumida dentro del ledger."
+                calculation="Cada fila clasifica solo flujos PAY y P2P. Se omiten RED, SWITCH y PARSEO."
                 notes={[
                     "No bloquea la carga inicial del dashboard.",
                     "Scroll interno para listas largas.",
                     "Negativos en rojo y fiat como referencia secundaria.",
-                    "El parseo 2.0 ya no vive como modulo aparte."
+                    "Vista depurada para conciliacion directa de Binance Pay y P2P."
                 ]}
                 align="left"
             />
