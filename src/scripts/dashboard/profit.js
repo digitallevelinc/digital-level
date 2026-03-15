@@ -1,10 +1,21 @@
 import { fUSDT, fVES, inject } from './utils.js';
 import Chart from 'chart.js/auto';
 
+function parseNumeric(value) {
+    const n = Number(value);
+    return Number.isFinite(n) ? n : 0;
+}
+
+function setText(id, value) {
+    const el = document.getElementById(id);
+    if (el) el.textContent = value;
+}
+
 export function updateProfitUI(kpis = {}, bankInsights = []) {
     const critical = kpis.critical || {};
     const operations = kpis.operations || {};
     const audit = kpis.audit || {};
+    const dispersor = kpis.judge?.dispersor || kpis.dispersor || {};
 
     const totalProfitUSDT = parseFloat(critical.profitTotalUSDT || 0);
 
@@ -19,6 +30,23 @@ export function updateProfitUI(kpis = {}, bankInsights = []) {
     inject('audit-total-profit-display', fUSDT(totalProfitUSDT));
     inject('audit-total-volume', fUSDT(parseFloat(operations.totalVolumeUSDT || 0)));
     inject('audit-total-fees', fUSDT(parseFloat(operations.totalFeesPaid || 0)));
+
+    const hasDispersorResidualMetrics =
+        Object.prototype.hasOwnProperty.call(dispersor, 'principalGrossProfitUsdt')
+        || Object.prototype.hasOwnProperty.call(dispersor, 'teamProfitUsdt')
+        || Object.prototype.hasOwnProperty.call(dispersor, 'residualProfitUsdt');
+
+    if (hasDispersorResidualMetrics) {
+        inject('dispersor-gross-profit', fUSDT(parseNumeric(dispersor.principalGrossProfitUsdt)));
+        inject('dispersor-team-profit', fUSDT(parseNumeric(dispersor.teamProfitUsdt)));
+        inject('dispersor-residual-profit', fUSDT(parseNumeric(dispersor.residualProfitUsdt)));
+        setText('dispersor-linked-count', `${parseNumeric(dispersor.linkedOperatorCount)} ops`);
+    } else {
+        inject('dispersor-gross-profit', '---');
+        inject('dispersor-team-profit', '---');
+        inject('dispersor-residual-profit', '---');
+        setText('dispersor-linked-count', '-- ops');
+    }
 
     if (critical.profitTotalFiat) {
         inject('audit-profit-fiat', fVES(critical.profitTotalFiat), true);

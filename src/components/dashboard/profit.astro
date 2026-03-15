@@ -7,10 +7,11 @@ import CardHelp from './CardHelp.astro';
     <CardHelp
       title="Resumen de Profit"
       description="Card principal de rendimiento del periodo seleccionado."
-      calculation="Wallet real = saldo verificado por API. Profit generado = suma del profit neto consolidado por banco en el rango. Volumen total = suma USDT operada."
+      calculation="Wallet real = saldo verificado por API. Profit operativo = suma del profit neto consolidado por banco en el rango. Profit dispersor = Caja neta - Profit equipo."
       notes={[
         "Se priorizan metricas operativas que no dupliquen Balance General.",
-        "El wallet real se mantiene como referencia viva del saldo verificado."
+        "El wallet real se mantiene como referencia viva del saldo verificado.",
+        "Caja neta y profit dispersor solo aplican cuando el backend detecta contexto de dispersor."
       ]}
       align="left"
     />
@@ -30,7 +31,7 @@ import CardHelp from './CardHelp.astro';
         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline><polyline points="17 6 23 6 23 12"></polyline></svg>
       </div>
       <div>
-        <p class="mb-1 text-[12px] font-black uppercase tracking-[0.16em] text-white-400 sm:text-[13px]">Profit Generado Real</p>
+        <p class="mb-1 text-[12px] font-black uppercase tracking-[0.16em] text-white-400 sm:text-[13px]">Profit Operativo</p>
         <h4 id="audit-total-profit-display" class="font-mono text-[1.8rem] font-bold leading-tight text-white sm:text-[2rem]">---</h4>
         <p class="mt-1 text-[11px] italic uppercase tracking-[0.12em] text-white-500">Suma de profit neto consolidado del rango</p>
       </div>
@@ -47,6 +48,47 @@ import CardHelp from './CardHelp.astro';
           <p class="text-[11px] italic uppercase tracking-[0.12em] text-white-500">USDT Operados</p>
         </div>
       </div>
+    </div>
+  </div>
+
+  <div class="grid grid-cols-1 gap-4 border-t border-white/5 pt-6 xl:grid-cols-3">
+    <div class="xl:col-span-3 flex items-center justify-between gap-3 rounded-xl border border-white/5 bg-white/[0.02] px-4 py-3">
+      <div>
+        <p class="text-[12px] font-black uppercase tracking-[0.16em] text-white/65 sm:text-[13px]">Lectura Dispersor</p>
+        <p class="text-[11px] italic uppercase tracking-[0.12em] text-white-500">Residual del principal usando la misma base de profit operativo del dashboard</p>
+      </div>
+      <CardHelp
+        title="Lectura Dispersor"
+        description="Vista residual para el operador principal o dispersor. No reemplaza el profit operativo; lo complementa."
+        calculation="Caja neta = cambio neto de la caja del principal en el rango, limpiando flujos externos. Profit equipo = suma del mismo profit operativo realizado que ya usa el dashboard para operadores enlazados. Profit dispersor = Caja neta - Profit equipo."
+        notes={[
+          "Profit operativo sigue siendo la referencia normal de spreads y bancos.",
+          "Profit equipo usa profit realizado consolidado, no promesas abiertas.",
+          "Si faltan parseos o coberturas, la lectura residual tambien se distorsiona."
+        ]}
+        align="left"
+      />
+    </div>
+
+    <div class="rounded-xl border border-cyan-500/15 bg-cyan-500/[0.05] p-5 shadow-inner">
+      <p class="mb-1 text-[12px] font-black uppercase tracking-[0.16em] text-cyan-100/80 sm:text-[13px]">Caja Neta</p>
+      <h4 id="dispersor-gross-profit" class="font-mono text-[1.55rem] font-bold leading-tight text-white sm:text-[1.8rem]">---</h4>
+      <p class="mt-1 text-[11px] italic uppercase tracking-[0.12em] text-white-500">Cambio neto de la caja del principal en el rango</p>
+    </div>
+
+    <div class="rounded-xl border border-amber-500/15 bg-amber-500/[0.05] p-5 shadow-inner">
+      <div class="flex items-center justify-between gap-3">
+        <p class="mb-1 text-[12px] font-black uppercase tracking-[0.16em] text-amber-100/80 sm:text-[13px]">Profit Equipo</p>
+        <span id="dispersor-linked-count" class="rounded-full border border-white/10 px-2 py-0.5 text-[10px] font-black uppercase tracking-[0.12em] text-white/45">-- ops</span>
+      </div>
+      <h4 id="dispersor-team-profit" class="font-mono text-[1.55rem] font-bold leading-tight text-white sm:text-[1.8rem]">---</h4>
+      <p class="mt-1 text-[11px] italic uppercase tracking-[0.12em] text-white-500">Suma del profit realizado por operadores enlazados</p>
+    </div>
+
+    <div class="rounded-xl border border-fuchsia-500/15 bg-fuchsia-500/[0.05] p-5 shadow-inner">
+      <p class="mb-1 text-[12px] font-black uppercase tracking-[0.16em] text-fuchsia-100/80 sm:text-[13px]">Profit Dispersor</p>
+      <h4 id="dispersor-residual-profit" class="font-mono text-[1.55rem] font-bold leading-tight text-white sm:text-[1.8rem]">---</h4>
+      <p class="mt-1 text-[11px] italic uppercase tracking-[0.12em] text-white-500">Caja neta menos lo generado por el resto del equipo</p>
     </div>
   </div>
 
