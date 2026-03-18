@@ -2,16 +2,22 @@
 import CardHelp from './CardHelp.astro';
 ---
 <div id="balance-module" class="overflow-hidden rounded-[1.6rem] border border-white/8 bg-[#0b0f14] shadow-[0_14px_36px_rgba(0,0,0,0.24)]">
-    <div class="px-4 py-3 md:px-5">
-        <div class="flex flex-col gap-2 lg:flex-row lg:items-start lg:justify-between">
-            <div>
-                <p class="text-[11px] font-black uppercase tracking-[0.24em] text-[#F3BA2F]">Balance General</p>
-                <h3 class="mt-1.5 text-[1.2rem] font-black uppercase tracking-[0.04em] text-white md:text-[1.45rem]">Balance General</h3>
-                <p class="mt-1.5 max-w-3xl text-[13px] leading-6 text-white/60">
+    <div class="ledger-shell">
+    <div class="ledger-hero px-4 py-4 md:px-5 md:py-5">
+        <div class="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+            <div class="max-w-4xl">
+                <p class="ledger-kicker">Balance General</p>
+                <h3 class="ledger-heading">Balance general con lectura premium</h3>
+                <p class="ledger-description">
                     Historial operativo aislado para
-                    <span class="font-black text-white/82">PAY / P2P</span>.
-                    Se excluyen movimientos internos de otros modulos para una lectura limpia del arbitraje.
+                    <span class="font-bold text-white/88">PAY / P2P</span>.
+                    Se excluyen movimientos internos de otros modulos para una lectura limpia del arbitraje, con mejor contraste, jerarquia y escaneo visual.
                 </p>
+                <div class="ledger-feature-list">
+                    <span class="ledger-feature-pill">Vista dinamica</span>
+                    <span class="ledger-feature-pill">Busqueda rapida</span>
+                    <span class="ledger-feature-pill">Responsive real</span>
+                </div>
             </div>
             <CardHelp
                 title="Balance General"
@@ -28,29 +34,32 @@ import CardHelp from './CardHelp.astro';
         </div>
     </div>
 
-    <div id="balance-ledger-panel" class="border-t border-white/8">
-        <div class="flex items-center justify-between gap-4 px-4 py-2.5 md:px-5">
+    <div id="balance-ledger-panel" class="ledger-panel">
+        <div class="ledger-panel-head px-4 py-3 md:px-5">
             <div>
-                <div class="text-[13px] font-black uppercase tracking-[0.14em] text-white">Transacciones</div>
-                <div id="balance-ledger-count" class="mt-0.5 text-sm text-white/45">Cargando historial...</div>
+                <div class="ledger-panel-title">Transacciones</div>
+                <div id="balance-ledger-count" class="ledger-panel-copy">Cargando historial...</div>
             </div>
-            <span class="text-[11px] font-black uppercase tracking-[0.16em] text-white/35">Ledger Live</span>
+            <div class="ledger-head-pills">
+                <span id="balance-ledger-results" class="ledger-pill ledger-pill-primary">0 Resultados</span>
+                <span class="ledger-pill ledger-pill-live">
+                    <span class="ledger-pulse"></span>
+                    Ledger Live
+                </span>
+            </div>
         </div>
 
-        <div class="border-t border-white/8 px-4 py-2.5 md:px-5">
-            <div class="flex flex-col gap-2 xl:flex-row xl:items-center xl:justify-between">
+        <div class="border-t border-white/8 px-4 py-3 md:px-5">
+            <div class="ledger-toolbar">
                 <div class="flex flex-wrap items-center gap-2.5">
-                    <span id="balance-ledger-results" class="inline-flex items-center rounded-full border border-sky-400/20 bg-sky-400/10 px-3 py-1 text-[11px] font-black text-sky-300">
-                        0 Resultados
-                    </span>
-                    <span id="balance-ledger-page-indicator" class="text-[11px] font-black uppercase tracking-[0.14em] text-white/40">
+                    <span id="balance-ledger-page-indicator" class="ledger-page-indicator">
                         Pagina 0 / 0
                     </span>
                 </div>
 
-                <div class="grid gap-2 md:grid-cols-[minmax(220px,320px)_auto] md:items-center">
-                    <label class="relative block">
-                        <span class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-white/25">
+                <div class="ledger-toolbar-actions">
+                    <label class="ledger-search-wrap">
+                        <span class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[#67e8f9]/70">
                             <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                 <circle cx="11" cy="11" r="7"></circle>
                                 <path d="m20 20-3.5-3.5"></path>
@@ -60,22 +69,22 @@ import CardHelp from './CardHelp.astro';
                             id="balance-ledger-search"
                             type="search"
                             placeholder="Buscar descripcion, orden, referencia..."
-                            class="w-full rounded-xl border border-white/10 bg-white/[0.03] py-2 pl-9 pr-3 text-[12px] font-semibold text-white placeholder:text-white/25 outline-none transition-all focus:border-[#F3BA2F]/35 focus:bg-white/[0.05]"
+                            class="ledger-search-input"
                         />
                     </label>
 
-                    <div class="flex items-center gap-2">
+                    <div class="ledger-nav">
                         <button
                             id="balance-ledger-prev"
                             type="button"
-                            class="rounded-lg border border-white/10 bg-white/[0.04] px-3.5 py-2 text-[11px] font-black uppercase tracking-[0.14em] text-white/55 transition-all hover:border-white/20 hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
+                            class="ledger-nav-btn"
                         >
                             Prev
                         </button>
                         <button
                             id="balance-ledger-next"
                             type="button"
-                            class="rounded-lg border border-white/10 bg-white/[0.04] px-3.5 py-2 text-[11px] font-black uppercase tracking-[0.14em] text-white/55 transition-all hover:border-white/20 hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
+                            class="ledger-nav-btn"
                         >
                             Next
                         </button>
@@ -83,7 +92,7 @@ import CardHelp from './CardHelp.astro';
                 </div>
             </div>
 
-            <div class="mt-2 hidden grid-cols-[128px_minmax(260px,1.5fr)_92px_minmax(140px,0.9fr)_minmax(200px,1.1fr)_minmax(140px,0.9fr)_minmax(90px,0.7fr)] gap-4 border-y border-white/8 px-2 py-2 text-[10px] font-black uppercase tracking-[0.16em] text-white/30 lg:grid">
+            <div class="ledger-grid-head mt-3 hidden lg:grid">
                 <span>Fecha</span>
                 <span>Descripcion</span>
                 <span class="text-center">Tipo</span>
@@ -93,8 +102,8 @@ import CardHelp from './CardHelp.astro';
                 <span class="text-right">Spread</span>
             </div>
 
-            <div id="balance-ledger-scroll" class="custom-scrollbar max-h-[70dvh] lg:max-h-[680px] overflow-y-auto pr-1">
-                <div id="balance-ledger-body" class="divide-y divide-white/8">
+            <div id="balance-ledger-scroll" class="custom-scrollbar ledger-scroll">
+                <div id="balance-ledger-body" class="ledger-body">
                     <div class="px-4 py-10 text-center text-[15px] font-medium text-white/45 md:px-6">
                         Cargando historial...
                     </div>
@@ -102,9 +111,609 @@ import CardHelp from './CardHelp.astro';
             </div>
         </div>
     </div>
+    </div>
 </div>
 
-<style>
+<style is:global>
+    .ledger-shell {
+        position: relative;
+        background: #0b0f14;
+    }
+
+    .ledger-shell::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: none;
+        pointer-events: none;
+    }
+
+    .ledger-hero,
+    .ledger-panel {
+        position: relative;
+        z-index: 1;
+    }
+
+    .ledger-kicker {
+        font-size: 0.72rem;
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: 0.22em;
+        color: #F3BA2F;
+    }
+
+    .ledger-heading {
+        margin-top: 0.55rem;
+        font-size: clamp(1.4rem, 2vw, 1.95rem);
+        font-weight: 800;
+        line-height: 1.08;
+        letter-spacing: -0.03em;
+        color: white;
+    }
+
+    .ledger-description {
+        margin-top: 0.8rem;
+        max-width: 56rem;
+        font-size: 0.95rem;
+        line-height: 1.75;
+        color: rgba(255, 255, 255, 0.68);
+    }
+
+    .ledger-feature-list {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.55rem;
+        margin-top: 1rem;
+    }
+
+    .ledger-feature-pill {
+        display: inline-flex;
+        align-items: center;
+        min-height: 34px;
+        padding: 0.38rem 0.85rem;
+        border-radius: 999px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        background: rgba(15, 23, 42, 0.52);
+        color: rgba(255, 255, 255, 0.82);
+        font-size: 0.76rem;
+        font-weight: 700;
+        letter-spacing: 0.02em;
+    }
+
+    .ledger-panel {
+        border-top: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .ledger-panel-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+    }
+
+    .ledger-panel-title {
+        font-size: 0.86rem;
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: 0.16em;
+        color: white;
+    }
+
+    .ledger-panel-copy {
+        margin-top: 0.35rem;
+        font-size: 0.92rem;
+        color: rgba(255, 255, 255, 0.52);
+    }
+
+    .ledger-head-pills {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+        gap: 0.6rem;
+    }
+
+    .ledger-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.48rem;
+        min-height: 38px;
+        padding: 0.45rem 0.88rem;
+        border-radius: 999px;
+        font-size: 0.76rem;
+        font-weight: 800;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+    }
+
+    .ledger-pill-primary {
+        border: 1px solid rgba(56, 189, 248, 0.24);
+        background: rgba(56, 189, 248, 0.12);
+        color: #7dd3fc;
+    }
+
+    .ledger-pill-live {
+        border: 1px solid rgba(34, 197, 94, 0.24);
+        background: rgba(20, 83, 45, 0.32);
+        color: #bbf7d0;
+    }
+
+    .ledger-pulse {
+        width: 8px;
+        height: 8px;
+        border-radius: 999px;
+        background: #34d399;
+        box-shadow: 0 0 0 0 rgba(52, 211, 153, 0.45);
+        animation: ledger-pulse 2s infinite;
+    }
+
+    .ledger-toolbar {
+        display: flex;
+        flex-direction: column;
+        gap: 0.9rem;
+    }
+
+    .ledger-page-indicator {
+        font-size: 0.74rem;
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: 0.16em;
+        color: rgba(255, 255, 255, 0.46);
+    }
+
+    .ledger-toolbar-actions {
+        display: grid;
+        gap: 0.75rem;
+        align-items: center;
+    }
+
+    @media (min-width: 768px) {
+        .ledger-toolbar-actions {
+            grid-template-columns: minmax(250px, 360px) auto;
+            justify-content: space-between;
+        }
+    }
+
+    .ledger-search-wrap {
+        position: relative;
+        display: block;
+    }
+
+    .ledger-search-input {
+        width: 100%;
+        border-radius: 1rem;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        background: rgba(255, 255, 255, 0.04);
+        padding: 0.85rem 0.9rem 0.85rem 2.4rem;
+        font-size: 0.84rem;
+        font-weight: 600;
+        color: white;
+        outline: none;
+        transition: border-color 160ms ease, background 160ms ease, box-shadow 160ms ease;
+    }
+
+    .ledger-search-input::placeholder {
+        color: rgba(255, 255, 255, 0.28);
+    }
+
+    .ledger-search-input:focus {
+        border-color: rgba(243, 186, 47, 0.34);
+        background: rgba(255, 255, 255, 0.07);
+        box-shadow: 0 0 0 3px rgba(243, 186, 47, 0.12);
+    }
+
+    .ledger-nav {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .ledger-nav-btn {
+        min-width: 88px;
+        border-radius: 0.9rem;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        background: rgba(255, 255, 255, 0.04);
+        padding: 0.82rem 0.95rem;
+        font-size: 0.72rem;
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: 0.16em;
+        color: rgba(255, 255, 255, 0.62);
+        transition: all 160ms ease;
+    }
+
+    .ledger-nav-btn:hover {
+        border-color: rgba(255, 255, 255, 0.22);
+        color: white;
+        background: rgba(255, 255, 255, 0.08);
+    }
+
+    .ledger-nav-btn:disabled {
+        cursor: not-allowed;
+        opacity: 0.38;
+    }
+
+    .ledger-grid-head {
+        grid-template-columns: 128px minmax(260px, 1.5fr) 92px minmax(140px, 0.9fr) minmax(200px, 1.1fr) minmax(140px, 0.9fr) minmax(90px, 0.7fr);
+        gap: 1rem;
+        border-block: 1px solid rgba(255, 255, 255, 0.08);
+        padding: 0.9rem 0.75rem;
+        font-size: 0.68rem;
+        font-weight: 800;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+        color: rgba(255, 255, 255, 0.34);
+    }
+
+    .ledger-scroll {
+        max-height: 70dvh;
+        overflow-y: auto;
+        padding-right: 0.25rem;
+    }
+
+    @media (min-width: 1024px) {
+        .ledger-scroll {
+            max-height: 680px;
+        }
+    }
+
+    .ledger-body {
+        display: grid;
+        gap: 0.85rem;
+        padding: 0.9rem 0 0.2rem;
+    }
+
+    .ledger-row {
+        position: relative;
+        display: grid;
+        gap: 1rem;
+        overflow: hidden;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 1.45rem;
+        background: rgba(9, 13, 19, 0.94);
+        padding: 1rem;
+        box-shadow: 0 18px 36px rgba(0, 0, 0, 0.18);
+        transition: transform 180ms ease, border-color 180ms ease, box-shadow 180ms ease, background 180ms ease;
+    }
+
+    .ledger-row::before {
+        content: "";
+        position: absolute;
+        inset: 0 auto 0 0;
+        width: 4px;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.16);
+    }
+
+    .ledger-row:hover {
+        transform: translateY(-2px);
+        border-color: rgba(255, 255, 255, 0.16);
+        box-shadow: 0 22px 42px rgba(0, 0, 0, 0.24);
+        background: rgba(12, 17, 24, 0.98);
+    }
+
+    .ledger-row-p2p::before {
+        background: #f3ba2f;
+    }
+
+    .ledger-row-pay::before {
+        background: #38bdf8;
+    }
+
+    .ledger-row-liquid::before {
+        background: #fb7185;
+    }
+
+    .ledger-row-neutral::before {
+        background: rgba(255, 255, 255, 0.28);
+    }
+
+    @media (min-width: 1024px) {
+        .ledger-row {
+            grid-template-columns: 128px minmax(260px, 1.55fr) 92px minmax(140px, 0.95fr) minmax(200px, 1.05fr) minmax(140px, 0.95fr) minmax(100px, 0.8fr);
+            gap: 1rem;
+            align-items: stretch;
+            padding: 0.9rem 1rem;
+        }
+    }
+
+    .ledger-chip {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 34px;
+        padding: 0.42rem 0.8rem;
+        border-radius: 999px;
+        border: 1px solid transparent;
+        font-size: 0.72rem;
+        font-weight: 800;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        white-space: nowrap;
+    }
+
+    .ledger-chip-p2p {
+        background: rgba(243, 186, 47, 0.14);
+        border-color: rgba(243, 186, 47, 0.3);
+        color: #f7d774;
+    }
+
+    .ledger-chip-pay {
+        background: rgba(56, 189, 248, 0.14);
+        border-color: rgba(56, 189, 248, 0.3);
+        color: #7dd3fc;
+    }
+
+    .ledger-chip-liquid {
+        background: rgba(244, 63, 94, 0.14);
+        border-color: rgba(244, 63, 94, 0.28);
+        color: #fda4af;
+    }
+
+    .ledger-chip-red {
+        background: rgba(168, 85, 247, 0.14);
+        border-color: rgba(168, 85, 247, 0.28);
+        color: #d8b4fe;
+    }
+
+    .ledger-chip-switch {
+        background: rgba(34, 197, 94, 0.14);
+        border-color: rgba(34, 197, 94, 0.28);
+        color: #86efac;
+    }
+
+    .ledger-chip-parseo {
+        background: rgba(249, 115, 22, 0.14);
+        border-color: rgba(249, 115, 22, 0.28);
+        color: #fdba74;
+    }
+
+    .ledger-chip-neutral {
+        background: rgba(255, 255, 255, 0.08);
+        border-color: rgba(255, 255, 255, 0.14);
+        color: rgba(255, 255, 255, 0.72);
+    }
+
+    .ledger-mobile-date,
+    .ledger-date-sub,
+    .ledger-mobile-kicker,
+    .ledger-subtitle,
+    .ledger-metric-label,
+    .ledger-metric-sub {
+        font-size: 0.74rem;
+        font-weight: 700;
+        line-height: 1.45;
+    }
+
+    .ledger-mobile-date,
+    .ledger-date-sub,
+    .ledger-mobile-kicker,
+    .ledger-subtitle {
+        letter-spacing: 0.04em;
+        color: rgba(255, 255, 255, 0.52);
+        text-transform: uppercase;
+    }
+
+    .ledger-mobile-date {
+        margin-top: 0.7rem;
+    }
+
+    .ledger-mobile-amount,
+    .ledger-amount-main,
+    .ledger-metric-value {
+        font-size: 1.35rem;
+        font-weight: 800;
+        line-height: 1;
+        letter-spacing: -0.03em;
+    }
+
+    .ledger-mobile-sub,
+    .ledger-amount-sub,
+    .ledger-date-main,
+    .ledger-title {
+        font-size: 0.95rem;
+        font-weight: 700;
+        line-height: 1.4;
+    }
+
+    .ledger-mobile-title {
+        margin-top: 0.85rem;
+        font-size: 1rem;
+        font-weight: 800;
+        line-height: 1.4;
+        color: white;
+    }
+
+    .ledger-mobile-kicker {
+        margin-top: 0.4rem;
+    }
+
+    .ledger-mobile-meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.45rem;
+        margin-top: 0.9rem;
+    }
+
+    .ledger-mobile-metrics {
+        display: grid;
+        gap: 0.75rem;
+        margin-top: 1rem;
+    }
+
+    .ledger-date-col,
+    .ledger-description-col,
+    .ledger-type-col,
+    .ledger-amount-col,
+    .ledger-metric-col {
+        min-width: 0;
+    }
+
+    .ledger-date-col {
+        display: grid;
+        align-content: start;
+        gap: 0.38rem;
+    }
+
+    .ledger-date-main {
+        color: rgba(255, 255, 255, 0.92);
+    }
+
+    .ledger-description-col {
+        display: grid;
+        align-content: start;
+        gap: 0.55rem;
+    }
+
+    .ledger-title-row {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 0.6rem;
+    }
+
+    .ledger-title {
+        color: white;
+    }
+
+    .ledger-order-badge {
+        display: inline-flex;
+        align-items: center;
+        min-height: 30px;
+        padding: 0.32rem 0.7rem;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.06);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        font-size: 0.68rem;
+        font-weight: 800;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: rgba(255, 255, 255, 0.74);
+    }
+
+    .ledger-meta-strip {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.45rem;
+    }
+
+    .ledger-meta-chip {
+        display: inline-flex;
+        align-items: center;
+        min-height: 28px;
+        max-width: 100%;
+        padding: 0.28rem 0.62rem;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid rgba(255, 255, 255, 0.07);
+        font-size: 0.68rem;
+        font-weight: 700;
+        line-height: 1.25;
+        color: rgba(255, 255, 255, 0.66);
+    }
+
+    .ledger-meta-chip-muted {
+        color: rgba(255, 255, 255, 0.42);
+    }
+
+    .ledger-type-col {
+        display: flex;
+        align-items: flex-start;
+        justify-content: center;
+        padding-top: 0.1rem;
+    }
+
+    .ledger-amount-col {
+        display: grid;
+        align-content: start;
+        justify-items: end;
+        gap: 0.4rem;
+        text-align: right;
+    }
+
+    .ledger-mobile-sub,
+    .ledger-amount-sub {
+        color: rgba(255, 255, 255, 0.5);
+    }
+
+    .ledger-metric-col {
+        display: grid;
+        align-content: stretch;
+    }
+
+    .ledger-metric-card {
+        display: grid;
+        gap: 0.35rem;
+        min-height: 100%;
+        border-radius: 1.1rem;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        background: rgba(255, 255, 255, 0.035);
+        padding: 0.8rem 0.9rem;
+        text-align: right;
+    }
+
+    .ledger-metric-label {
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: rgba(255, 255, 255, 0.4);
+    }
+
+    .ledger-metric-value {
+        font-size: 1.05rem;
+        color: white;
+    }
+
+    .ledger-metric-sub {
+        text-transform: none;
+        letter-spacing: 0;
+        color: rgba(255, 255, 255, 0.54);
+    }
+
+    .ledger-metric-muted {
+        background: rgba(255, 255, 255, 0.03);
+    }
+
+    .ledger-metric-promise {
+        background: rgba(21, 50, 40, 0.92);
+        border-color: rgba(34, 197, 94, 0.18);
+    }
+
+    .ledger-metric-warning {
+        background: rgba(67, 35, 18, 0.92);
+        border-color: rgba(249, 115, 22, 0.2);
+    }
+
+    .ledger-metric-positive {
+        background: rgba(20, 55, 37, 0.92);
+        border-color: rgba(34, 197, 94, 0.2);
+    }
+
+    .ledger-metric-negative {
+        background: rgba(61, 22, 31, 0.92);
+        border-color: rgba(244, 63, 94, 0.2);
+    }
+
+    .ledger-metric-balance {
+        background: rgba(19, 45, 61, 0.92);
+        border-color: rgba(56, 189, 248, 0.2);
+    }
+
+    .ledger-amount-positive {
+        color: #fef3c7;
+    }
+
+    .ledger-amount-negative,
+    .ledger-balance-negative,
+    .ledger-metric-negative .ledger-metric-value {
+        color: #fda4af;
+    }
+
+    .ledger-balance-neutral,
+    .ledger-metric-balance .ledger-metric-value,
+    .ledger-metric-positive .ledger-metric-value,
+    .ledger-metric-promise .ledger-metric-value {
+        color: #e0f2fe;
+    }
+
     .custom-scrollbar::-webkit-scrollbar {
         width: 6px;
     }
@@ -120,5 +729,85 @@ import CardHelp from './CardHelp.astro';
 
     .custom-scrollbar::-webkit-scrollbar-thumb:hover {
         background: rgba(243, 186, 47, 0.28);
+    }
+
+    @media (max-width: 767px) {
+        .ledger-panel-head,
+        .ledger-head-pills {
+            flex-direction: column;
+            align-items: flex-start;
+        }
+
+        .ledger-head-pills {
+            width: 100%;
+        }
+
+        .ledger-pill {
+            width: 100%;
+            justify-content: center;
+        }
+
+        .ledger-nav {
+            width: 100%;
+        }
+
+        .ledger-nav-btn {
+            flex: 1 1 0;
+        }
+
+        .ledger-row {
+            padding: 0.95rem;
+            border-radius: 1.25rem;
+        }
+
+        .ledger-mobile-metrics {
+            grid-template-columns: 1fr;
+        }
+
+        .ledger-metric-card {
+            text-align: left;
+        }
+
+        .ledger-metric-value {
+            font-size: 1rem;
+        }
+    }
+
+    @media (min-width: 768px) and (max-width: 1023px) {
+        .ledger-mobile-metrics {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+    }
+
+    @media (min-width: 1024px) {
+        .ledger-date-main,
+        .ledger-title,
+        .ledger-amount-sub {
+            font-size: 0.88rem;
+        }
+
+        .ledger-amount-main {
+            font-size: 1.2rem;
+        }
+
+        .ledger-metric-value {
+            font-size: 0.98rem;
+        }
+
+        .ledger-metric-sub {
+            font-size: 0.7rem;
+        }
+    }
+
+    @keyframes ledger-pulse {
+        0% {
+            box-shadow: 0 0 0 0 rgba(52, 211, 153, 0.45);
+        }
+        70% {
+            box-shadow: 0 0 0 10px rgba(52, 211, 153, 0);
+        }
+        100% {
+            box-shadow: 0 0 0 0 rgba(52, 211, 153, 0);
+        }
     }
 </style>

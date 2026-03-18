@@ -208,6 +208,38 @@ const getCategoryTone = (category) => {
     }
 };
 
+const getCategoryChipClass = (category) => {
+    switch (category) {
+        case 'P2P':
+            return 'ledger-chip ledger-chip-p2p';
+        case 'PAY':
+            return 'ledger-chip ledger-chip-pay';
+        case 'LIQUID':
+            return 'ledger-chip ledger-chip-liquid';
+        case 'RED':
+            return 'ledger-chip ledger-chip-red';
+        case 'SWITCH':
+            return 'ledger-chip ledger-chip-switch';
+        case 'PARSEO':
+            return 'ledger-chip ledger-chip-parseo';
+        default:
+            return 'ledger-chip ledger-chip-neutral';
+    }
+};
+
+const getRowToneClass = (category) => {
+    switch (category) {
+        case 'P2P':
+            return 'ledger-row-p2p';
+        case 'PAY':
+            return 'ledger-row-pay';
+        case 'LIQUID':
+            return 'ledger-row-liquid';
+        default:
+            return 'ledger-row-neutral';
+    }
+};
+
 const formatPostingDate = (timestamp) => {
     const date = new Date(timestamp);
     return date.toLocaleString('en-US', {
@@ -412,74 +444,54 @@ const formatPromiseUsdt = (value) => `${formatNumber(Math.abs(Number(value || 0)
 
 const formatPromiseFiat = (value, tx) => `${formatNumber(Math.abs(Number(value || 0)), 2)} ${getFiatLabel(tx)}`;
 
+const renderMetricCard = ({ label, value, sub = '', tone = '' }) => `
+    <div class="ledger-metric-card ${tone}">
+        <span class="ledger-metric-label">${escapeHtml(label)}</span>
+        <span class="ledger-metric-value">${escapeHtml(value)}</span>
+        <span class="ledger-metric-sub">${escapeHtml(sub)}</span>
+    </div>
+`;
+
 const renderPromiseColumnMeta = (tx) => {
     const promiseMeta = getPromiseMeta(tx);
     if (!promiseMeta) {
-        return '<div class="pt-0.5 text-[12px] font-semibold text-white/20">--</div>';
+        return renderMetricCard({
+            label: 'Promesa',
+            value: '--',
+            sub: 'Sin promesa activa',
+            tone: 'ledger-metric-muted'
+        });
     }
 
     if (String(tx?.type || '').toUpperCase() === 'DISPERSOR_PENDING') {
-        const localTone = promiseMeta.actualUsdt > 0.009 ? 'text-emerald-300/95' : 'text-white/45';
-        const pendingTone = promiseMeta.pendingUsdt > 0.009 ? 'text-amber-200/95' : 'text-emerald-300/95';
+        const localSummary = promiseMeta.actualUsdt > 0.009
+            ? `Local ${formatPromiseUsdt(promiseMeta.actualUsdt)}`
+            : 'Sin cobertura local';
+        const pendingSummary = promiseMeta.pendingUsdt > 0.009
+            ? `Pendiente ${formatPromiseUsdt(promiseMeta.pendingUsdt)}`
+            : 'Cobertura completa';
 
-        return `
-            <div class="min-w-0 pt-0.5 text-right">
-                <div class="text-[10px] font-black uppercase tracking-[0.12em] text-sky-200">
-                    Promesa total
-                </div>
-                <div class="mt-0.5 text-[13px] font-black leading-none text-white">
-                    ${escapeHtml(formatPromiseUsdt(promiseMeta.promiseUsdt))}
-                </div>
-                <div class="mt-1 text-[11px] font-semibold text-white/72">
-                    ${escapeHtml(formatPromiseFiat(promiseMeta.promisedFiat, tx))}
-                </div>
-                <div class="mt-2 text-[10px] font-black uppercase tracking-[0.12em] ${localTone}">
-                    Local
-                </div>
-                <div class="mt-0.5 text-[12px] font-bold leading-none ${localTone}">
-                    ${escapeHtml(formatPromiseUsdt(promiseMeta.actualUsdt))}
-                </div>
-                <div class="mt-2 text-[10px] font-black uppercase tracking-[0.12em] ${pendingTone}">
-                    Pendiente externo
-                </div>
-                <div class="mt-0.5 text-[12px] font-bold leading-none ${pendingTone}">
-                    ${escapeHtml(formatPromiseUsdt(promiseMeta.pendingUsdt))}
-                </div>
-            </div>
-        `;
+        return renderMetricCard({
+            label: 'Promesa total',
+            value: formatPromiseUsdt(promiseMeta.promiseUsdt),
+            sub: `${localSummary} | ${pendingSummary}`,
+            tone: 'ledger-metric-promise'
+        });
     }
 
-    const promiseTone = promiseMeta.isReceiver ? 'text-amber-200' : 'text-sky-200';
     const promiseLabel = promiseMeta.isReceiver ? 'Promesa recibida' : 'Promesa';
-    const debtLabel = promiseMeta.pendingUsdt > 0.009 ? 'Pendiente' : 'Cubierta';
-    const debtTone = promiseMeta.pendingUsdt > 0.009 ? 'text-amber-200/95' : 'text-emerald-300/95';
+    const pendingSummary = promiseMeta.isReceiver
+        ? (promiseMeta.pendingUsdt > 0.009
+            ? `Pendiente ${formatPromiseUsdt(promiseMeta.pendingUsdt)}`
+            : 'Promesa cubierta')
+        : formatPromiseFiat(promiseMeta.promisedFiat, tx);
 
-    return `
-        <div class="min-w-0 pt-0.5 text-right">
-            <div class="text-[10px] font-black uppercase tracking-[0.12em] ${promiseTone}">
-                ${escapeHtml(promiseLabel)}
-            </div>
-            <div class="mt-0.5 text-[13px] font-black leading-none text-white">
-                ${escapeHtml(formatPromiseUsdt(promiseMeta.promiseUsdt))}
-            </div>
-            <div class="mt-1 text-[11px] font-semibold text-white/72">
-                ${escapeHtml(formatPromiseFiat(promiseMeta.promisedFiat, tx))}
-            </div>
-            ${promiseMeta.isReceiver ? `
-                <div class="mt-2 space-y-1">
-                    <div class="text-[10px] font-black uppercase tracking-[0.12em] ${debtTone}">
-                        ${escapeHtml(debtLabel)}
-                    </div>
-                    <div class="mt-0.5 text-[12px] font-bold leading-none ${debtTone}">
-                        ${escapeHtml(formatPromiseUsdt(promiseMeta.pendingUsdt))}
-                    </div>
-                    <div class="mt-1 text-[10px] font-semibold text-white/65">
-                        ${escapeHtml(formatPromiseFiat(promiseMeta.pendingFiat, tx))}
-                    </div>
-                </div>
-            ` : ''}
-        </div>
-    `;
+    return renderMetricCard({
+        label: promiseLabel,
+        value: formatPromiseUsdt(promiseMeta.promiseUsdt),
+        sub: pendingSummary,
+        tone: promiseMeta.isReceiver ? 'ledger-metric-warning' : 'ledger-metric-promise'
+    });
 };
 
 const getElements = () => ({
@@ -794,79 +806,97 @@ const renderRow = (tx, rowBalance) => {
     const isSettlement = isSettlementTransfer(tx);
     const category = isSettlement ? 'LIQUID' : getCategory(tx.type);
     const signedAmount = getSignedAmount(tx);
-    const amountTone = signedAmount < 0 ? 'text-red-400' : 'text-white';
-    const balanceTone = rowBalance < 0 ? 'text-red-400' : 'text-white';
-    const rowTone = isSettlement
-        ? 'bg-rose-500/[0.06] ring-1 ring-rose-400/35'
-        : '';
-    const typePillTone = isSettlement
-        ? 'inline-flex items-center rounded-md border border-rose-300/55 bg-rose-400/12 px-2 py-0.5 text-[0.8rem] text-rose-200 shadow-[0_0_0_1px_rgba(251,113,133,0.25)]'
-        : '';
+    const amountTone = signedAmount < 0 ? 'ledger-amount-negative' : 'ledger-amount-positive';
+    const balanceTone = rowBalance < 0 ? 'ledger-balance-negative' : 'ledger-balance-neutral';
+    const rowTone = getRowToneClass(category);
+    const typePillTone = getCategoryChipClass(category);
     const topRaw = buildDescriptionTop(tx);
     const top = escapeHtml(topRaw);
     const meta = buildDescriptionMeta(tx, topRaw);
-    const metaHtml = meta.map((line) => `<span>${escapeHtml(line)}</span>`).join('<span class="text-white/18">|</span>');
+    const metaHtml = meta.map((line) => `<span class="ledger-meta-chip">${escapeHtml(line)}</span>`).join('');
 
     const spreadVal = computeTxSpread(tx);
-    const spreadHtml = spreadVal !== 0 
-        ? `<div class="pt-0.5 text-[12px] font-bold ${spreadVal > 0 ? 'text-emerald-300' : 'text-red-400'}">${spreadVal > 0 ? '+' : '-'}${formatUsd(Math.abs(spreadVal))}</div>`
-        : `<div class="pt-0.5 text-[12px] font-semibold text-white/20">--</div>`;
+    const spreadTone = spreadVal > 0
+        ? 'ledger-metric-positive'
+        : spreadVal < 0
+            ? 'ledger-metric-negative'
+            : 'ledger-metric-muted';
+    const spreadMetric = renderMetricCard({
+        label: 'Spread',
+        value: spreadVal !== 0 ? `${spreadVal > 0 ? '+' : '-'}${formatUsd(Math.abs(spreadVal))}` : '--',
+        sub: spreadVal !== 0 ? 'Lectura estimada del trade' : 'Sin spread calculable',
+        tone: spreadTone
+    });
+    const balanceMetric = renderMetricCard({
+        label: 'Balance',
+        value: `${rowBalance < 0 ? '-' : ''}${formatUsd(Math.abs(rowBalance))}`,
+        sub: rowBalance < 0 ? 'Balance comprometido' : 'Balance disponible',
+        tone: rowBalance < 0 ? 'ledger-metric-negative' : 'ledger-metric-balance'
+    });
 
     const orderText = tx?.orderNumber ? `ORDER ${escapeHtml(tx.orderNumber)}` : '';
     const methodText = tx?.paymentMethod ? escapeHtml(String(tx.paymentMethod).toUpperCase()) : '';
+    const directionLabel = signedAmount < 0 ? 'Salida' : 'Entrada';
 
     return `
-        <article class="grid gap-2 px-4 py-2 md:px-5 lg:grid-cols-[128px_minmax(260px,1.5fr)_92px_minmax(140px,0.9fr)_minmax(200px,1.1fr)_minmax(140px,0.9fr)_minmax(90px,0.7fr)] lg:items-start ${rowTone}">
-            <div class="px-0.5 py-1.5 lg:hidden">
+        <article class="ledger-row ${rowTone}">
+            <div class="px-0.5 py-0.5 lg:hidden">
                 <div class="flex items-start justify-between gap-3">
                     <div class="min-w-0">
-                        <div class="text-[0.8rem] font-black uppercase tracking-[0.12em] ${getCategoryTone(category)} ${typePillTone}">${category}</div>
-                        <div class="mt-1 text-[11px] font-semibold text-white/62">${escapeHtml(formatPostingDate(tx.timestamp))}</div>
+                        <div class="${typePillTone}">${category}</div>
+                        <div class="ledger-mobile-date">${escapeHtml(formatPostingDate(tx.timestamp))}</div>
                     </div>
                     <div class="text-right">
-                        <div class="text-[1.35rem] font-black leading-none ${amountTone}">${formatAmount(tx)}</div>
-                        <div class="mt-1 text-[11px] font-semibold text-white/65">${escapeHtml(formatFiat(tx))}</div>
+                        <div class="ledger-mobile-amount ${amountTone}">${formatAmount(tx)}</div>
+                        <div class="ledger-mobile-sub">${escapeHtml(formatFiat(tx))}</div>
                     </div>
                 </div>
 
-                <div class="mt-2.5 break-words text-[13px] font-semibold text-white/92">${top}</div>
+                <div class="ledger-mobile-title">${top}</div>
+                <div class="ledger-mobile-kicker">${directionLabel}${methodText ? ` | ${methodText}` : ''}</div>
 
-                <div class="mt-2 grid grid-cols-2 gap-x-3 gap-y-1.5 text-[12px]">
-                    <div class="text-white/65">Balance</div>
-                    <div class="text-right ${balanceTone} font-black">${rowBalance < 0 ? '-' : ''}${formatUsd(Math.abs(rowBalance))}</div>
-                    <div class="text-white/65">Spread</div>
-                    <div class="text-right ${spreadVal > 0 ? 'text-emerald-300' : spreadVal < 0 ? 'text-red-400' : 'text-white/35'} font-black">
-                        ${spreadVal > 0 ? '+' : spreadVal < 0 ? '-' : ''}${spreadVal !== 0 ? formatUsd(Math.abs(spreadVal)) : '--'}
-                    </div>
-                    ${orderText ? `<div class="text-white/65">Orden</div><div class="text-right text-white/82 font-semibold">${orderText.replace('ORDER ', '')}</div>` : ''}
-                    ${methodText ? `<div class="text-white/65">Metodo</div><div class="text-right text-white/82 font-semibold">${methodText}</div>` : ''}
+                <div class="ledger-mobile-meta">
+                    ${metaHtml || '<span class="ledger-meta-chip ledger-meta-chip-muted">Sin metadata extra</span>'}
                 </div>
 
-                <div class="mt-2 flex flex-wrap items-center gap-1.5 text-[10px] font-medium text-white/52">${metaHtml || ''}</div>
+                <div class="ledger-mobile-metrics">
+                    ${renderPromiseColumnMeta(tx)}
+                    ${balanceMetric}
+                    ${spreadMetric}
+                </div>
             </div>
 
             <div class="hidden lg:contents">
-            <div class="pt-0.5 text-[11px] font-semibold text-white/72">${escapeHtml(formatPostingDate(tx.timestamp))}</div>
-            <div class="min-w-0">
-                <div class="break-words text-[14px] font-semibold text-white">${top}</div>
-                <div class="mt-0.5 flex flex-wrap items-center gap-2 text-[10px] font-medium text-white/78">${metaHtml || '<span class="text-white/60">Sin metadata extra</span>'}</div>
-            </div>
-            <div class="pt-0.5 text-left lg:text-center">
-                <span class="text-[0.95rem] font-black uppercase tracking-[0.12em] ${getCategoryTone(category)} ${typePillTone}">${category}</span>
-            </div>
-            <div class="pt-0.5 text-left lg:text-right">
-                <div class="text-[1.15rem] font-black leading-none ${amountTone}">${formatAmount(tx)}</div>
-                <div class="mt-0.5 text-[10px] font-semibold text-white/72">${escapeHtml(formatFiat(tx))}</div>
-            </div>
-            <div class="text-left lg:text-right">
-                ${renderPromiseColumnMeta(tx)}
-            </div>
-            <div class="pt-0.5 text-left lg:text-right">
-                <div class="text-[1rem] font-black leading-none ${balanceTone}">${rowBalance < 0 ? '-' : ''}${formatUsd(Math.abs(rowBalance))}</div>
-            </div>
-            <div class="pt-0.5 text-left lg:text-right">
-                ${spreadHtml}
-            </div>
+                <div class="ledger-date-col">
+                    <div class="ledger-date-main">${escapeHtml(formatPostingDate(tx.timestamp))}</div>
+                    <div class="ledger-date-sub">${directionLabel}</div>
+                </div>
+                <div class="ledger-description-col">
+                    <div class="ledger-title-row">
+                        <div class="ledger-title">${top}</div>
+                        ${orderText ? `<span class="ledger-order-badge">${orderText}</span>` : ''}
+                    </div>
+                    <div class="ledger-subtitle">${methodText || 'Operacion del ledger'}</div>
+                    <div class="ledger-meta-strip">
+                        ${metaHtml || '<span class="ledger-meta-chip ledger-meta-chip-muted">Sin metadata extra</span>'}
+                    </div>
+                </div>
+                <div class="ledger-type-col">
+                    <span class="${typePillTone}">${category}</span>
+                </div>
+                <div class="ledger-amount-col">
+                    <div class="ledger-amount-main ${amountTone}">${formatAmount(tx)}</div>
+                    <div class="ledger-amount-sub">${escapeHtml(formatFiat(tx))}</div>
+                </div>
+                <div class="ledger-metric-col">
+                    ${renderPromiseColumnMeta(tx)}
+                </div>
+                <div class="ledger-metric-col">
+                    ${balanceMetric}
+                </div>
+                <div class="ledger-metric-col">
+                    ${spreadMetric}
+                </div>
             </div>
         </article>
     `;

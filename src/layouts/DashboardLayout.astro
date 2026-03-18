@@ -9,10 +9,10 @@ import SidebarMonitor from '../components/dashboard/SidebarMonitor.astro';
         <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
         <link rel="icon" type="image/png" href="/img/logo.png" />
         <title>Dashboard | Digital Level</title>
-        <!-- Google Fonts: Outfit -->
+        <!-- Google Fonts: Poppins -->
         <link rel="preconnect" href="https://fonts.googleapis.com">
         <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-        <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+        <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" />
     </head>
     <body class="bg-[#0b0e11] text-white min-h-screen font-sans selection:bg-[#F3BA2F]/30 overflow-x-hidden antialiased">
@@ -58,7 +58,7 @@ import SidebarMonitor from '../components/dashboard/SidebarMonitor.astro';
 
 <style is:global>
     :root {
-        --font-sans: 'Outfit', system-ui, -apple-system, sans-serif;
+        --font-sans: 'Poppins', system-ui, -apple-system, sans-serif;
     }
     body {
         font-family: var(--font-sans);
@@ -67,11 +67,16 @@ import SidebarMonitor from '../components/dashboard/SidebarMonitor.astro';
         -moz-osx-font-smoothing: grayscale;
     }
 
-    /* Tu sistema de tipografía mejorado (HD) */
+    .font-mono {
+        font-family: var(--font-sans) !important;
+        font-variant-numeric: tabular-nums;
+    }
+
+    /* Sistema de tipografia mejorado */
     .sentinel-title { @apply text-[16px] sm:text-[18px] font-black uppercase italic tracking-[0.12em] text-white leading-tight; }
     .sentinel-label { @apply text-[12px] sm:text-[13px] text-gray-400 uppercase font-black tracking-[0.16em]; }
-    .sentinel-value-md { @apply text-[16px] sm:text-[18px] font-mono font-bold text-white tracking-tight leading-tight; }
-    .sentinel-value-lg { @apply text-[22px] sm:text-[24px] font-mono font-bold text-white tracking-tight leading-tight; }
+    .sentinel-value-md { @apply text-[16px] sm:text-[18px] font-bold text-white tracking-tight leading-tight; }
+    .sentinel-value-lg { @apply text-[22px] sm:text-[24px] font-bold text-white tracking-tight leading-tight; }
     .sentinel-kpi-huge { @apply text-[2.4rem] sm:text-[2.85rem] lg:text-[3.2rem] font-black text-emerald-400 tracking-tight leading-none; }
 
     .card-help {
