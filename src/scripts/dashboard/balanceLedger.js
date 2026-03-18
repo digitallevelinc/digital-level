@@ -47,7 +47,7 @@ const normalizeTextToken = (value) => String(value ?? '')
     .toLowerCase();
 const WRAPPED_NOTE_PATTERN = /[\(\{]\s*([^\)\}]+?)\s*[\)\}]/s;
 const PLAIN_NOTE_PATTERN = /^\s*([^()\{\}\n]+?)\s*$/s;
-const PROMISE_ACTIVATION_MAX_USDT = 0.011;
+const PROMISE_ACTIVATION_MAX_USDT = 1.0;
 
 const isSettlementTransfer = (tx = {}) => {
     const excludedReason = String(tx?.excludedReason || '').trim().toUpperCase();
@@ -266,6 +266,11 @@ const parseFlexibleNumber = (value) => {
     return Number.isFinite(parsed) ? parsed : 0;
 };
 
+const hasPromiseHint = (token) => {
+    const s = String(token ?? '').toLowerCase();
+    return s.includes('$') || /\b(usdt|usd|promesa|promise|prom)\b/.test(s);
+};
+
 const getPromiseMeta = (tx = {}) => {
     if (tx?.syntheticPromiseMeta) return tx.syntheticPromiseMeta;
     const type = String(tx?.type || '').toUpperCase();
@@ -274,12 +279,21 @@ const getPromiseMeta = (tx = {}) => {
     const structured = parseStructuredNote(tx?.notes);
     if (!structured) return null;
 
-    const promiseUsdt = parseFlexibleNumber(structured.parts[2]);
-    if (promiseUsdt <= 0) return null;
+    // Standard 3-part format: (BANK; RATE; PROMISE_USDT)
+    // 2-part promise format:  (BANK; $PROMISE_USDT) — rate inferred from tx
+    let promiseUsdt = parseFlexibleNumber(structured.parts[2]);
+    let exchangeRate;
 
-    const noteRate = parseFlexibleNumber(structured.parts[1]);
-    const exchangeRate = noteRate > 0 ? noteRate : getTxRate(tx);
-    if (exchangeRate <= 0) return null;
+    if (promiseUsdt > 0) {
+        const noteRate = parseFlexibleNumber(structured.parts[1]);
+        exchangeRate = noteRate > 0 ? noteRate : getTxRate(tx);
+    } else if (structured.parts.length === 2 && hasPromiseHint(structured.parts[1])) {
+        promiseUsdt = parseFlexibleNumber(structured.parts[1]);
+        exchangeRate = getTxRate(tx);
+    }
+
+    if (promiseUsdt <= 0) return null;
+    if (!exchangeRate || exchangeRate <= 0) return null;
 
     const txAmountUsdt = Math.abs(Number(tx?.amount || 0));
     const txAmountFiat = resolveFiatAmount(tx);
