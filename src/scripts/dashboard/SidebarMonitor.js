@@ -176,6 +176,210 @@ function normalizeBankLimitKey(bank) {
     return normalizeBankName(bank?.bankName || bank?.bank || '');
 }
 
+const CANONICAL_BANK_LABELS = {
+    provincial: 'BBVA/Provincial',
+    mercantil: 'Mercantil',
+    banesco: 'Banesco',
+    bnc: 'BNC',
+    bancamiga: 'Bancamiga',
+    bank: 'BANK',
+    pagomovil: 'Pago Movil',
+};
+
+function toNumber(value) {
+    const numeric = Number(value || 0);
+    return Number.isFinite(numeric) ? numeric : 0;
+}
+
+function getCanonicalBankDisplayName(value) {
+    const normalized = normalizeBankName(value);
+    if (!normalized) return String(value || '').trim();
+    return CANONICAL_BANK_LABELS[normalized] || String(value || '').trim() || normalized.toUpperCase();
+}
+
+function mergeWeightedMetric(currentValue, currentWeight, nextValue, nextWeight) {
+    const leftValue = toNumber(currentValue);
+    const rightValue = toNumber(nextValue);
+    const leftWeight = Math.max(0, toNumber(currentWeight));
+    const rightWeight = Math.max(0, toNumber(nextWeight));
+    const totalWeight = leftWeight + rightWeight;
+
+    if (totalWeight > 0) {
+        return (leftValue * leftWeight + rightValue * rightWeight) / totalWeight;
+    }
+
+    return rightValue > 0 ? rightValue : leftValue;
+}
+
+function mergeChannelStats(current = {}, incoming = {}) {
+    const currentBuyWeight = toNumber(current.buyVol || current.buyVolUSDT);
+    const incomingBuyWeight = toNumber(incoming.buyVol || incoming.buyVolUSDT);
+    const currentSellWeight = toNumber(current.sellVol || current.sellVolUSDT);
+    const incomingSellWeight = toNumber(incoming.sellVol || incoming.sellVolUSDT);
+
+    return {
+        ...current,
+        sellCount: toNumber(current.sellCount) + toNumber(incoming.sellCount),
+        buyCount: toNumber(current.buyCount) + toNumber(incoming.buyCount),
+        sellVol: toNumber(current.sellVol) + toNumber(incoming.sellVol),
+        buyVol: toNumber(current.buyVol) + toNumber(incoming.buyVol),
+        sellFee: toNumber(current.sellFee) + toNumber(incoming.sellFee),
+        buyFee: toNumber(current.buyFee) + toNumber(incoming.buyFee),
+        avgBuyRate: mergeWeightedMetric(current.avgBuyRate, currentBuyWeight, incoming.avgBuyRate, incomingBuyWeight),
+        avgSellRate: mergeWeightedMetric(current.avgSellRate, currentSellWeight, incoming.avgSellRate, incomingSellWeight),
+        buyVolUSDT: toNumber(current.buyVolUSDT) + toNumber(incoming.buyVolUSDT),
+        sellVolUSDT: toNumber(current.sellVolUSDT) + toNumber(incoming.sellVolUSDT),
+    };
+}
+
+function mergeBankInsightsByAlias(bankInsights = []) {
+    const mergedByKey = new Map();
+
+    bankInsights.forEach((entry) => {
+        const key = normalizeBankLimitKey(entry) || normalizeBankName(entry?.bankName || entry?.bank);
+        if (!key) return;
+
+        const current = mergedByKey.get(key);
+        if (!current) {
+            const displayName = getCanonicalBankDisplayName(entry?.bankName || entry?.bank);
+            mergedByKey.set(key, {
+                ...entry,
+                bank: displayName || entry?.bank || entry?.bankName || '',
+                bankName: displayName || entry?.bankName || entry?.bank || '',
+                pm: { ...(entry?.pm || {}) },
+                trf: { ...(entry?.trf || {}) },
+            });
+            return;
+        }
+
+        const currentBuyWeight = toNumber(current.buyFiat || current.buyVolUSDT || current.pm?.buyVol || current.trf?.buyVol);
+        const entryBuyWeight = toNumber(entry.buyFiat || entry.buyVolUSDT || entry.pm?.buyVol || entry.trf?.buyVol);
+        const currentSellWeight = toNumber(current.sellFiat || current.sellVolUSDT || current.realizedVolumeUSDT || current.pm?.sellVol || current.trf?.sellVol);
+        const entrySellWeight = toNumber(entry.sellFiat || entry.sellVolUSDT || entry.realizedVolumeUSDT || entry.pm?.sellVol || entry.trf?.sellVol);
+        const currentCycleWeight = toNumber(current.currentCycleTotalFiat || current.currentCycleSaleUSDT || current.completedCycles);
+        const entryCycleWeight = toNumber(entry.currentCycleTotalFiat || entry.currentCycleSaleUSDT || entry.completedCycles);
+        const currentProfitWeight = toNumber(current.currentCycleFiatSpent || current.currentCycleTotalFiat || current.currentCycleSaleUSDT);
+        const entryProfitWeight = toNumber(entry.currentCycleFiatSpent || entry.currentCycleTotalFiat || entry.currentCycleSaleUSDT);
+        const currentBreakEvenWeight = toNumber(current.currentCycleFiatRemaining || current.currentCycleSaleUSDT);
+        const entryBreakEvenWeight = toNumber(entry.currentCycleFiatRemaining || entry.currentCycleSaleUSDT);
+        const displayName = getCanonicalBankDisplayName(current.bankName || current.bank || entry.bankName || entry.bank);
+
+        const merged = {
+            ...current,
+            bank: displayName || current.bank || entry.bank || '',
+            bankName: displayName || current.bankName || entry.bankName || '',
+            isFavorite: Boolean(current.isFavorite || entry.isFavorite),
+            fiatBalance: toNumber(current.fiatBalance) + toNumber(entry.fiatBalance),
+            usdtBalance: toNumber(current.usdtBalance) + toNumber(entry.usdtBalance),
+            profit: toNumber(current.profit) + toNumber(entry.profit),
+            buyFiat: toNumber(current.buyFiat) + toNumber(entry.buyFiat),
+            sellFiat: toNumber(current.sellFiat) + toNumber(entry.sellFiat),
+            buyVolUSDT: toNumber(current.buyVolUSDT) + toNumber(entry.buyVolUSDT),
+            sellVolUSDT: toNumber(current.sellVolUSDT) + toNumber(entry.sellVolUSDT),
+            realizedFiatBase: toNumber(current.realizedFiatBase) + toNumber(entry.realizedFiatBase),
+            realizedVolumeUSDT: toNumber(current.realizedVolumeUSDT) + toNumber(entry.realizedVolumeUSDT),
+            spreadBuyUsdt: toNumber(current.spreadBuyUsdt) + toNumber(entry.spreadBuyUsdt),
+            spreadSellUsdt: toNumber(current.spreadSellUsdt) + toNumber(entry.spreadSellUsdt),
+            spreadProfitUsdt: toNumber(current.spreadProfitUsdt) + toNumber(entry.spreadProfitUsdt),
+            transactionCount: toNumber(current.transactionCount) + toNumber(entry.transactionCount),
+            monthlyTransactionCount: toNumber(current.monthlyTransactionCount) + toNumber(entry.monthlyTransactionCount),
+            avgBuyRate: mergeWeightedMetric(current.avgBuyRate, currentBuyWeight, entry.avgBuyRate, entryBuyWeight),
+            avgSellRate: mergeWeightedMetric(current.avgSellRate, currentSellWeight, entry.avgSellRate, entrySellWeight),
+            buyRate: mergeWeightedMetric(current.buyRate, currentBuyWeight, entry.buyRate, entryBuyWeight),
+            sellRate: mergeWeightedMetric(current.sellRate, currentSellWeight, entry.sellRate, entrySellWeight),
+            countBuy: toNumber(current.countBuy) + toNumber(entry.countBuy),
+            countSell: toNumber(current.countSell) + toNumber(entry.countSell),
+            completedCycles: toNumber(current.completedCycles) + toNumber(entry.completedCycles),
+            weightedAvgBuyRate: mergeWeightedMetric(current.weightedAvgBuyRate, currentBuyWeight, entry.weightedAvgBuyRate, entryBuyWeight),
+            weightedAvgSellRate: mergeWeightedMetric(current.weightedAvgSellRate, currentSellWeight, entry.weightedAvgSellRate, entrySellWeight),
+            activeVerdictsCount: toNumber(current.activeVerdictsCount) + toNumber(entry.activeVerdictsCount),
+            currentCycleSaleUSDT: toNumber(current.currentCycleSaleUSDT) + toNumber(entry.currentCycleSaleUSDT),
+            currentCycleProgress: mergeWeightedMetric(current.currentCycleProgress, currentCycleWeight, entry.currentCycleProgress, entryCycleWeight),
+            currentCycleFiatRemaining: toNumber(current.currentCycleFiatRemaining) + toNumber(entry.currentCycleFiatRemaining),
+            currentCycleTotalFiat: toNumber(current.currentCycleTotalFiat) + toNumber(entry.currentCycleTotalFiat),
+            currentCycleFiatSpent: toNumber(current.currentCycleFiatSpent) + toNumber(entry.currentCycleFiatSpent),
+            currentCycleRecoveredUSDT: toNumber(current.currentCycleRecoveredUSDT) + toNumber(entry.currentCycleRecoveredUSDT),
+            currentCycleProfitUSDT: toNumber(current.currentCycleProfitUSDT) + toNumber(entry.currentCycleProfitUSDT),
+            currentCycleProfitFiat: toNumber(current.currentCycleProfitFiat) + toNumber(entry.currentCycleProfitFiat),
+            currentCycleProfitPercent: mergeWeightedMetric(current.currentCycleProfitPercent, currentProfitWeight, entry.currentCycleProfitPercent, entryProfitWeight),
+            weightedBreakEvenRate: mergeWeightedMetric(current.weightedBreakEvenRate, currentBreakEvenWeight, entry.weightedBreakEvenRate, entryBreakEvenWeight),
+            breakEvenRate: mergeWeightedMetric(current.breakEvenRate, currentBreakEvenWeight || currentSellWeight, entry.breakEvenRate, entryBreakEvenWeight || entrySellWeight),
+            ceilingRate: mergeWeightedMetric(current.ceilingRate, currentSellWeight, entry.ceilingRate, entrySellWeight),
+            ceilingAppliedPercent: Math.max(toNumber(current.ceilingAppliedPercent), toNumber(entry.ceilingAppliedPercent)),
+            lastSellRate: mergeWeightedMetric(
+                current.lastSellRate,
+                Math.max(1, currentSellWeight),
+                entry.lastSellRate,
+                Math.max(1, entrySellWeight),
+            ),
+            lastSellRole: entry.lastSellRate ? entry.lastSellRole : (current.lastSellRole || entry.lastSellRole),
+            verificationLevel: current.verificationLevel || entry.verificationLevel,
+            verificationPercent: Math.max(toNumber(current.verificationPercent), toNumber(entry.verificationPercent)),
+            pm: mergeChannelStats(current.pm, entry.pm),
+            trf: mergeChannelStats(current.trf, entry.trf),
+        };
+
+        const performanceBase = toNumber(merged.spreadSellUsdt || merged.realizedVolumeUSDT || merged.sellVolUSDT);
+        if (performanceBase > 0) {
+            const performancePercent = (toNumber(merged.spreadProfitUsdt || merged.profit) / performanceBase) * 100;
+            merged.profitPercent = performancePercent;
+            merged.margin = performancePercent;
+        } else {
+            merged.profitPercent = Math.max(toNumber(current.profitPercent), toNumber(entry.profitPercent));
+            merged.margin = Math.max(toNumber(current.margin), toNumber(entry.margin));
+        }
+
+        mergedByKey.set(key, merged);
+    });
+
+    return Array.from(mergedByKey.values());
+}
+
+function buildJudgeSummaryByBank(entries = []) {
+    const mergedByKey = new Map();
+
+    entries.forEach((entry) => {
+        const key = normalizeBankName(entry?.bank);
+        if (!key) return;
+
+        const current = mergedByKey.get(key);
+        if (!current) {
+            mergedByKey.set(key, {
+                ...entry,
+                bank: getCanonicalBankDisplayName(entry?.bank),
+            });
+            return;
+        }
+
+        const currentCycleWeight = toNumber(current.currentCycleTotalFiat || current.currentCycleSaleUSDT || current.completedCycles);
+        const entryCycleWeight = toNumber(entry.currentCycleTotalFiat || entry.currentCycleSaleUSDT || entry.completedCycles);
+        const currentProfitWeight = toNumber(current.currentCycleFiatSpent || current.currentCycleTotalFiat || current.currentCycleSaleUSDT);
+        const entryProfitWeight = toNumber(entry.currentCycleFiatSpent || entry.currentCycleTotalFiat || entry.currentCycleSaleUSDT);
+        const currentBreakEvenWeight = toNumber(current.currentCycleFiatRemaining || current.currentCycleSaleUSDT);
+        const entryBreakEvenWeight = toNumber(entry.currentCycleFiatRemaining || entry.currentCycleSaleUSDT);
+
+        mergedByKey.set(key, {
+            bank: getCanonicalBankDisplayName(current.bank || entry.bank),
+            completedCycles: toNumber(current.completedCycles) + toNumber(entry.completedCycles),
+            totalProfitUSDT: toNumber(current.totalProfitUSDT) + toNumber(entry.totalProfitUSDT),
+            avgProfitPercent: mergeWeightedMetric(current.avgProfitPercent, currentCycleWeight, entry.avgProfitPercent, entryCycleWeight),
+            activeVerdictsCount: toNumber(current.activeVerdictsCount) + toNumber(entry.activeVerdictsCount),
+            currentCycleSaleUSDT: toNumber(current.currentCycleSaleUSDT) + toNumber(entry.currentCycleSaleUSDT),
+            currentCycleProgress: mergeWeightedMetric(current.currentCycleProgress, currentCycleWeight, entry.currentCycleProgress, entryCycleWeight),
+            currentCycleFiatRemaining: toNumber(current.currentCycleFiatRemaining) + toNumber(entry.currentCycleFiatRemaining),
+            currentCycleTotalFiat: toNumber(current.currentCycleTotalFiat) + toNumber(entry.currentCycleTotalFiat),
+            currentCycleFiatSpent: toNumber(current.currentCycleFiatSpent) + toNumber(entry.currentCycleFiatSpent),
+            currentCycleRecoveredUSDT: toNumber(current.currentCycleRecoveredUSDT) + toNumber(entry.currentCycleRecoveredUSDT),
+            currentCycleProfitUSDT: toNumber(current.currentCycleProfitUSDT) + toNumber(entry.currentCycleProfitUSDT),
+            currentCycleProfitFiat: toNumber(current.currentCycleProfitFiat) + toNumber(entry.currentCycleProfitFiat),
+            currentCycleProfitPercent: mergeWeightedMetric(current.currentCycleProfitPercent, currentProfitWeight, entry.currentCycleProfitPercent, entryProfitWeight),
+            weightedBreakEvenRate: mergeWeightedMetric(current.weightedBreakEvenRate, currentBreakEvenWeight, entry.weightedBreakEvenRate, entryBreakEvenWeight),
+        });
+    });
+
+    return mergedByKey;
+}
+
 function resolveConfiguredBankSpendLimit(bank, config = {}) {
     const limits = config?.bankSpendLimitsVes && typeof config.bankSpendLimitsVes === 'object'
         ? config.bankSpendLimitsVes
@@ -502,6 +706,7 @@ export function updateSidebarMonitor(kpis = {}, bankInsights = []) {
     const audit = kpis.audit || {};
     const critical = kpis.critical || {};
     const completedCycles = kpis.judge?.completedCycles || {};
+    const normalizedBankInsights = mergeBankInsightsByAlias(Array.isArray(bankInsights) ? bankInsights : []);
 
     const capitalInicial = parseFloat(critical.capitalInicial || kpis.capitalInicial || audit.initialCapital || 0);
     const profit = parseFloat(critical.profitTotalUSDT || summary.totalProfit || 0);
@@ -515,13 +720,9 @@ export function updateSidebarMonitor(kpis = {}, bankInsights = []) {
     const binance = parseFloat(binanceSource || 0);
 
     const diferencia = critical.balanceGap !== undefined ? parseFloat(critical.balanceGap) : (binance - teorico);
-    const bankSummary = getBankMonitorSummary(kpis, bankInsights);
+    const bankSummary = getBankMonitorSummary(kpis, normalizedBankInsights);
     const judgeBreakdown = Array.isArray(kpis?.judge?.bankBreakdown) ? kpis.judge.bankBreakdown : [];
-    const judgeByBank = new Map(
-        judgeBreakdown
-            .map((entry) => [normalizeBankName(entry?.bank), entry])
-            .filter(([key]) => Boolean(key))
-    );
+    const judgeByBank = buildJudgeSummaryByBank(judgeBreakdown);
 
     inject('side-teorico', fUSDT(teorico));
     inject('side-binance', fUSDT(binance));
@@ -594,9 +795,9 @@ export function updateSidebarMonitor(kpis = {}, bankInsights = []) {
     const listContainer = document.getElementById('side-banks-list');
     if (!listContainer) return;
     listContainer.innerHTML = '';
-    const promiseSummaryByBank = buildPromiseSummaryByBank(kpis, bankInsights);
-    const latestCycleByBank = buildLatestCycleByBank(kpis, bankInsights);
-    const bankCards = bankInsights.map((bank) => {
+    const promiseSummaryByBank = buildPromiseSummaryByBank(kpis, normalizedBankInsights);
+    const latestCycleByBank = buildLatestCycleByBank(kpis, normalizedBankInsights);
+    const bankCards = normalizedBankInsights.map((bank) => {
         const ops = Number(bank.monthlyTransactionCount ?? bank.transactionCount ?? bank.totalOps ?? ((bank.countSell || 0) + (bank.countBuy || 0)));
         const pagoMovil = buildPagoMovilLabel(bank, kpis.config || {});
         const spreadLabel = buildSpreadLabel(bank);

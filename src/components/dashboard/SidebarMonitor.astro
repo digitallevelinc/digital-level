@@ -21,7 +21,16 @@
                     <p class="text-[13px] font-black text-[#F3BA2F] uppercase tracking-[0.2em]">Sentinel Auditor</p>
                     <p id="side-range-label" class="text-[11px] text-gray-500 uppercase font-bold tracking-widest mt-0.5">Rango Activo + Wallet Live</p>
                 </div>
-                
+
+                <button
+                    id="sidebar-close"
+                    type="button"
+                    class="sidebar-close-btn"
+                    aria-label="Cerrar auditor"
+                    title="Cerrar auditor"
+                >
+                    <i class="fas fa-times"></i>
+                </button>
             </div>
 
             
@@ -85,6 +94,29 @@
     .custom-scroll::-webkit-scrollbar { width: 3px; }
     .custom-scroll::-webkit-scrollbar-thumb { background: #F3BA2F33; border-radius: 10px; }
     #sidebar-panel { height: calc(100dvh - 6.5rem); margin-top: 0.5rem; }
+    .sidebar-close-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 42px;
+        height: 42px;
+        border-radius: 999px;
+        border: 1px solid rgba(243, 186, 47, 0.24);
+        background: rgba(243, 186, 47, 0.1);
+        color: #f3ba2f;
+        font-size: 15px;
+        transition: transform 160ms ease, background 160ms ease, border-color 160ms ease, color 160ms ease;
+    }
+    .sidebar-close-btn:hover {
+        transform: scale(1.04);
+        border-color: rgba(243, 186, 47, 0.5);
+        background: rgba(243, 186, 47, 0.18);
+        color: #fff3c2;
+    }
+    .sidebar-close-btn:focus-visible {
+        outline: 2px solid rgba(243, 186, 47, 0.85);
+        outline-offset: 3px;
+    }
 
     @media (min-width: 1024px) {
         #sidebar-panel {
@@ -97,6 +129,7 @@
 <script>
     const trigger = document.getElementById('sidebar-trigger');
     const panel = document.getElementById('sidebar-panel');
+    const closeBtn = document.getElementById('sidebar-close');
     const icon = document.getElementById('trigger-icon');
     let isOpen = false;
 
@@ -110,24 +143,44 @@
         return '320px';
     };
 
+    const syncSidebarState = () => {
+        if (!panel || !icon) return;
+        panel.style.width = isOpen ? getPanelWidth() : '0';
+        icon.className = isOpen
+            ? 'fas fa-times text-[#F3BA2F] text-[10px]'
+            : 'fas fa-microchip text-[#F3BA2F] text-sm group-hover:rotate-12 transition-transform';
+    };
+
+    const setSidebarOpen = (open) => {
+        isOpen = open;
+        syncSidebarState();
+    };
+
     trigger?.addEventListener('click', (e) => {
         e.stopPropagation();
-        isOpen = !isOpen;
-        panel.style.width = isOpen ? getPanelWidth() : '0'; 
-        icon.className = isOpen ? 'fas fa-times text-[#F3BA2F] text-[10px]' : 'fas fa-microchip text-[#F3BA2F] text-sm group-hover:rotate-12 transition-transform';
+        setSidebarOpen(!isOpen);
+    });
+
+    closeBtn?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        setSidebarOpen(false);
     });
 
     document.addEventListener('click', (e) => {
         if (isOpen && !panel.contains(e.target) && !trigger.contains(e.target)) {
-            isOpen = false;
-            panel.style.width = '0';
-            icon.className = 'fas fa-microchip text-[#F3BA2F] text-sm group-hover:rotate-12 transition-transform';
+            setSidebarOpen(false);
+        }
+    });
+
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && isOpen) {
+            setSidebarOpen(false);
         }
     });
 
     window.addEventListener('resize', () => {
         if (!isOpen) return;
-        panel.style.width = getPanelWidth();
+        syncSidebarState();
     });
 
     // Ocultar para Inversores

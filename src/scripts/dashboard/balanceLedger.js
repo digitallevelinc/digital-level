@@ -7,6 +7,7 @@ const state = {
     token: '',
     range: {},
     kpis: {},
+    syncKey: '',
     page: 1,
     limit: 12,
     total: 0,
@@ -148,6 +149,11 @@ const getLedgerAnchorBalance = (kpis = {}) => {
     const payloadClosingBalance = Number(state.closingBalance);
     if (Number.isFinite(payloadClosingBalance)) {
         return payloadClosingBalance;
+    }
+
+    const premiumLedgerBalance = Number(kpis?.premiumLedgerBalance);
+    if (Number.isFinite(premiumLedgerBalance)) {
+        return premiumLedgerBalance;
     }
 
     const wallets = kpis?.wallets || {};
@@ -537,7 +543,7 @@ const updatePaginationUI = () => {
     if (nextBtn) nextBtn.disabled = state.page >= state.totalPages || state.totalPages === 0;
 };
 
-const renderPlaceholder = (message, toneClass = 'text-white/45') => {
+const renderPlaceholder = (message, toneClass = 'text-white') => {
     const { body } = getElements();
     if (!body) return;
     body.innerHTML = `
@@ -925,7 +931,7 @@ const renderTransfers = (transfers = []) => {
 
     if (filteredRows.length === 0) {
         body.innerHTML = `
-            <div class="px-4 py-10 text-center text-[14px] font-medium text-white/45 md:px-6">
+            <div class="px-4 py-10 text-center text-[14px] font-medium text-white md:px-6">
                 No hay coincidencias en esta pagina.
             </div>
         `;
@@ -939,8 +945,10 @@ const renderTransfers = (transfers = []) => {
     if (scroll) scroll.scrollTop = 0;
 };
 
-const fetchTransfersPage = async (page = 1) => {
+const fetchTransfersPage = async (page = 1, options = {}) => {
     if (!state.apiBase || !state.token) return;
+    const showLoading = options?.showLoading !== false;
+    const preserveOnError = options?.preserveOnError === true;
 
     if (state.abortController) {
         state.abortController.abort();
@@ -949,8 +957,10 @@ const fetchTransfersPage = async (page = 1) => {
     state.page = page;
     state.abortController = new AbortController();
     const requestSeq = ++state.requestSeq;
-    renderLoading();
-    updatePaginationUI();
+    if (showLoading) {
+        renderLoading();
+        updatePaginationUI();
+    }
 
     try {
         let res = await fetch(buildTransfersUrl(state.apiBase, state.range, page, state.limit, true), {
@@ -1004,7 +1014,9 @@ const fetchTransfersPage = async (page = 1) => {
     } catch (error) {
         if (error?.name === 'AbortError') return;
         console.warn('No fue posible cargar el historial de balance:', error);
-        renderError('No fue posible cargar el historial. Intenta de nuevo.');
+        if (!preserveOnError) {
+            renderError('No fue posible cargar el historial. Intenta de nuevo.');
+        }
     } finally {
         if (requestSeq === state.requestSeq) {
             state.abortController = null;
@@ -1041,14 +1053,17 @@ export const updateBalanceLedgerUI = (kpis = {}, context = {}) => {
         from: sanitizeDateValue(context?.range?.from),
         to: sanitizeDateValue(context?.range?.to),
     };
+    const nextSyncKey = String(kpis?.reportDate || '').trim();
     const rangeChanged = !isSameRange(state.range, nextRange);
     const apiChanged = state.apiBase !== String(context?.apiBase || '').trim();
     const tokenChanged = state.token !== String(context?.token || '').trim();
+    const syncChanged = Boolean(nextSyncKey) && state.syncKey !== nextSyncKey;
 
     state.kpis = kpis || {};
     state.apiBase = String(context?.apiBase || '').trim();
     state.token = String(context?.token || '').trim();
     state.range = nextRange;
+    state.syncKey = nextSyncKey;
     state.onAuthError = typeof context?.onAuthError === 'function' ? context.onAuthError : null;
     state.bankData = Array.isArray(context?.bankData) ? context.bankData : [];
 
@@ -1078,6 +1093,14 @@ export const updateBalanceLedgerUI = (kpis = {}, context = {}) => {
         updatePaginationUI();
         renderPlaceholder('Actualizando historial...');
         void fetchTransfersPage(1);
+        return;
+    }
+
+    if (syncChanged) {
+        void fetchTransfersPage(state.page || 1, {
+            showLoading: false,
+            preserveOnError: true,
+        });
         return;
     }
 
