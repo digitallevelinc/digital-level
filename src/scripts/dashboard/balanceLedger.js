@@ -407,13 +407,11 @@ const buildDescriptionMeta = (tx, topLine = '') => {
     const promiseMeta = getPromiseMeta(tx);
 
     // Keep sender/receiver identity only in the top line to avoid redundancy.
-    if (tx?.paymentMethod) parts.push(tx.paymentMethod);
     if (asset) parts.push(asset);
     if (fiatCurrency) parts.push(fiatCurrency);
     if (feeText) parts.push(feeText);
     if (rateText) parts.push(rateText);
     if (tx?.tradeType) parts.push(`TRADE ${tx.tradeType}`);
-    if (tx?.orderNumber) parts.push(`ORDER ${tx.orderNumber}`);
     if (tx?.counterpartyId && tx?.counterpartyName !== topLine) {
         parts.push(`ID ${tx.counterpartyId}`);
     }
@@ -857,7 +855,6 @@ const renderRow = (tx, rowBalance) => {
         tone: rowBalance < 0 ? 'ledger-metric-negative' : 'ledger-metric-balance'
     });
 
-    const orderText = tx?.orderNumber ? `ORDER ${escapeHtml(tx.orderNumber)}` : '';
     const methodText = tx?.paymentMethod ? escapeHtml(String(tx.paymentMethod).toUpperCase()) : '';
     const directionLabel = signedAmount < 0 ? 'Salida' : 'Entrada';
 
@@ -897,7 +894,6 @@ const renderRow = (tx, rowBalance) => {
                 <div class="ledger-description-col">
                     <div class="ledger-title-row">
                         <div class="ledger-title">${top}</div>
-                        ${orderText ? `<span class="ledger-order-badge">${orderText}</span>` : ''}
                     </div>
                     <div class="ledger-subtitle">${methodText || 'Operacion del ledger'}</div>
                     <div class="ledger-meta-strip">
