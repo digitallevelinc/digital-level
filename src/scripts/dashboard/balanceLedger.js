@@ -147,6 +147,32 @@ const getSignedAmount = (tx = {}) => {
 
 const getLedgerAnchorBalance = (kpis = {}) => {
     const payloadClosingBalance = Number(state.closingBalance);
+    const candidates = [
+        kpis?.metrics?.totalBalance,
+        kpis?.currentBalance,
+        kpis?.audit?.realBalance,
+        kpis?.metrics?.balance,
+        kpis?.summary?.balance,
+    ];
+    const verifiedWalletBalance = candidates.reduce((found, candidate) => {
+        if (Number.isFinite(found)) return found;
+        const numeric = Number(candidate);
+        return Number.isFinite(numeric) ? numeric : found;
+    }, Number.NaN);
+    const todayKey = new Intl.DateTimeFormat('en-CA', {
+        timeZone: CARACAS_TZ,
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+    }).format(new Date());
+    const rangeFrom = sanitizeDateValue(state.range?.from);
+    const rangeTo = sanitizeDateValue(state.range?.to);
+    const isLiveRange = !rangeTo || rangeTo === todayKey || (!rangeFrom && !rangeTo);
+
+    if (isLiveRange && Number.isFinite(verifiedWalletBalance)) {
+        return verifiedWalletBalance;
+    }
+
     if (Number.isFinite(payloadClosingBalance)) {
         return payloadClosingBalance;
     }
@@ -164,17 +190,8 @@ const getLedgerAnchorBalance = (kpis = {}) => {
         return isolatedWalletsSum;
     }
 
-    const candidates = [
-        kpis?.metrics?.totalBalance,
-        kpis?.currentBalance,
-        kpis?.audit?.realBalance,
-        kpis?.metrics?.balance,
-        kpis?.summary?.balance,
-    ];
-
-    for (const candidate of candidates) {
-        const n = Number(candidate);
-        if (Number.isFinite(n)) return n;
+    if (Number.isFinite(verifiedWalletBalance)) {
+        return verifiedWalletBalance;
     }
 
     const walletsSum = Number(wallets.balanceP2P || 0)
