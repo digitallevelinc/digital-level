@@ -124,10 +124,13 @@ function getBankMonitorSummary(kpis = {}, bankInsights = []) {
     };
 }
 
-function buildSpreadLabel(bank) {
+function buildSpreadLabel(bank, cyclesCompleted = 0) {
     const spread = Number(bank.spreadProfitUsdt || 0);
     const profit = Number(bank.profit || 0);
-    return `${formatSignedUsdt(spread)} | Neto ${formatSignedUsdt(profit)}`;
+    if (Math.abs(spread) < 0.0001 && Math.abs(profit) < 0.0001 && Number(cyclesCompleted || 0) <= 0) {
+        return 'Sin spread realizado aun';
+    }
+    return `Spread ${formatSignedUsdt(spread)} | Neto ${formatSignedUsdt(profit)}`;
 }
 
 function buildPagoMovilLabel(bank, config = {}) {
@@ -800,7 +803,6 @@ export function updateSidebarMonitor(kpis = {}, bankInsights = []) {
     const bankCards = normalizedBankInsights.map((bank) => {
         const ops = Number(bank.monthlyTransactionCount ?? bank.transactionCount ?? bank.totalOps ?? ((bank.countSell || 0) + (bank.countBuy || 0)));
         const pagoMovil = buildPagoMovilLabel(bank, kpis.config || {});
-        const spreadLabel = buildSpreadLabel(bank);
         const promiseLabel = buildPromiseLabel(bank, promiseSummaryByBank);
         const bankKey = normalizeBankLimitKey(bank);
         const judgeBank = judgeByBank.get(bankKey) || {};
@@ -808,6 +810,7 @@ export function updateSidebarMonitor(kpis = {}, bankInsights = []) {
         const completedByJudge = Number(judgeBank.completedCycles || 0);
         const completedByInsight = Number(bank.completedCycles || 0);
         const cyclesCompleted = Math.max(completedByJudge, completedByInsight, 0);
+        const spreadLabel = buildSpreadLabel(bank, cyclesCompleted);
         const explicitCeiling = Number(
             latestCycle.cycleTotalFiat
             || judgeBank.currentCycleTotalFiat
