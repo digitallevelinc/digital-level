@@ -935,7 +935,7 @@ export function updateSidebarMonitor(kpis = {}, bankInsights = []) {
         const performanceLabel = `${performancePercent >= 0 ? '+' : ''}${formatPlain(performancePercent, 2)}%`;
 
         const div = document.createElement('div');
-        div.className = 'bg-white/[0.02] p-4 rounded-xl border border-white/5 flex flex-col gap-2.5 transition-all hover:bg-white/[0.04]';
+        div.className = 'bg-[#1a2027] p-4 rounded-xl border border-white/10 flex flex-col gap-2.5 transition-all hover:bg-[#202730] shadow-[inset_0_1px_0_rgba(255,255,255,0.02)]';
         div.innerHTML = `
             <div class="flex justify-between items-start">
                 <div class="flex flex-col">
@@ -973,7 +973,10 @@ export function updateSidebarMonitor(kpis = {}, bankInsights = []) {
             </div>
             <div class="flex items-center justify-between gap-3 mt-1">
                 <span class="text-[11px] text-slate-500 font-black uppercase tracking-[0.18em]">Control VES</span>
-                <span class="text-[11px] text-slate-500 font-black tracking-tight">${vesControl.meta}</span>
+                <div class="flex items-center gap-1.5">
+                    <span class="text-[11px] text-slate-500 font-black tracking-tight">${vesControl.meta}</span>
+                    ${vesControl.hasFlow ? `<button data-close-bank="${(bank.bankName || bank.bank || '').toUpperCase()}" class="btn-close-bank-ves text-[8px] text-slate-500 hover:text-rose-400 bg-transparent hover:bg-rose-500/10 border border-transparent hover:border-rose-500/30 px-1 py-0 rounded cursor-pointer transition-all leading-tight" title="Forzar cierre de ciclos VES en este banco">&#10005;</button>` : ''}
+                </div>
             </div>
             <div class="text-[13px] font-mono font-black tracking-tight text-white/90">
                 ${vesControl.value}
@@ -983,7 +986,7 @@ export function updateSidebarMonitor(kpis = {}, bankInsights = []) {
             ? `${fVESInline(bankCeiling)} VES | ${formatPlain(bankCeilingUsdt)} USDT`
             : '0.00 VES | 0.00 USDT'}
             </div>
-            <div class="h-1.5 w-full bg-white/10 rounded-full overflow-hidden mt-1">
+            <div class="h-1.5 w-full bg-[#313842] rounded-full overflow-hidden mt-1">
                 <div class="h-full bg-[#F3BA2F] transition-all duration-700 ease-out" style="width: ${vesControl.progress}%"></div>
             </div>
             <div class="flex items-center justify-between gap-3 mt-1">
@@ -993,10 +996,76 @@ export function updateSidebarMonitor(kpis = {}, bankInsights = []) {
             <div class="text-[13px] font-mono font-black tracking-tight text-white/90">
                 ${pagoMovil.value}
             </div>
-            <div class="h-1.5 w-full bg-white/10 rounded-full overflow-hidden mt-1">
+            <div class="h-1.5 w-full bg-[#313842] rounded-full overflow-hidden mt-1">
                 <div class="h-full bg-[#F3BA2F] transition-all duration-700 ease-out" style="width: ${pagoMovil.progress}%"></div>
             </div>
         `;
         listContainer.appendChild(div);
     });
+
+    // Wire up "Limpiar VES" button for closing stale/orphaned verdicts
+    const cleanBtn = document.getElementById('btn-clean-stale-ves');
+    if (cleanBtn && !cleanBtn.dataset.wired) {
+        cleanBtn.dataset.wired = '1';
+        cleanBtn.addEventListener('click', async () => {
+            if (!confirm('Cerrar ciclos VES viejos sin parseo (>48h sin compras vinculadas)?')) return;
+            cleanBtn.disabled = true;
+            cleanBtn.textContent = 'Limpiando...';
+            try {
+                const apiBase = (localStorage.getItem('api_base') || window.location.origin).replace(/\/+$/, '');
+                const token = sessionStorage.getItem('auth_token') || sessionStorage.getItem('session_token');
+                const res = await fetch(`${apiBase}/api/judge/verdicts/close-stale`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+                    },
+                    body: JSON.stringify({ force: false }),
+                });
+                const data = await res.json();
+                cleanBtn.textContent = data.closed > 0 ? `${data.closed} cerrados` : 'Sin cambios';
+                setTimeout(() => { cleanBtn.textContent = 'Limpiar VES'; }, 3000);
+            } catch (err) {
+                cleanBtn.textContent = 'Error';
+                setTimeout(() => { cleanBtn.textContent = 'Limpiar VES'; }, 3000);
+            } finally {
+                cleanBtn.disabled = false;
+            }
+        });
+    }
+
+    // Per-bank force-close buttons (event delegation on list container)
+    if (listContainer && !listContainer.dataset.closeBankWired) {
+        listContainer.dataset.closeBankWired = '1';
+        listContainer.addEventListener('click', async (e) => {
+            const btn = e.target.closest('.btn-close-bank-ves');
+            if (!btn) return;
+            const bankName = btn.dataset.closeBank;
+            if (!bankName) return;
+            if (!confirm(`Forzar cierre de TODOS los ciclos VES abiertos en ${bankName}?`)) return;
+            btn.disabled = true;
+            btn.textContent = '...';
+            try {
+                const apiBase = (localStorage.getItem('api_base') || window.location.origin).replace(/\/+$/, '');
+                const token = sessionStorage.getItem('auth_token') || sessionStorage.getItem('session_token');
+                const res = await fetch(`${apiBase}/api/judge/verdicts/close-stale`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+                    },
+                    body: JSON.stringify({ bank: bankName, force: true }),
+                });
+                const data = await res.json();
+                btn.textContent = data.closed > 0 ? `${data.closed}` : '0';
+                btn.className = btn.className.replace('text-slate-500', 'text-emerald-400');
+                setTimeout(() => { btn.innerHTML = '&#10005;'; btn.className = btn.className.replace('text-emerald-400', 'text-slate-500'); }, 2500);
+            } catch {
+                btn.textContent = '!';
+                setTimeout(() => { btn.innerHTML = '&#10005;'; }, 2500);
+            } finally {
+                btn.disabled = false;
+            }
+        });
+    }
 }

@@ -16,6 +16,7 @@ import { initActiveAdsToggle, refreshActiveAds } from './dashboard/activeAds.js'
 import { initCardHelpTooltips } from './dashboard/cardHelp.js';
 const KPI_REQUEST_TIMEOUT_MS = 12000;
 const LIVE_KPI_FAST_REFRESH_DELAY_MS = 4500;
+const DASHBOARD_BOOTSTRAP_HYDRATION_DELAY_MS = 900;
 const KPI_APPLY_BUTTON_TEXT = "Actualizar Reporte";
 const LOCAL_API_FALLBACK = "http://localhost:3003";
 const CARACAS_TZ = "America/Caracas";
@@ -25,6 +26,7 @@ const LEGACY_SHARED_AUTH_KEYS = ['auth_token', 'session_token', 'user_role', 'us
 let dashboardIntervalId = null;
 let dashboardAbortController = null;
 let dashboardFastFollowUpTimer = null;
+let dashboardBootstrapHydrationTimer = null;
 let dashboardRequestSeq = 0;
 let kpiLoadingRequestSeq = 0;
 let authRedirecting = false;
@@ -65,6 +67,12 @@ function clearDashboardFastFollowUp() {
     dashboardFastFollowUpTimer = null;
 }
 
+function clearDashboardBootstrapHydration() {
+    if (!dashboardBootstrapHydrationTimer) return;
+    clearTimeout(dashboardBootstrapHydrationTimer);
+    dashboardBootstrapHydrationTimer = null;
+}
+
 function isLiveKpiRange(range = {}) {
     const todayKey = toYmdFromParts(getCaracasDateParts(new Date()));
     const to = sanitizeDateValue(range?.to);
@@ -84,6 +92,20 @@ function scheduleDashboardFastFollowUp(API_BASE, token, alias, range = {}) {
             skipFastFollowUp: true
         });
     }, LIVE_KPI_FAST_REFRESH_DELAY_MS);
+}
+
+function scheduleDashboardBootstrapHydration(API_BASE, token, alias, range = {}) {
+    clearDashboardBootstrapHydration();
+    dashboardBootstrapHydrationTimer = setTimeout(() => {
+        dashboardBootstrapHydrationTimer = null;
+        if (document.hidden) return;
+        void updateDashboard(API_BASE, token, alias, range, {
+            preserveInFlight: true,
+            showLoading: false,
+            bootstrap: false,
+            skipFastFollowUp: true
+        });
+    }, DASHBOARD_BOOTSTRAP_HYDRATION_DELAY_MS);
 }
 
 function isLocalHostName(host) {
@@ -263,7 +285,12 @@ export async function initDashboard() {
         void updateDashboard(API_BASE, token, alias, nextRange, { showLoading: true });
     });
 
-    await updateDashboard(API_BASE, token, alias, currentRange, { showLoading: true });
+    await updateDashboard(API_BASE, token, alias, currentRange, {
+        showLoading: true,
+        bootstrap: true,
+        skipFastFollowUp: true
+    });
+    scheduleDashboardBootstrapHydration(API_BASE, token, alias, currentRange);
     initPayrollWithdrawalsUI(API_BASE, token);
 
     // --- FAVORITES HANDLER (Global connection for Astro onClick) ---
@@ -367,16 +394,17 @@ export async function initDashboard() {
 /**
  * 3. FUNCIÓN DE ACTUALIZACIÓN GLOBAL (Auditoría de integridad)
  */
-function buildKpiUrl(API_BASE, range = {}) {
+function buildKpiUrl(API_BASE, range = {}, options = {}) {
     const params = new URLSearchParams();
     if (range?.from) params.set('from', range.from);
     if (range?.to) params.set('to', range.to);
+    if (options?.bootstrap) params.set('bootstrap', '1');
     params.set('_ts', String(Date.now()));
     return `${API_BASE}/api/kpis${params.toString() ? `?${params.toString()}` : ''}`;
 }
 
-async function fetchDashboardKpis(API_BASE, token, range = {}, signal) {
-    const res = await fetch(buildKpiUrl(API_BASE, range), {
+async function fetchDashboardKpis(API_BASE, token, range = {}, signal, options = {}) {
+    const res = await fetch(buildKpiUrl(API_BASE, range, options), {
         headers: {
             'Authorization': `Bearer ${token}`
         },
@@ -517,7 +545,12 @@ function normalizeKpiBankData(kpis = {}) {
 export async function updateDashboard(API_BASE, token, alias, range = {}, opts = {}) {
     if (!token) return;
 
-    const { preserveInFlight = false, showLoading = false, skipFastFollowUp = false } = opts || {};
+    const {
+        preserveInFlight = false,
+        showLoading = false,
+        skipFastFollowUp = false,
+        bootstrap = false
+    } = opts || {};
     let requestTimeoutCleared = false;
     if (preserveInFlight && dashboardAbortController) {
         return;
@@ -525,6 +558,7 @@ export async function updateDashboard(API_BASE, token, alias, range = {}, opts =
 
     if (showLoading) {
         clearDashboardFastFollowUp();
+        clearDashboardBootstrapHydration();
     }
 
     if (dashboardAbortController) {
@@ -552,7 +586,13 @@ export async function updateDashboard(API_BASE, token, alias, range = {}, opts =
         const updateEl = document.getElementById('last-update');
         if (updateEl) updateEl.textContent = "Sincronizando con Sentinel...";
 
-        const kpis = await fetchDashboardKpis(API_BASE, token, mainRange, dashboardAbortController.signal);
+        const kpis = await fetchDashboardKpis(
+            API_BASE,
+            token,
+            mainRange,
+            dashboardAbortController.signal,
+            { bootstrap }
+        );
 
         if (!kpis) {
             return;
