@@ -15,6 +15,7 @@ import { updateSidebarMonitor } from './dashboard/SidebarMonitor.js';
 import { initActiveAdsToggle, refreshActiveAds } from './dashboard/activeAds.js';
 import { initCardHelpTooltips } from './dashboard/cardHelp.js';
 const KPI_REQUEST_TIMEOUT_MS = 12000;
+const LIVE_KPI_FAST_REFRESH_DELAY_MS = 4500;
 const KPI_APPLY_BUTTON_TEXT = "Actualizar Reporte";
 const LOCAL_API_FALLBACK = "http://localhost:3003";
 const CARACAS_TZ = "America/Caracas";
@@ -23,6 +24,7 @@ const legacyLocalStore = window.localStorage;
 const LEGACY_SHARED_AUTH_KEYS = ['auth_token', 'session_token', 'user_role', 'user_info', 'operator_alias'];
 let dashboardIntervalId = null;
 let dashboardAbortController = null;
+let dashboardFastFollowUpTimer = null;
 let dashboardRequestSeq = 0;
 let kpiLoadingRequestSeq = 0;
 let authRedirecting = false;
@@ -55,6 +57,33 @@ function normalizeApiBase(value) {
     const raw = String(value || '').trim();
     if (!raw) return '';
     return raw.replace(/\/+$/, '');
+}
+
+function clearDashboardFastFollowUp() {
+    if (!dashboardFastFollowUpTimer) return;
+    clearTimeout(dashboardFastFollowUpTimer);
+    dashboardFastFollowUpTimer = null;
+}
+
+function isLiveKpiRange(range = {}) {
+    const todayKey = toYmdFromParts(getCaracasDateParts(new Date()));
+    const to = sanitizeDateValue(range?.to);
+    return !to || to === todayKey;
+}
+
+function scheduleDashboardFastFollowUp(API_BASE, token, alias, range = {}) {
+    clearDashboardFastFollowUp();
+    if (!isLiveKpiRange(range)) return;
+
+    dashboardFastFollowUpTimer = setTimeout(() => {
+        dashboardFastFollowUpTimer = null;
+        if (document.hidden) return;
+        void updateDashboard(API_BASE, token, alias, range, {
+            preserveInFlight: true,
+            showLoading: false,
+            skipFastFollowUp: true
+        });
+    }, LIVE_KPI_FAST_REFRESH_DELAY_MS);
 }
 
 function isLocalHostName(host) {
@@ -488,10 +517,14 @@ function normalizeKpiBankData(kpis = {}) {
 export async function updateDashboard(API_BASE, token, alias, range = {}, opts = {}) {
     if (!token) return;
 
-    const { preserveInFlight = false, showLoading = false } = opts || {};
+    const { preserveInFlight = false, showLoading = false, skipFastFollowUp = false } = opts || {};
     let requestTimeoutCleared = false;
     if (preserveInFlight && dashboardAbortController) {
         return;
+    }
+
+    if (showLoading) {
+        clearDashboardFastFollowUp();
     }
 
     if (dashboardAbortController) {
@@ -688,7 +721,7 @@ export async function updateDashboard(API_BASE, token, alias, range = {}, opts =
             onAuthError: handleExpiredSession,
             bankData
         });
-        await refreshActiveAds(API_BASE, token, {
+        void refreshActiveAds(API_BASE, token, {
             signal: dashboardAbortController?.signal,
             onAuthError: handleExpiredSession
         });
@@ -702,6 +735,10 @@ export async function updateDashboard(API_BASE, token, alias, range = {}, opts =
                 timeZone: CARACAS_TZ
             });
             updateEl.textContent = `Sincronizado: ${syncTime}`;
+        }
+
+        if (showLoading && !skipFastFollowUp) {
+            scheduleDashboardFastFollowUp(API_BASE, token, alias, mainRange);
         }
 
         // Payroll loading moved to background so filter changes feel snappier.
