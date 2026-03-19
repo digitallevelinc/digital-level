@@ -535,6 +535,34 @@ import CardHelp from './CardHelp.astro';
         margin-top: 0.9rem;
     }
 
+    .ledger-mobile-scroll {
+        overflow-x: auto;
+        overflow-y: hidden;
+        padding-bottom: 0.15rem;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .ledger-mobile-row-track {
+        display: grid;
+        grid-template-columns: minmax(280px, 1.35fr) minmax(220px, 1fr) minmax(220px, 1fr) minmax(220px, 1fr);
+        gap: 0.85rem;
+        min-width: min(980px, max-content);
+        align-items: stretch;
+    }
+
+    .ledger-mobile-main-block,
+    .ledger-mobile-metric-panel {
+        min-width: 0;
+    }
+
+    .ledger-mobile-main-block {
+        padding-right: 0.15rem;
+    }
+
+    .ledger-mobile-metric-panel .ledger-metric-card {
+        min-height: 100%;
+    }
+
     .ledger-mobile-metrics {
         display: grid;
         gap: 0.75rem;
@@ -761,8 +789,12 @@ import CardHelp from './CardHelp.astro';
             border-radius: 1.25rem;
         }
 
-        .ledger-mobile-metrics {
-            grid-template-columns: 1fr;
+        .ledger-scroll {
+            overflow-x: hidden;
+        }
+
+        .ledger-mobile-row-track {
+            min-width: 960px;
         }
 
         .ledger-metric-card {

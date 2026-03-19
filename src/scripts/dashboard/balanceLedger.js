@@ -860,29 +860,36 @@ const renderRow = (tx, rowBalance) => {
 
     return `
         <article class="ledger-row ${rowTone}">
-            <div class="px-0.5 py-0.5 lg:hidden">
-                <div class="flex items-start justify-between gap-3">
-                    <div class="min-w-0">
-                        <div class="${typePillTone}">${category}</div>
-                        <div class="ledger-mobile-date">${escapeHtml(formatPostingDate(tx.timestamp))}</div>
+            <div class="ledger-mobile-scroll lg:hidden">
+                <div class="ledger-mobile-row-track">
+                    <div class="ledger-mobile-main-block">
+                        <div class="flex items-start justify-between gap-3">
+                            <div class="min-w-0">
+                                <div class="${typePillTone}">${category}</div>
+                                <div class="ledger-mobile-date">${escapeHtml(formatPostingDate(tx.timestamp))}</div>
+                            </div>
+                            <div class="text-right">
+                                <div class="ledger-mobile-amount ${amountTone}">${formatAmount(tx)}</div>
+                                <div class="ledger-mobile-sub">${escapeHtml(formatFiat(tx))}</div>
+                            </div>
+                        </div>
+
+                        <div class="ledger-mobile-title">${top}</div>
+                        <div class="ledger-mobile-kicker">${directionLabel}${methodText ? ` | ${methodText}` : ''}</div>
+
+                        <div class="ledger-mobile-meta">
+                            ${metaHtml || '<span class="ledger-meta-chip ledger-meta-chip-muted">Sin metadata extra</span>'}
+                        </div>
                     </div>
-                    <div class="text-right">
-                        <div class="ledger-mobile-amount ${amountTone}">${formatAmount(tx)}</div>
-                        <div class="ledger-mobile-sub">${escapeHtml(formatFiat(tx))}</div>
+                    <div class="ledger-mobile-metric-panel">
+                        ${renderPromiseColumnMeta(tx)}
                     </div>
-                </div>
-
-                <div class="ledger-mobile-title">${top}</div>
-                <div class="ledger-mobile-kicker">${directionLabel}${methodText ? ` | ${methodText}` : ''}</div>
-
-                <div class="ledger-mobile-meta">
-                    ${metaHtml || '<span class="ledger-meta-chip ledger-meta-chip-muted">Sin metadata extra</span>'}
-                </div>
-
-                <div class="ledger-mobile-metrics">
-                    ${renderPromiseColumnMeta(tx)}
-                    ${balanceMetric}
-                    ${spreadMetric}
+                    <div class="ledger-mobile-metric-panel">
+                        ${balanceMetric}
+                    </div>
+                    <div class="ledger-mobile-metric-panel">
+                        ${spreadMetric}
+                    </div>
                 </div>
             </div>
 
