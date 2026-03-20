@@ -93,11 +93,14 @@ import CardHelp from './CardHelp.astro';
   </div>
 
   <div class="mt-2 rounded-xl border border-white/5 bg-white/[0.02] p-4 shadow-inner sm:p-5">
-    <div class="mb-4 flex items-center justify-between">
-      <h3 class="text-[13px] font-bold uppercase tracking-[0.14em] text-white/70 sm:text-sm">Evolucion Historica</h3>
-    </div>
-    <div class="relative h-72 w-full sm:h-80">
-      <canvas id="profit-chart"></canvas>
+    <button id="toggle-evolution-chart" type="button" class="w-full flex items-center justify-between cursor-pointer bg-transparent border-0 p-0 group">
+      <h3 class="text-[13px] font-bold uppercase tracking-[0.14em] text-white/70 sm:text-sm group-hover:text-white/90 transition-colors">Evolucion Historica</h3>
+      <i id="evolution-chart-icon" class="fas fa-chevron-right text-white/40 text-xs transition-transform duration-300 group-hover:text-white/60"></i>
+    </button>
+    <div id="evolution-chart-body" class="hidden mt-4">
+      <div class="relative h-72 w-full sm:h-80">
+        <canvas id="profit-chart"></canvas>
+      </div>
     </div>
   </div>
 </div>

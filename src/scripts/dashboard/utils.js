@@ -8,7 +8,10 @@ export const inject = (id, value, isProfit = false) => {
     if (!container) return;
     const el = container.querySelector('h3') || container.querySelector('.text-white') || container.querySelector('span') || container;
     if (el) {
-        el.textContent = value !== undefined && value !== null ? value : "N/A";
+        const nextValue = value !== undefined && value !== null ? String(value) : "N/A";
+        if (el.textContent !== nextValue) {
+            el.textContent = nextValue;
+        }
         if (isProfit && value !== "N/A") {
             const num = parseFloat(String(value).replace(/[^0-9.-]+/g, ""));
             el.style.color = num >= 0 ? "#10b981" : "#ef4444";

@@ -59,6 +59,7 @@ export function updateProfitUI(kpis = {}, bankInsights = []) {
     inject('channel-pay', fUSDT(wallets.balancePay || 0));
 
     renderBankProfitList(bankInsights);
+    initEvolutionToggle();
     renderProfitChart(kpis.chartData);
 }
 
@@ -78,12 +79,41 @@ function renderBankProfitList(bankInsights) {
     }).join('');
 }
 
+// --- EVOLUTION CHART TOGGLE ---
+let evolutionChartReady = false;
+let pendingChartData = null;
+
+function initEvolutionToggle() {
+    const btn = document.getElementById('toggle-evolution-chart');
+    const body = document.getElementById('evolution-chart-body');
+    const icon = document.getElementById('evolution-chart-icon');
+    if (!btn || !body) return;
+    if (btn.dataset.wired) return;
+    btn.dataset.wired = '1';
+    btn.addEventListener('click', () => {
+        const isOpen = !body.classList.contains('hidden');
+        body.classList.toggle('hidden', isOpen);
+        if (icon) icon.style.transform = isOpen ? '' : 'rotate(90deg)';
+        if (!isOpen && pendingChartData) {
+            renderProfitChart(pendingChartData);
+            pendingChartData = null;
+        }
+    });
+}
+
 // --- CHART LOGIC ---
 let profitChartInstance = null;
 
 function renderProfitChart(chartData = []) {
     const ctx = document.getElementById('profit-chart');
     if (!ctx) return;
+
+    // Defer render if chart panel is collapsed
+    const body = document.getElementById('evolution-chart-body');
+    if (body && body.classList.contains('hidden')) {
+        pendingChartData = chartData;
+        return;
+    }
 
     // Destroy existing chart to prevent canvas reuse errors
     if (profitChartInstance) {

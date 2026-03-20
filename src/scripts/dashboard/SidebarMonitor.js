@@ -121,6 +121,7 @@ function getBankMonitorSummary(kpis = {}, bankInsights = []) {
         spreadProfitUsdt,
         spreadPercent: spreadBaseUsdt > 0 ? (spreadProfitUsdt / spreadBaseUsdt) * 100 : 0,
         banksWithCeiling: ceilingBanks.length,
+        banksWithSell: sellReferenceBanks.length,
     };
 }
 
@@ -903,17 +904,13 @@ export function updateSidebarMonitor(kpis = {}, bankInsights = []) {
     inject('side-ceiling-level-label', 'TECHO GENERAL');
     inject(
         'side-ceiling-level-value',
-        averageBankCeiling > 0 || averageBankCeilingUsdt > 0
-            ? `${formatPlain(averageBankCeiling)} VES | ${formatPlain(averageBankCeilingUsdt)} USDT`
-            : (fallbackCeilingRate > 0
-                ? `${formatPlain(fallbackCeilingRate)} VES | -- USDT`
-                : '0.00 VES | 0.00 USDT')
+        bankSummary.avgSellRate > 0 || bankSummary.avgCeilingRate > 0
+            ? `${formatPlain(bankSummary.avgSellRate)} Venta | ${formatPlain(bankSummary.avgCeilingRate)} Techo`
+            : '0,00 Venta | 0,00 Techo'
     );
-    inject('side-ceiling-level-meta', bankCeilings.length > 0
-        ? `Promedio simple de ${formatPlain(bankCeilings.length, 0)} techos`
-        : (fallbackCeilingRate > 0
-            ? 'Tasa techo ponderada sin ciclo activo'
-            : 'Sin techos por banco'));
+    inject('side-ceiling-level-meta', bankSummary.banksWithSell > 0
+        ? `Tasa promedio de ${formatPlain(bankSummary.banksWithSell, 0)} bancos con venta`
+        : 'Sin bancos con venta activa');
     inject('side-ceiling-sell-rate', `Nivel ${String(bankSummary.levelLabel || 'Sin nivel').toUpperCase()} | ${formatPlain(bankSummary.verificationPercent)}%`);
     inject('side-ceiling-level-badge', `${formatPlain(activeBankCards.length, 0)} Bancos`);
 
@@ -982,9 +979,7 @@ export function updateSidebarMonitor(kpis = {}, bankInsights = []) {
                 ${vesControl.value}
             </div>
             <div class="text-[11px] font-mono font-black tracking-tight text-[#F3BA2F]">
-                Techo: ${bankCeiling > 0 || bankCeilingUsdt > 0
-            ? `${fVESInline(bankCeiling)} VES | ${formatPlain(bankCeilingUsdt)} USDT`
-            : '0.00 VES | 0.00 USDT'}
+                Venta: ${formatPlain(Number(bank.lastSellRate || bank.sellRate || bank.weightedAvgSellRate || bank.avgSellRate || 0))} | Techo: ${formatPlain(Number(bank.ceilingRate || 0))}
             </div>
             <div class="h-1.5 w-full bg-[#313842] rounded-full overflow-hidden mt-1">
                 <div class="h-full bg-[#F3BA2F] transition-all duration-700 ease-out" style="width: ${vesControl.progress}%"></div>

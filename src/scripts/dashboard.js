@@ -748,9 +748,6 @@ export async function updateDashboard(API_BASE, token, alias, range = {}, opts =
         // Sincronizamos el Profit UI (usando datos críticos del backend)
         updateProfitUI(kpis, bankData);
 
-        // Sincronizamos la comisión
-        updateComisionOperadorUI(kpis, bankData);
-
         updateProyeccionesUI(kpis, range);
 
         // --- SECCIONES DE CARTERAS (LOGÍSTICA) ---

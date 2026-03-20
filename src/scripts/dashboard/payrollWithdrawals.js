@@ -125,8 +125,6 @@ export async function refreshPayrollSummary(API_BASE, token) {
   const { ok, data } = await authedFetchJson(url, token, { method: 'GET' });
   if (!ok || !data) return null;
 
-  // Keep compatibility with existing comisionOp.js expectations.
-  // It expects { totalAmount, percentage } at least.
   inject('op-config-pct', `${Number(data.percentage || 0)}%`);
   inject('op-net-profit', fUSDT(Number(data.totalAmount || 0)).replace('$', ''));
   return data;
