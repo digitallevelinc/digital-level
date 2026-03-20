@@ -466,6 +466,11 @@ const resolveFiatAmount = (tx) => {
 };
 
 const formatFiat = (tx) => {
+    const type = String(tx?.type || '').toUpperCase();
+    if ((type === 'PAY_SENT' || type === 'PAY_RECEIVED') && !getPromiseMeta(tx)) {
+        return '';
+    }
+
     const fiatResolved = resolveFiatAmount(tx);
     return `${formatNumber(fiatResolved, 2)} ${getFiatLabel(tx)}`;
 };
@@ -884,6 +889,9 @@ const renderRow = (tx, rowBalance) => {
 
     const methodText = tx?.paymentMethod ? escapeHtml(String(tx.paymentMethod).toUpperCase()) : '';
     const directionLabel = signedAmount < 0 ? 'Salida' : 'Entrada';
+    const fiatText = formatFiat(tx);
+    const fiatHtml = fiatText ? `<div class="ledger-mobile-sub">${escapeHtml(fiatText)}</div>` : '';
+    const fiatDesktopHtml = fiatText ? `<div class="ledger-amount-sub">${escapeHtml(fiatText)}</div>` : '';
 
     return `
         <article class="ledger-row ${rowTone}">
@@ -897,7 +905,7 @@ const renderRow = (tx, rowBalance) => {
                             </div>
                             <div class="text-right">
                                 <div class="ledger-mobile-amount ${amountTone}">${formatAmount(tx)}</div>
-                                <div class="ledger-mobile-sub">${escapeHtml(formatFiat(tx))}</div>
+                                ${fiatHtml}
                             </div>
                         </div>
 
@@ -939,7 +947,7 @@ const renderRow = (tx, rowBalance) => {
                 </div>
                 <div class="ledger-amount-col">
                     <div class="ledger-amount-main ${amountTone}">${formatAmount(tx)}</div>
-                    <div class="ledger-amount-sub">${escapeHtml(formatFiat(tx))}</div>
+                    ${fiatDesktopHtml}
                 </div>
                 <div class="ledger-metric-col">
                     ${renderPromiseColumnMeta(tx)}
