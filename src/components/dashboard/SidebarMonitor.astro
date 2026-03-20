@@ -5,15 +5,19 @@
     
     <button 
         id="sidebar-trigger"
-        class="pointer-events-auto mt-4 sm:mt-6 lg:mt-8 bg-[#161a1e] border-2 border-[#F3BA2F]/40 border-r-0 p-3 sm:p-3.5 rounded-l-2xl shadow-[-10px_0_30px_rgba(243,186,47,0.2)] transition-all hover:scale-105 group border-l-[5px] border-l-[#F3BA2F]"
+        type="button"
+        aria-expanded="false"
+        aria-controls="sidebar-panel"
+        class="pointer-events-auto relative overflow-hidden mt-4 sm:mt-6 lg:mt-8 bg-[#161a1e] border-2 border-[#F3BA2F]/40 border-r-0 p-3 sm:p-3.5 rounded-l-2xl shadow-[-10px_0_30px_rgba(243,186,47,0.2)] transition-all hover:scale-105 group border-l-[5px] border-l-[#F3BA2F]"
     >
         <i class="fas fa-microchip text-[#F3BA2F] text-sm group-hover:rotate-12 transition-transform" id="trigger-icon"></i>
-        <div class="absolute inset-0 bg-gradient-to-r from-[#F3BA2F]/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
+        <div class="pointer-events-none absolute inset-0 bg-gradient-to-r from-[#F3BA2F]/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
     </button>
 
     <aside 
         id="sidebar-panel" 
-        class="pointer-events-auto w-0 overflow-hidden bg-[#12171d] border-l border-white/10 transition-all duration-300 ease-in-out shadow-[-30px_0_80px_rgba(0,0,0,0.9)] rounded-l-[1.2rem] sm:rounded-l-[2rem]"
+        aria-hidden="true"
+        class="sidebar-panel-shell w-0 overflow-hidden bg-[#12171d] transition-all duration-300 ease-in-out rounded-l-[1.2rem] sm:rounded-l-[2rem]"
     >
         <div class="w-full px-4 sm:pl-6 sm:pr-8 py-5 sm:py-6 h-full overflow-y-auto custom-scroll flex flex-col">
             <div class="flex items-center justify-between mb-6">
@@ -94,7 +98,21 @@
 <style>
     .custom-scroll::-webkit-scrollbar { width: 3px; }
     .custom-scroll::-webkit-scrollbar-thumb { background: #F3BA2F33; border-radius: 10px; }
-    #sidebar-panel { height: calc(100dvh - 6.5rem); margin-top: 0.5rem; }
+    #sidebar-panel {
+        height: calc(100dvh - 6.5rem);
+        margin-top: 0.5rem;
+    }
+    .sidebar-panel-shell {
+        pointer-events: none;
+        border-left: 1px solid transparent;
+        box-shadow: none;
+        will-change: width;
+    }
+    .sidebar-panel-shell.is-open {
+        pointer-events: auto;
+        border-left-color: rgba(255, 255, 255, 0.1);
+        box-shadow: -30px 0 80px rgba(0, 0, 0, 0.9);
+    }
     .sidebar-close-btn {
         display: inline-flex;
         align-items: center;
@@ -145,8 +163,11 @@
     };
 
     const syncSidebarState = () => {
-        if (!panel || !icon) return;
+        if (!panel || !icon || !trigger) return;
         panel.style.width = isOpen ? getPanelWidth() : '0';
+        panel.classList.toggle('is-open', isOpen);
+        panel.setAttribute('aria-hidden', isOpen ? 'false' : 'true');
+        trigger.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
         icon.className = isOpen
             ? 'fas fa-times text-[#F3BA2F] text-[10px]'
             : 'fas fa-microchip text-[#F3BA2F] text-sm group-hover:rotate-12 transition-transform';
