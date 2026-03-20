@@ -1,5 +1,6 @@
 const CARACAS_TZ = 'America/Caracas';
-const LEDGER_CHANNELS = Object.freeze(['P2P', 'PAY']);
+const LEDGER_CHANNELS = Object.freeze(['RED', 'P2P', 'PAY']);
+const LEDGER_FILTER_OPTIONS = Object.freeze(['ALL', ...LEDGER_CHANNELS]);
 const LEDGER_CHANNEL_SET = new Set(LEDGER_CHANNELS);
 
 const state = {
@@ -19,6 +20,7 @@ const state = {
     abortController: null,
     onAuthError: null,
     searchTerm: '',
+    typeFilter: 'ALL',
     currentTransfers: [],
     pageNetByPage: new Map(),
     bankData: [],
@@ -71,8 +73,15 @@ const getCategory = (type) => {
 
 const isLedgerChannelAllowed = (tx = {}) => {
     const category = getCategory(String(tx?.type || '').toUpperCase());
+    if (state.typeFilter !== 'ALL') {
+        return category === state.typeFilter;
+    }
     return LEDGER_CHANNEL_SET.has(category);
 };
+
+const getRequestedChannels = () => state.typeFilter === 'ALL'
+    ? [...LEDGER_CHANNELS]
+    : [state.typeFilter];
 
 const getDirection = (type) => {
     switch (String(type || '').toUpperCase()) {
@@ -383,7 +392,15 @@ const getPromiseMeta = (tx = {}) => {
 
 const getFiatLabel = (tx = {}) => {
     const fiatCurrency = String(tx?.fiatCurrency || '').trim().toUpperCase();
-    return fiatCurrency || 'FIAT';
+    if (fiatCurrency) return fiatCurrency;
+
+    const type = String(tx?.type || '').toUpperCase();
+    const hasFiatSignal = Number(tx?.fiatAmount || 0) > 0 || Number(tx?.exchangeRate || 0) > 0;
+    if ((type === 'PAY_SENT' || type === 'PAY_RECEIVED') && hasFiatSignal) {
+        return 'VES';
+    }
+
+    return 'FIAT';
 };
 
 const maskCounterpartyName = (value) => {
@@ -525,6 +542,7 @@ const getElements = () => ({
     nextBtn: document.getElementById('balance-ledger-next'),
     scroll: document.getElementById('balance-ledger-scroll'),
     searchInput: document.getElementById('balance-ledger-search'),
+    typeFilters: Array.from(document.querySelectorAll('[data-ledger-type]')),
 });
 
 const sanitizeDateValue = (value) => {
@@ -544,7 +562,7 @@ const buildTransfersUrl = (apiBase, range = {}, page = 1, limit = 12, includeCha
     params.set('page', String(page));
     params.set('limit', String(limit));
     if (includeChannels) {
-        params.set('channels', LEDGER_CHANNELS.join(','));
+        params.set('channels', getRequestedChannels().join(','));
     }
     params.set('_ts', String(Date.now()));
     return `${String(apiBase || '').replace(/\/+$/, '')}/api/transfers?${params.toString()}`;
@@ -556,6 +574,15 @@ const updatePaginationUI = () => {
     if (pageIndicator) pageIndicator.textContent = `Pagina ${state.totalPages ? state.page : 0} / ${state.totalPages}`;
     if (prevBtn) prevBtn.disabled = state.page <= 1 || state.totalPages === 0;
     if (nextBtn) nextBtn.disabled = state.page >= state.totalPages || state.totalPages === 0;
+};
+
+const updateTypeFilterUI = () => {
+    const { typeFilters } = getElements();
+    typeFilters.forEach((button) => {
+        const buttonType = String(button?.dataset?.ledgerType || '').toUpperCase();
+        button.classList.toggle('is-active', buttonType === state.typeFilter);
+        button.setAttribute('aria-pressed', buttonType === state.typeFilter ? 'true' : 'false');
+    });
 };
 
 const renderPlaceholder = (message, toneClass = 'text-white') => {
@@ -945,8 +972,9 @@ const renderTransfers = (transfers = []) => {
     const filteredRows = rowsWithBalance.filter(({ tx }) => matchesSearch(tx, state.searchTerm));
 
     if (count) {
+        const filterLabel = state.typeFilter === 'ALL' ? '' : ` | ${state.typeFilter}`;
         const suffix = state.searchTerm ? ` | ${filteredRows.length} visibles` : '';
-        count.textContent = `Mostrando ${scopedTransfers.length} movimiento${scopedTransfers.length === 1 ? '' : 's'} de ${state.total}${suffix}`;
+        count.textContent = `Mostrando ${scopedTransfers.length} movimiento${scopedTransfers.length === 1 ? '' : 's'} de ${state.total}${filterLabel}${suffix}`;
     }
 
     if (filteredRows.length === 0) {
@@ -1048,7 +1076,7 @@ const bindEventsOnce = () => {
     if (state.initialized) return;
     state.initialized = true;
 
-    const { prevBtn, nextBtn, searchInput } = getElements();
+    const { prevBtn, nextBtn, searchInput, typeFilters } = getElements();
 
     prevBtn?.addEventListener('click', () => {
         if (state.page <= 1) return;
@@ -1063,6 +1091,24 @@ const bindEventsOnce = () => {
     searchInput?.addEventListener('input', (event) => {
         state.searchTerm = String(event?.target?.value || '').trim();
         renderTransfers(state.currentTransfers);
+    });
+
+    typeFilters.forEach((button) => {
+        button.addEventListener('click', () => {
+            const nextType = String(button?.dataset?.ledgerType || 'ALL').toUpperCase();
+            if (!LEDGER_FILTER_OPTIONS.includes(nextType) || nextType === state.typeFilter) {
+                return;
+            }
+            state.typeFilter = nextType;
+            state.pageNetByPage.clear();
+            state.closingBalance = null;
+            state.total = 0;
+            state.totalPages = 0;
+            updateTypeFilterUI();
+            updatePaginationUI();
+            renderPlaceholder('Filtrando movimientos...');
+            void fetchTransfersPage(1);
+        });
     });
 };
 
@@ -1091,6 +1137,7 @@ export const updateBalanceLedgerUI = (kpis = {}, context = {}) => {
     if (searchInput && searchInput.value !== state.searchTerm) {
         searchInput.value = state.searchTerm;
     }
+    updateTypeFilterUI();
 
     if (!state.loadedOnce) {
         state.pageNetByPage.clear();
