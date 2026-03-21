@@ -266,6 +266,53 @@ export async function initDashboard() {
         window.location.href = '/login';
     });
 
+    // --- EXPORT HANDLER ---
+    const exportBtn = document.getElementById('link-p2p-sheet');
+    if (exportBtn) {
+        exportBtn.addEventListener('click', async (e) => {
+            e.preventDefault();
+            const sheetHref = exportBtn.getAttribute('href') || '#';
+            // If the link has been configured to point to Google Sheets, open it
+            if (sheetHref !== '#' && exportBtn.getAttribute('aria-disabled') !== 'true') {
+                window.open(sheetHref, '_blank', 'noopener,noreferrer');
+                return;
+            }
+            // Otherwise export the current range as Excel XML
+            try {
+                exportBtn.style.opacity = '0.5';
+                exportBtn.style.pointerEvents = 'none';
+                const params = new URLSearchParams();
+                if (currentRange?.from) params.set('from', currentRange.from);
+                if (currentRange?.to) params.set('to', currentRange.to);
+                const res = await fetch(`${API_BASE}/api/export/range.xml?${params.toString()}`, {
+                    headers: { Authorization: `Bearer ${token}` },
+                    cache: 'no-store',
+                });
+                if (!res.ok) {
+                    const err = await res.json().catch(() => ({}));
+                    alert(err?.error || `Error ${res.status} al exportar`);
+                    return;
+                }
+                const filename = res.headers.get('X-Export-File-Name') || 'export.xml';
+                const blob = await res.blob();
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = filename;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            } catch (err) {
+                console.error('Export error:', err);
+                alert('Error al generar el reporte');
+            } finally {
+                exportBtn.style.opacity = '';
+                exportBtn.style.pointerEvents = '';
+            }
+        });
+    }
+
     // Inicializar Flatpickr antes de sincronizar el rango en inputs.
     setupDatePickers();
 
