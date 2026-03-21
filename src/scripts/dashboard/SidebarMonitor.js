@@ -443,11 +443,41 @@ function buildPromiseSummaryByBank(kpis = {}, bankInsights = []) {
     );
     const summary = new Map();
 
+    (Array.isArray(bankInsights) ? bankInsights : []).forEach((bank) => {
+        const bankKey = normalizeBankLimitKey(bank);
+        if (!bankKey) return;
+
+        const promisedUsdt = Number(bank?.rangePromisedUsdt || 0);
+        const promisedFiat = Number(bank?.rangePromisedFiat || 0);
+        const pendingUsdt = Number(bank?.rangePendingUsdt || 0);
+        const pendingFiat = Number(bank?.rangePendingFiat || 0);
+        const activePromises = Number(bank?.rangeActivePromises || 0);
+
+        if (
+            promisedUsdt <= 0.00001
+            && promisedFiat <= 0.00001
+            && pendingUsdt <= 0.00001
+            && pendingFiat <= 0.00001
+            && activePromises <= 0
+        ) {
+            return;
+        }
+
+        summary.set(bankKey, {
+            promisedUsdt,
+            promisedFiat,
+            pendingUsdt,
+            pendingFiat,
+            activePromises,
+        });
+    });
+
     openVerdicts.forEach((verdict) => {
         if (!isPromiseVerdict(verdict)) return;
 
         const bankKey = resolveVerdictBankKey(verdict, knownBankKeys);
         if (!bankKey) return;
+        if (summary.has(bankKey)) return;
 
         const fallbackUsdt = Number(verdict?.saleAmount || 0);
         const fallbackFiat = Number(verdict?.fiatReceived || 0);
@@ -539,9 +569,30 @@ function buildVesControlSummaryByBank(kpis = {}, bankInsights = []) {
     );
     const summary = new Map();
 
+    (Array.isArray(bankInsights) ? bankInsights : []).forEach((bank) => {
+        const bankKey = normalizeBankLimitKey(bank);
+        if (!bankKey) return;
+
+        const inflowFiat = Number(bank?.rangeVesInflowFiat || 0);
+        const availableFiat = Number(bank?.rangeVesAvailableFiat || 0);
+        const consumedFiat = Number(bank?.rangeVesConsumedFiat || 0);
+
+        if (inflowFiat <= 0.00001 && availableFiat <= 0.00001 && consumedFiat <= 0.00001) {
+            return;
+        }
+
+        summary.set(bankKey, {
+            inflowFiat,
+            availableFiat,
+            consumedFiat,
+            activeVerdicts: Number(bank?.activeVerdictsCount || 0),
+        });
+    });
+
     openVerdicts.forEach((verdict) => {
         const bankKey = resolveVerdictBankKey(verdict, knownBankKeys) || normalizeBankName(verdict?.paymentMethod);
         if (!bankKey) return;
+        if (summary.has(bankKey)) return;
 
         const saleRate = Number(verdict?.saleRate || 0);
         const fallbackExpectedFiat = Number(verdict?.fiatReceived || 0);

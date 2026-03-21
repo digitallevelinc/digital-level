@@ -38,9 +38,29 @@ export function updateBancosUI(insights = [], kpis = {}) {
         const openVerdicts = Array.isArray(inputKpis?.judge?.openVerdicts) ? inputKpis.judge.openVerdicts : [];
         const summary = new Map();
 
+        (Array.isArray(insights) ? insights : []).forEach((bank) => {
+            const bankKey = normalizeBankLimitKey(bank);
+            if (!bankKey) return;
+
+            const inflowFiat = Number(bank?.rangeVesInflowFiat || 0);
+            const availableFiat = Number(bank?.rangeVesAvailableFiat || 0);
+            const consumedFiat = Number(bank?.rangeVesConsumedFiat || 0);
+
+            if (inflowFiat <= 0.00001 && availableFiat <= 0.00001 && consumedFiat <= 0.00001) {
+                return;
+            }
+
+            summary.set(bankKey, {
+                inflowFiat,
+                availableFiat,
+                consumedFiat,
+            });
+        });
+
         openVerdicts.forEach((verdict) => {
             const bankKey = normalizeBankName(verdict?.paymentMethod);
             if (!bankKey) return;
+            if (summary.has(bankKey)) return;
 
             const saleRate = Number(verdict?.saleRate || 0);
             const fallbackExpectedFiat = Number(verdict?.fiatReceived || 0);

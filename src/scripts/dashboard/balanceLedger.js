@@ -823,17 +823,34 @@ const computeTxSpread = (tx = {}) => {
     const amount = Math.abs(Number(tx?.amount || 0));
     if (amount <= 0) return 0;
 
+    // Current side fee (exact, from transaction data).
+    const fee = toFiniteNumber(tx?.fee);
+    const feeCurrency = String(tx?.feeCurrency || '').toUpperCase();
+    const effectiveFee = (fee > 0 && (!feeCurrency || feeCurrency === 'USDT')) ? fee : 0;
+
+    // Reference side fee rate: operator's maker rate from config.
+    // verificationPercent is stored as a percentage value (e.g., 0.17 → 0.17% → ÷100 = 0.0017).
+    // Used for the counterpart side of the spread regardless of whether the current tx was maker
+    // or taker — this correctly covers maker-maker and taker-maker (most common) scenarios.
+    const configMakerRate = Number(state.kpis?.config?.verificationPercent || 0) / 100;
+    const refFeeRate = configMakerRate > 0
+        ? configMakerRate
+        : (effectiveFee > 0 && amount > 0 ? effectiveFee / amount : 0);
+
+    const ves = resolveFiatAmount(tx) || amount * txRate;
+
     const bank = matchTxToBank(tx);
     if (type === 'P2P_SELL') {
         const avgBuyRate = Number(bank?.weightedAvgBuyRate || bank?.avgBuyRate || bank?.buyRate || 0) || getFallbackBuyReferenceRate();
         if (avgBuyRate <= 0) {
             const fallbackSpreadPct = getFallbackSpreadPercent();
             if (fallbackSpreadPct === 0) return 0;
-            return amount * (fallbackSpreadPct / 100);
+            return (amount - effectiveFee) * (fallbackSpreadPct / 100);
         }
 
-        const spreadFiat = (txRate - avgBuyRate) * amount;
-        return spreadFiat / txRate;
+        // Net: (USDT recovered at buy ref rate − est. buy fee) − (USDT sold + sell fee paid)
+        const grossBuyRef = ves / avgBuyRate;
+        return (grossBuyRef - grossBuyRef * refFeeRate) - (amount + effectiveFee);
     }
 
     const referenceSellRate = Number(
@@ -848,11 +865,12 @@ const computeTxSpread = (tx = {}) => {
     if (referenceSellRate <= 0) {
         const fallbackSpreadPct = getFallbackSpreadPercent();
         if (fallbackSpreadPct === 0) return 0;
-        return amount * (fallbackSpreadPct / 100);
+        return (amount - effectiveFee) * (fallbackSpreadPct / 100);
     }
 
-    const spreadFiat = (referenceSellRate - txRate) * amount;
-    return spreadFiat / referenceSellRate;
+    // Net: (USDT received − buy fee paid) − (USDT needed at sell ref rate + est. sell fee)
+    const grossSellRef = ves / referenceSellRate;
+    return (amount - effectiveFee) - (grossSellRef + grossSellRef * refFeeRate);
 };
 
 const renderRow = (tx, rowBalance) => {
@@ -877,7 +895,7 @@ const renderRow = (tx, rowBalance) => {
     const spreadMetric = renderMetricCard({
         label: 'Spread',
         value: spreadVal !== 0 ? `${spreadVal > 0 ? '+' : '-'}${formatUsd(Math.abs(spreadVal))}` : '--',
-        sub: spreadVal !== 0 ? 'Lectura estimada del trade' : 'Sin spread calculable',
+        sub: spreadVal !== 0 ? 'Estimado neto (c/ comisiones)' : 'Sin spread calculable',
         tone: spreadTone
     });
     const balanceMetric = renderMetricCard({
