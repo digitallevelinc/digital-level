@@ -14,6 +14,7 @@ import { updateBalanceLedgerUI } from './dashboard/balanceLedger.js';
 import { updateSidebarMonitor } from './dashboard/SidebarMonitor.js';
 import { initActiveAdsToggle, refreshActiveAds } from './dashboard/activeAds.js';
 import { initCardHelpTooltips } from './dashboard/cardHelp.js';
+import { initDashboardNotifications } from './dashboard/notifications.js';
 const KPI_REQUEST_TIMEOUT_MS = 12000;
 const LIVE_KPI_FAST_REFRESH_DELAY_MS = 4500;
 const DASHBOARD_BOOTSTRAP_HYDRATION_DELAY_MS = 900;
@@ -256,6 +257,8 @@ export async function initDashboard() {
         window.location.href = '/login';
         return;
     }
+
+    initDashboardNotifications({ apiBase: API_BASE, token });
 
     const logoutBtn = document.getElementById('logout-btn');
     logoutBtn?.addEventListener('click', () => {
@@ -1096,5 +1099,3 @@ function setKpiFilterLoading(isLoading) {
     applyBtn.disabled = isLoading;
     applyBtn.classList.toggle('opacity-70', isLoading);
 }
-
-
