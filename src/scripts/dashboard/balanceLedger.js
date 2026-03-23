@@ -873,7 +873,32 @@ const computeTxSpread = (tx = {}) => {
     return (amount - effectiveFee) - (grossSellRef + grossSellRef * refFeeRate);
 };
 
-const renderRow = (tx, rowBalance) => {
+// Iterates transfers oldest-first and accumulates P2P spreads per cycle.
+// A cycle ends at each LIQUID (settlement) row; it's "complete" on this page
+// if a DISPERSOR_PENDING row was seen since the previous LIQUID.
+// Returns Map<tx, { sum: number, complete: boolean }>.
+const computeCycleSpreads = (transfers) => {
+    const result = new Map();
+    let cycleSpread = 0;
+    let hasDispersador = false;
+
+    for (let i = transfers.length - 1; i >= 0; i--) {
+        const tx = transfers[i];
+        if (isSettlementTransfer(tx)) {
+            result.set(tx, { sum: cycleSpread, complete: hasDispersador });
+            cycleSpread = 0;
+            hasDispersador = false;
+        } else {
+            if (String(tx?.type || '').toUpperCase() === 'DISPERSOR_PENDING') {
+                hasDispersador = true;
+            }
+            cycleSpread += computeTxSpread(tx);
+        }
+    }
+    return result;
+};
+
+const renderRow = (tx, rowBalance, cycleData = undefined) => {
     const isSettlement = isSettlementTransfer(tx);
     const category = isSettlement ? 'LIQUID' : getCategory(tx.type);
     const signedAmount = getSignedAmount(tx);
@@ -886,24 +911,52 @@ const renderRow = (tx, rowBalance) => {
     const meta = buildDescriptionMeta(tx, topRaw);
     const metaHtml = meta.map((line) => `<span class="ledger-meta-chip">${escapeHtml(line)}</span>`).join('');
 
-    const spreadVal = computeTxSpread(tx);
-    const spreadTone = spreadVal > 0
-        ? 'ledger-metric-positive'
-        : spreadVal < 0
-            ? 'ledger-metric-negative'
-            : 'ledger-metric-muted';
-    const spreadMetric = renderMetricCard({
-        label: 'Spread',
-        value: spreadVal !== 0 ? `${spreadVal > 0 ? '+' : '-'}${formatUsd(Math.abs(spreadVal))}` : '--',
-        sub: spreadVal !== 0 ? 'Estimado neto (c/ comisiones)' : 'Sin spread calculable',
-        tone: spreadTone
-    });
+    let spreadMetric;
+    if (isSettlement && cycleData) {
+        const { sum, complete } = cycleData;
+        const cycleTone = sum > 0 ? 'ledger-metric-positive' : sum < 0 ? 'ledger-metric-negative' : 'ledger-metric-muted';
+        spreadMetric = renderMetricCard({
+            label: 'Ciclo',
+            value: sum !== 0 ? `${sum > 0 ? '+' : ''}${formatUsd(sum)}` : '--',
+            sub: complete ? 'Spread neto del ciclo' : 'Acumulado en página',
+            tone: sum !== 0 ? cycleTone : 'ledger-metric-muted',
+        });
+    } else {
+        const spreadVal = computeTxSpread(tx);
+        const spreadTone = spreadVal > 0
+            ? 'ledger-metric-positive'
+            : spreadVal < 0
+                ? 'ledger-metric-negative'
+                : 'ledger-metric-muted';
+        spreadMetric = renderMetricCard({
+            label: 'Spread',
+            value: spreadVal !== 0 ? `${spreadVal > 0 ? '+' : '-'}${formatUsd(Math.abs(spreadVal))}` : '--',
+            sub: spreadVal !== 0 ? 'Estimado neto (c/ comisiones)' : 'Sin spread calculable',
+            tone: spreadTone
+        });
+    }
     const balanceMetric = renderMetricCard({
         label: 'Balance',
         value: `${rowBalance < 0 ? '-' : ''}${formatUsd(Math.abs(rowBalance))}`,
         sub: rowBalance < 0 ? 'Balance comprometido' : 'Balance disponible',
         tone: rowBalance < 0 ? 'ledger-metric-negative' : 'ledger-metric-balance'
     });
+
+    // PROMESA column: for LIQUID rows show inferred capital (liq − cycle spread);
+    // for all others show the normal promise meta.
+    let promiseMetric;
+    if (isSettlement && cycleData) {
+        const liqAmount = Math.abs(Number(tx?.amount || 0));
+        const inferredCapital = liqAmount - cycleData.sum;
+        promiseMetric = renderMetricCard({
+            label: 'Capital',
+            value: inferredCapital > 0 ? formatUsd(inferredCapital) : '--',
+            sub: cycleData.complete ? 'Liq. − spread del ciclo' : 'Estimado (pág. parcial)',
+            tone: 'ledger-metric-promise',
+        });
+    } else {
+        promiseMetric = renderPromiseColumnMeta(tx);
+    }
 
     const methodText = tx?.paymentMethod ? escapeHtml(String(tx.paymentMethod).toUpperCase()) : '';
     const directionLabel = signedAmount < 0 ? 'Salida' : 'Entrada';
@@ -935,7 +988,7 @@ const renderRow = (tx, rowBalance) => {
                         </div>
                     </div>
                     <div class="ledger-mobile-metric-panel">
-                        ${renderPromiseColumnMeta(tx)}
+                        ${promiseMetric}
                     </div>
                     <div class="ledger-mobile-metric-panel">
                         ${balanceMetric}
@@ -968,7 +1021,7 @@ const renderRow = (tx, rowBalance) => {
                     ${fiatDesktopHtml}
                 </div>
                 <div class="ledger-metric-col">
-                    ${renderPromiseColumnMeta(tx)}
+                    ${promiseMetric}
                 </div>
                 <div class="ledger-metric-col">
                     ${balanceMetric}
@@ -995,6 +1048,7 @@ const renderTransfers = (transfers = []) => {
     }
 
     const rowsWithBalance = buildRowsWithBalance(scopedTransfers);
+    const cycleSpreads = computeCycleSpreads(scopedTransfers);
     const filteredRows = rowsWithBalance.filter(({ tx }) => matchesSearch(tx, state.searchTerm));
 
     if (count) {
@@ -1014,7 +1068,7 @@ const renderTransfers = (transfers = []) => {
         return;
     }
 
-    body.innerHTML = filteredRows.map(({ tx, balance }) => renderRow(tx, balance)).join('');
+    body.innerHTML = filteredRows.map(({ tx, balance }) => renderRow(tx, balance, cycleSpreads.get(tx))).join('');
     updatePaginationUI();
     if (scroll) scroll.scrollTop = 0;
 };

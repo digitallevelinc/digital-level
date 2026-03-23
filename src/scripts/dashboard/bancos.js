@@ -189,7 +189,8 @@ export function updateBancosUI(insights = [], kpis = {}) {
             pmBadge: document.getElementById(`bank-pm-badge-${id}`),
             vesValue: document.getElementById(`bank-ves-value-${id}`),
             vesMeta: document.getElementById(`bank-ves-meta-${id}`),
-            vesBar: document.getElementById(`bank-ves-bar-${id}`)
+            vesBar: document.getElementById(`bank-ves-bar-${id}`),
+            vesDelta: document.getElementById(`bank-ves-delta-${id}`),
         };
 
         const fiatBal = safeFloat(b.fiatBalance);
@@ -358,6 +359,26 @@ export function updateBancosUI(insights = [], kpis = {}) {
         if (ui.vesValue) ui.vesValue.textContent = vesControl.value;
         if (ui.vesMeta) ui.vesMeta.textContent = vesControl.meta;
         if (ui.vesBar) ui.vesBar.style.width = `${vesControl.progress}%`;
+
+        // Dispersor reconciliation: fiatBalance (net VES from ops) vs rangeVesAvailableFiat
+        // (VES committed to active promises). Delta > 0 means orphaned VES on this card.
+        if (ui.vesDelta) {
+            const bankKey = normalizeBankLimitKey(b);
+            const summary = vesControlSummaryByBank.get(bankKey);
+            const availableFromPromise = summary ? Number(summary.availableFiat || 0) : 0;
+            const delta = fiatBal - availableFromPromise;
+            const THRESHOLD = 100; // VES
+
+            if (Math.abs(delta) < THRESHOLD || (fiatBal <= 0.01 && availableFromPromise <= 0.01)) {
+                ui.vesDelta.classList.add('hidden');
+            } else if (delta > THRESHOLD) {
+                ui.vesDelta.textContent = `${formatVesInline(delta)} VES sin promesa activa`;
+                ui.vesDelta.className = 'mt-2 text-xs font-mono font-bold text-amber-400 truncate';
+            } else {
+                ui.vesDelta.textContent = `${formatVesInline(Math.abs(delta))} VES en promesa pendiente`;
+                ui.vesDelta.className = 'mt-2 text-xs font-mono font-bold text-sky-400 truncate';
+            }
+        }
     });
 
     sortBankCards(insights, getBankId);
