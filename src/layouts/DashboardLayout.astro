@@ -30,8 +30,60 @@ import SidebarMonitor from '../components/dashboard/SidebarMonitor.astro';
                         </span>
                     </div>
                 </div>
-                <div class="flex items-center gap-4">
-                    
+                <div class="flex items-center gap-2 sm:gap-3">
+                    <!-- Notificaciones -->
+                    <div id="dashboard-notifications" class="relative">
+                        <button
+                            id="dashboard-notifications-btn"
+                            type="button"
+                            aria-expanded="false"
+                            aria-controls="dashboard-notifications-panel"
+                            class="group relative flex h-10 w-10 items-center justify-center rounded-xl border border-[#F3BA2F]/20 bg-[#F3BA2F]/10 text-[#F3BA2F] shadow-lg transition-all duration-300 hover:border-[#F3BA2F]/50 hover:bg-[#F3BA2F]/20 sm:h-11 sm:w-11"
+                            title="Notificaciones de promesas"
+                        >
+                            <i class="fas fa-bell text-sm transition-transform group-hover:scale-110"></i>
+                            <span id="dashboard-notifications-badge" class="hidden absolute -right-1 -top-1 min-w-[1.25rem] rounded-full bg-rose-500 px-1.5 py-0.5 text-[10px] font-black text-white shadow-lg shadow-rose-500/30">0</span>
+                        </button>
+                        <div
+                            id="dashboard-notifications-panel"
+                            class="hidden absolute right-0 top-[calc(100%+0.75rem)] z-[1200] w-[min(420px,calc(100vw-1.5rem))] overflow-hidden rounded-[1.35rem] border border-white/10 bg-[#11161c]/95 shadow-[0_24px_60px_rgba(0,0,0,0.55)] backdrop-blur-xl"
+                        >
+                            <div class="flex items-center justify-between gap-3 border-b border-white/10 px-4 py-4">
+                                <div>
+                                    <p class="text-[10px] font-black uppercase tracking-[0.2em] text-[#F3BA2F]">Inbox</p>
+                                    <p class="mt-1 text-sm font-black uppercase tracking-[0.14em] text-white">Alertas</p>
+                                </div>
+                                <div class="flex gap-2">
+                                    <button id="dashboard-notifications-send-note" type="button" class="rounded-full border border-blue-500/20 bg-blue-500/10 px-3 py-2 text-[10px] font-black uppercase tracking-[0.14em] text-blue-400 transition-colors hover:border-blue-400/40 hover:text-blue-300">Enviar nota</button>
+                                    <button id="dashboard-notifications-mark-read" type="button" class="rounded-full border border-white/10 bg-white/[0.04] px-3 py-2 text-[10px] font-black uppercase tracking-[0.14em] text-white/70 transition-colors hover:border-[#F3BA2F]/40 hover:text-[#F3BA2F]">Marcar todo</button>
+                                </div>
+                            </div>
+                            <div id="dashboard-notifications-list" class="max-h-[360px] space-y-3 overflow-y-auto p-3">
+                                <div class="px-4 py-5 text-center text-sm font-bold text-white/50">Sin notificaciones por ahora.</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Exportar Excel -->
+                    <a
+                        id="link-p2p-sheet"
+                        href="#"
+                        class="group flex h-10 w-10 items-center justify-center rounded-xl border border-emerald-500/10 bg-emerald-500/5 text-emerald-500 shadow-lg transition-all duration-300 hover:border-emerald-500/40 hover:bg-emerald-500/20 sm:h-11 sm:w-11"
+                        title="Exportar rango a Excel"
+                        onclick="return false;"
+                    >
+                        <svg class="w-5 h-5 transition-transform group-hover:scale-110" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2zM19 20H5V4h8v4h6v12zM7 18h10v-2H7v2zm0-4h10v-2H7v2zm0-4h10V8H7v2z" />
+                        </svg>
+                    </a>
+
+                    <!-- Cerrar Sesión -->
+                    <button
+                        id="logout-btn"
+                        class="h-10 rounded-xl border border-red-500/10 bg-red-500/5 px-3 text-[10px] font-black uppercase tracking-[0.14em] text-red-500 shadow-lg transition-all duration-300 hover:border-red-500/40 hover:bg-red-500/20 active:scale-95 sm:h-11 sm:px-4 sm:text-[11px] sm:tracking-[0.16em]"
+                    >
+                        Cerrar Sesion
+                    </button>
                 </div>
             </div>
         </header>

@@ -56,7 +56,7 @@ import 'flatpickr/dist/themes/dark.css';
     }
   </script>
 
-  <div class="mb-8 flex flex-col justify-between gap-5 px-1 sm:mb-10 sm:px-2 xl:flex-row xl:items-center">
+  <div class="mb-8 flex flex-col gap-2 px-1 sm:mb-10 sm:px-2">
     <div class="max-w-3xl">
       <h1 class="break-words text-[1.7rem] font-black uppercase tracking-tight text-white sm:text-[2.1rem] md:text-[2.55rem]">
         Bienvenido, <span id="operator-alias" class="text-[#F3BA2F]">Cargando...</span>
@@ -70,88 +70,8 @@ import 'flatpickr/dist/themes/dark.css';
         </p>
       </div>
     </div>
-    
-        
-
-    <div class="flex w-full flex-wrap items-center gap-2 rounded-2xl border border-white/5 bg-[#1e2329]/20 p-2.5 backdrop-blur-sm sm:gap-3 xl:w-auto xl:flex-nowrap">
-    
-
-  
-    <div id="dashboard-notifications" class="relative">
-      <button
-        id="dashboard-notifications-btn"
-        type="button"
-        aria-expanded="false"
-        aria-controls="dashboard-notifications-panel"
-        class="group relative flex h-11 w-11 items-center justify-center rounded-xl border border-[#F3BA2F]/20 bg-[#F3BA2F]/10 text-[#F3BA2F] shadow-lg transition-all duration-300 hover:border-[#F3BA2F]/50 hover:bg-[#F3BA2F]/20 sm:h-12 sm:w-12"
-        title="Notificaciones de promesas"
-      >
-        <i class="fas fa-bell text-base transition-transform group-hover:scale-110"></i>
-        <span id="dashboard-notifications-badge" class="hidden absolute -right-1 -top-1 min-w-[1.25rem] rounded-full bg-rose-500 px-1.5 py-0.5 text-[10px] font-black text-white shadow-lg shadow-rose-500/30">0</span>
-      </button>
-
-      <div
-        id="dashboard-notifications-panel"
-        class="hidden absolute right-0 top-[calc(100%+0.75rem)] z-[1200] w-[min(420px,calc(100vw-1.5rem))] overflow-hidden rounded-[1.35rem] border border-white/10 bg-[#11161c]/95 shadow-[0_24px_60px_rgba(0,0,0,0.55)] backdrop-blur-xl"
-      >
-        <div class="flex items-center justify-between gap-3 border-b border-white/10 px-4 py-4">
-          <div>
-            <p class="text-[10px] font-black uppercase tracking-[0.2em] text-[#F3BA2F]">Inbox</p>
-            <p class="mt-1 text-sm font-black uppercase tracking-[0.14em] text-white">Alertas</p>
-          </div>
-          <div class="flex gap-2">
-            <button
-              id="dashboard-notifications-send-note"
-              type="button"
-              class="rounded-full border border-blue-500/20 bg-blue-500/10 px-3 py-2 text-[10px] font-black uppercase tracking-[0.14em] text-blue-400 transition-colors hover:border-blue-400/40 hover:text-blue-300"
-            >
-              Enviar nota
-            </button>
-            <button
-              id="dashboard-notifications-mark-read"
-              type="button"
-              class="rounded-full border border-white/10 bg-white/[0.04] px-3 py-2 text-[10px] font-black uppercase tracking-[0.14em] text-white/70 transition-colors hover:border-[#F3BA2F]/40 hover:text-[#F3BA2F]"
-            >
-              Marcar todo
-            </button>
-          </div>
-        </div>
-        <div id="dashboard-notifications-list" class="max-h-[360px] space-y-3 overflow-y-auto p-3">
-          <div class="px-4 py-5 text-center text-sm font-bold text-white/50">Sin notificaciones por ahora.</div>
-        </div>
-      </div>
-    </div>
-
-    <a
-        id="link-p2p-sheet"
-        href="#"
-        class="group flex h-11 w-11 items-center justify-center rounded-xl border border-emerald-500/10 bg-emerald-500/5 text-emerald-500 shadow-lg transition-all duration-300 hover:border-emerald-500/40 hover:bg-emerald-500/20 sm:h-12 sm:w-12"
-        title="Exportar rango a Excel"
-        onclick="return false;"
-    >
-        <svg class="w-6 h-6 transition-transform group-hover:scale-110" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2zM19 20H5V4h8v4h6v12zM7 18h10v-2H7v2zm0-4h10v-2H7v2zm0-4h10V8H7v2z" />
-        </svg>
-    </a>
-
-    <div class="w-px h-6 bg-white/10 mx-1 hidden md:block"></div>
-
-    <a
-        href="https://www.digitalevel.com/admin/"
-        class="h-11 flex-1 rounded-xl border border-white/10 bg-white/[0.04] px-4 text-center text-[11px] font-black uppercase tracking-[0.16em] text-white/80 shadow-lg transition-all duration-300 hover:border-[#F3BA2F]/40 hover:bg-[#F3BA2F]/10 hover:text-[#F3BA2F] active:scale-95 sm:h-12 sm:px-6 sm:text-[12px] sm:tracking-[0.2em] xl:flex-none inline-flex items-center justify-center"
-    >
-        Inicio
-    </a>
-    
-    <button 
-        id="logout-btn" 
-        class="h-11 flex-1 rounded-xl border border-red-500/10 bg-red-500/5 px-4 text-[11px] font-black uppercase tracking-[0.16em] text-red-500 shadow-lg transition-all duration-300 hover:border-red-500/40 hover:bg-red-500/20 active:scale-95 sm:h-12 sm:px-6 sm:text-[12px] sm:tracking-[0.2em] xl:flex-none"
-    >
-        Cerrar Sesion
-    </button>
-</div>
-
   </div>
+
 
   <section class="mb-10 rounded-[1.75rem] border border-gray-800 bg-gradient-to-br from-[#0f1216] to-[#0b0d11] p-4 shadow-xl shadow-black/40 sm:mb-12 sm:p-6 lg:p-7">
     <div class="mb-5 flex items-center gap-3">
