@@ -33,34 +33,66 @@ export function updateBancosUI(insights = [], kpis = {}) {
         minimumFractionDigits: 2,
         maximumFractionDigits: 2,
     });
+    const terminalVerdictStatuses = new Set([
+        'CLOSED',
+        'COMPLETED',
+        'CANCELLED',
+        'CANCELED',
+        'CANCELLED_BY_SYSTEM',
+        'CANCELED_BY_SYSTEM',
+        'EXPIRED',
+        'RELEASED',
+        'FINISHED',
+        'DONE',
+        'SUCCESS',
+    ]);
+    const isTerminalVerdict = (verdict = {}) => {
+        const rawStatus = String(verdict?.status || verdict?.orderStatus || '').trim().toUpperCase();
+        if (rawStatus) {
+            if (terminalVerdictStatuses.has(rawStatus)) return true;
+            if (rawStatus.startsWith('CLOSE')) return true;
+            if (rawStatus.startsWith('COMPLETE')) return true;
+            if (rawStatus.startsWith('CANCEL')) return true;
+            if (rawStatus.startsWith('EXPIRE')) return true;
+            if (rawStatus.startsWith('RELEASE')) return true;
+        }
+
+        return Boolean(verdict?.closedAt || verdict?.completedAt || verdict?.releasedAt);
+    };
+    const getActiveOpenVerdicts = (inputKpis = {}) => {
+        const openVerdicts = Array.isArray(inputKpis?.judge?.openVerdicts) ? inputKpis.judge.openVerdicts : [];
+        return openVerdicts.filter((verdict) => !isTerminalVerdict(verdict));
+    };
 
     const buildVesControlSummaryByBank = (inputKpis = {}) => {
-        const openVerdicts = Array.isArray(inputKpis?.judge?.openVerdicts) ? inputKpis.judge.openVerdicts : [];
+        const hasLiveVerdictsFeed = Array.isArray(inputKpis?.judge?.openVerdicts);
+        const openVerdicts = getActiveOpenVerdicts(inputKpis);
         const summary = new Map();
 
-        (Array.isArray(insights) ? insights : []).forEach((bank) => {
-            const bankKey = normalizeBankLimitKey(bank);
-            if (!bankKey) return;
+        if (!hasLiveVerdictsFeed) {
+            (Array.isArray(insights) ? insights : []).forEach((bank) => {
+                const bankKey = normalizeBankLimitKey(bank);
+                if (!bankKey) return;
 
-            const inflowFiat = Number(bank?.rangeVesInflowFiat || 0);
-            const availableFiat = Number(bank?.rangeVesAvailableFiat || 0);
-            const consumedFiat = Number(bank?.rangeVesConsumedFiat || 0);
+                const inflowFiat = Number(bank?.rangeVesInflowFiat || 0);
+                const availableFiat = Number(bank?.rangeVesAvailableFiat || 0);
+                const consumedFiat = Number(bank?.rangeVesConsumedFiat || 0);
 
-            if (inflowFiat <= 0.00001 && availableFiat <= 0.00001 && consumedFiat <= 0.00001) {
-                return;
-            }
+                if (inflowFiat <= 0.00001 && availableFiat <= 0.00001 && consumedFiat <= 0.00001) {
+                    return;
+                }
 
-            summary.set(bankKey, {
-                inflowFiat,
-                availableFiat,
-                consumedFiat,
+                summary.set(bankKey, {
+                    inflowFiat,
+                    availableFiat,
+                    consumedFiat,
+                });
             });
-        });
+        }
 
         openVerdicts.forEach((verdict) => {
             const bankKey = normalizeBankName(verdict?.paymentMethod);
             if (!bankKey) return;
-            if (summary.has(bankKey)) return;
 
             const saleRate = Number(verdict?.saleRate || 0);
             const fallbackExpectedFiat = Number(verdict?.fiatReceived || 0);

@@ -756,19 +756,45 @@ const getWeightedRateFromBanks = (rateCandidates = [], weightCandidates = []) =>
     return weightedSum / totalWeight;
 };
 
+// Weighted average rate from the current page's transactions (buy or sell).
+const getPageAvgRate = (typesToMatch) => {
+    if (!state.currentTransfers?.length) return 0;
+    let weightedSum = 0;
+    let totalAmount = 0;
+
+    for (const tx of state.currentTransfers) {
+        const type = String(tx?.type || '').toUpperCase();
+        if (!typesToMatch.includes(type)) continue;
+
+        const rate = getTxRate(tx);
+        if (rate <= 0) continue;
+
+        const amount = Math.abs(Number(tx?.amount || 0));
+        if (amount <= 0) continue;
+
+        weightedSum += rate * amount;
+        totalAmount += amount;
+    }
+
+    return totalAmount > 0 ? weightedSum / totalAmount : 0;
+};
+
 const getFallbackBuyReferenceRate = () => {
     const directCandidates = [
         state.kpis?.operations?.weightedAvgBuyRate,
         state.kpis?.rates?.buyRate,
         state.kpis?.rates?.buy,
         state.kpis?.summary?.minBuyRate,
-        state.kpis?.critical?.breakEvenRate,
     ];
 
     for (const candidate of directCandidates) {
         const n = Number(candidate || 0);
         if (n > 0) return n;
     }
+
+    // Compute from the current page's actual buy transactions.
+    const pageRate = getPageAvgRate(['P2P_BUY']);
+    if (pageRate > 0) return pageRate;
 
     return getWeightedRateFromBanks(
         ['weightedAvgBuyRate', 'avgBuyRate', 'buyRate'],
@@ -784,7 +810,6 @@ const getFallbackSellReferenceRate = () => {
         state.kpis?.rates?.sellRate,
         state.kpis?.rates?.sell,
         state.kpis?.bankSummary?.generalCeilingRate,
-        state.kpis?.critical?.breakEvenRate,
     ];
 
     for (const candidate of directCandidates) {
@@ -792,10 +817,19 @@ const getFallbackSellReferenceRate = () => {
         if (n > 0) return n;
     }
 
-    return getWeightedRateFromBanks(
+    // Compute from the current page's actual sell transactions.
+    const pageRate = getPageAvgRate(['P2P_SELL']);
+    if (pageRate > 0) return pageRate;
+
+    const bankRate = getWeightedRateFromBanks(
         ['lastSellRate', 'sellRate', 'avgSellRate', 'weightedAvgSellRate', 'ceilingRate'],
         ['sellVolUSDT', 'realizedVolumeUSDT', 'spreadSellUsdt']
     );
+    if (bankRate > 0) return bankRate;
+
+    // breakEvenRate as absolute last resort for sell reference is acceptable
+    // (underestimates buy spread rather than inverting sell spread).
+    return Number(state.kpis?.critical?.breakEvenRate || 0);
 };
 
 const getFallbackSpreadPercent = () => {

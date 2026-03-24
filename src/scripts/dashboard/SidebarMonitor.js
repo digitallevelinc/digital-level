@@ -428,6 +428,39 @@ function resolveVerdictBankKey(verdict = {}, knownBankKeys = new Set()) {
     return normalizeBankName(verdict?.paymentMethod);
 }
 
+const TERMINAL_VERDICT_STATUSES = new Set([
+    'CLOSED',
+    'COMPLETED',
+    'CANCELLED',
+    'CANCELED',
+    'CANCELLED_BY_SYSTEM',
+    'CANCELED_BY_SYSTEM',
+    'EXPIRED',
+    'RELEASED',
+    'FINISHED',
+    'DONE',
+    'SUCCESS',
+]);
+
+function isTerminalVerdict(verdict = {}) {
+    const rawStatus = String(verdict?.status || verdict?.orderStatus || '').trim().toUpperCase();
+    if (rawStatus) {
+        if (TERMINAL_VERDICT_STATUSES.has(rawStatus)) return true;
+        if (rawStatus.startsWith('CLOSE')) return true;
+        if (rawStatus.startsWith('COMPLETE')) return true;
+        if (rawStatus.startsWith('CANCEL')) return true;
+        if (rawStatus.startsWith('EXPIRE')) return true;
+        if (rawStatus.startsWith('RELEASE')) return true;
+    }
+
+    return Boolean(verdict?.closedAt || verdict?.completedAt || verdict?.releasedAt);
+}
+
+function getActiveOpenVerdicts(kpis = {}) {
+    const openVerdicts = Array.isArray(kpis?.judge?.openVerdicts) ? kpis.judge.openVerdicts : [];
+    return openVerdicts.filter((verdict) => !isTerminalVerdict(verdict));
+}
+
 function isPromiseVerdict(verdict) {
     const parseMode = String(verdict?.parseMode || '').trim().toUpperCase();
     if (parseMode === 'PROMISE' || parseMode === 'GLOBAL_PROMISE') return true;
@@ -435,7 +468,8 @@ function isPromiseVerdict(verdict) {
 }
 
 function buildPromiseSummaryByBank(kpis = {}, bankInsights = []) {
-    const openVerdicts = Array.isArray(kpis?.judge?.openVerdicts) ? kpis.judge.openVerdicts : [];
+    const hasLiveVerdictsFeed = Array.isArray(kpis?.judge?.openVerdicts);
+    const openVerdicts = getActiveOpenVerdicts(kpis);
     const knownBankKeys = new Set(
         (Array.isArray(bankInsights) ? bankInsights : [])
             .map((bank) => normalizeBankName(bank?.bankName || bank?.bank))
@@ -443,41 +477,42 @@ function buildPromiseSummaryByBank(kpis = {}, bankInsights = []) {
     );
     const summary = new Map();
 
-    (Array.isArray(bankInsights) ? bankInsights : []).forEach((bank) => {
-        const bankKey = normalizeBankLimitKey(bank);
-        if (!bankKey) return;
+    if (!hasLiveVerdictsFeed) {
+        (Array.isArray(bankInsights) ? bankInsights : []).forEach((bank) => {
+            const bankKey = normalizeBankLimitKey(bank);
+            if (!bankKey) return;
 
-        const promisedUsdt = Number(bank?.rangePromisedUsdt || 0);
-        const promisedFiat = Number(bank?.rangePromisedFiat || 0);
-        const pendingUsdt = Number(bank?.rangePendingUsdt || 0);
-        const pendingFiat = Number(bank?.rangePendingFiat || 0);
-        const activePromises = Number(bank?.rangeActivePromises || 0);
+            const promisedUsdt = Number(bank?.rangePromisedUsdt || 0);
+            const promisedFiat = Number(bank?.rangePromisedFiat || 0);
+            const pendingUsdt = Number(bank?.rangePendingUsdt || 0);
+            const pendingFiat = Number(bank?.rangePendingFiat || 0);
+            const activePromises = Number(bank?.rangeActivePromises || 0);
 
-        if (
-            promisedUsdt <= 0.00001
-            && promisedFiat <= 0.00001
-            && pendingUsdt <= 0.00001
-            && pendingFiat <= 0.00001
-            && activePromises <= 0
-        ) {
-            return;
-        }
+            if (
+                promisedUsdt <= 0.00001
+                && promisedFiat <= 0.00001
+                && pendingUsdt <= 0.00001
+                && pendingFiat <= 0.00001
+                && activePromises <= 0
+            ) {
+                return;
+            }
 
-        summary.set(bankKey, {
-            promisedUsdt,
-            promisedFiat,
-            pendingUsdt,
-            pendingFiat,
-            activePromises,
+            summary.set(bankKey, {
+                promisedUsdt,
+                promisedFiat,
+                pendingUsdt,
+                pendingFiat,
+                activePromises,
+            });
         });
-    });
+    }
 
     openVerdicts.forEach((verdict) => {
         if (!isPromiseVerdict(verdict)) return;
 
         const bankKey = resolveVerdictBankKey(verdict, knownBankKeys);
         if (!bankKey) return;
-        if (summary.has(bankKey)) return;
 
         const fallbackUsdt = Number(verdict?.saleAmount || 0);
         const fallbackFiat = Number(verdict?.fiatReceived || 0);
@@ -489,8 +524,6 @@ function buildPromiseSummaryByBank(kpis = {}, bankInsights = []) {
         const boundedConsumedFiat = Math.min(consumedFiat, expectedFiat);
         const pendingUsdt = Math.max(0, expectedUsdt - boundedConsumedUsdt);
         const pendingFiat = Math.max(0, expectedFiat - boundedConsumedFiat);
-        const status = String(verdict?.status || '').toUpperCase();
-
         const bucket = summary.get(bankKey) || {
             promisedUsdt: 0,
             promisedFiat: 0,
@@ -503,9 +536,7 @@ function buildPromiseSummaryByBank(kpis = {}, bankInsights = []) {
         bucket.promisedFiat += expectedFiat;
         bucket.pendingUsdt += pendingUsdt;
         bucket.pendingFiat += pendingFiat;
-        if (status !== 'CLOSED') {
-            bucket.activePromises += 1;
-        }
+        bucket.activePromises += 1;
 
         summary.set(bankKey, bucket);
     });
@@ -561,7 +592,8 @@ function buildPromiseLabel(bank, promiseSummaryByBank = new Map()) {
 }
 
 function buildVesControlSummaryByBank(kpis = {}, bankInsights = []) {
-    const openVerdicts = Array.isArray(kpis?.judge?.openVerdicts) ? kpis.judge.openVerdicts : [];
+    const hasLiveVerdictsFeed = Array.isArray(kpis?.judge?.openVerdicts);
+    const openVerdicts = getActiveOpenVerdicts(kpis);
     const knownBankKeys = new Set(
         (Array.isArray(bankInsights) ? bankInsights : [])
             .map((bank) => normalizeBankName(bank?.bankName || bank?.bank))
@@ -569,30 +601,31 @@ function buildVesControlSummaryByBank(kpis = {}, bankInsights = []) {
     );
     const summary = new Map();
 
-    (Array.isArray(bankInsights) ? bankInsights : []).forEach((bank) => {
-        const bankKey = normalizeBankLimitKey(bank);
-        if (!bankKey) return;
+    if (!hasLiveVerdictsFeed) {
+        (Array.isArray(bankInsights) ? bankInsights : []).forEach((bank) => {
+            const bankKey = normalizeBankLimitKey(bank);
+            if (!bankKey) return;
 
-        const inflowFiat = Number(bank?.rangeVesInflowFiat || 0);
-        const availableFiat = Number(bank?.rangeVesAvailableFiat || 0);
-        const consumedFiat = Number(bank?.rangeVesConsumedFiat || 0);
+            const inflowFiat = Number(bank?.rangeVesInflowFiat || 0);
+            const availableFiat = Number(bank?.rangeVesAvailableFiat || 0);
+            const consumedFiat = Number(bank?.rangeVesConsumedFiat || 0);
 
-        if (inflowFiat <= 0.00001 && availableFiat <= 0.00001 && consumedFiat <= 0.00001) {
-            return;
-        }
+            if (inflowFiat <= 0.00001 && availableFiat <= 0.00001 && consumedFiat <= 0.00001) {
+                return;
+            }
 
-        summary.set(bankKey, {
-            inflowFiat,
-            availableFiat,
-            consumedFiat,
-            activeVerdicts: Number(bank?.activeVerdictsCount || 0),
+            summary.set(bankKey, {
+                inflowFiat,
+                availableFiat,
+                consumedFiat,
+                activeVerdicts: Number(bank?.activeVerdictsCount || 0),
+            });
         });
-    });
+    }
 
     openVerdicts.forEach((verdict) => {
         const bankKey = resolveVerdictBankKey(verdict, knownBankKeys) || normalizeBankName(verdict?.paymentMethod);
         if (!bankKey) return;
-        if (summary.has(bankKey)) return;
 
         const saleRate = Number(verdict?.saleRate || 0);
         const fallbackExpectedFiat = Number(verdict?.fiatReceived || 0);
@@ -632,7 +665,7 @@ function buildVesControlSummaryByBank(kpis = {}, bankInsights = []) {
 }
 
 function buildLatestCycleByBank(kpis = {}, bankInsights = []) {
-    const openVerdicts = Array.isArray(kpis?.judge?.openVerdicts) ? kpis.judge.openVerdicts : [];
+    const openVerdicts = getActiveOpenVerdicts(kpis);
     const knownBankKeys = new Set(
         (Array.isArray(bankInsights) ? bankInsights : [])
             .map((bank) => normalizeBankName(bank?.bankName || bank?.bank))
@@ -844,13 +877,17 @@ export function updateSidebarMonitor(kpis = {}, bankInsights = []) {
         discEl.className = `text-sm font-mono font-black tracking-tighter ${diferencia < 0 ? 'text-rose-500' : 'text-emerald-400'}`;
     }
 
-    const openVerdicts = kpis.judge?.openVerdictsCount ?? kpis.judge?.summary?.openVerdictsCount ?? 0;
+    const hasLiveVerdictsFeed = Array.isArray(kpis?.judge?.openVerdicts);
+    const openVerdicts = hasLiveVerdictsFeed
+        ? getActiveOpenVerdicts(kpis).length
+        : (kpis.judge?.openVerdictsCount ?? kpis.judge?.summary?.openVerdictsCount ?? 0);
     inject('side-verdicts-count', `${openVerdicts} Open`);
 
     const listContainer = document.getElementById('side-banks-list');
     if (!listContainer) return;
     listContainer.innerHTML = '';
     const promiseSummaryByBank = buildPromiseSummaryByBank(kpis, normalizedBankInsights);
+    const vesControlSummaryByBank = buildVesControlSummaryByBank(kpis, normalizedBankInsights);
     const latestCycleByBank = buildLatestCycleByBank(kpis, normalizedBankInsights);
     const bankCards = normalizedBankInsights.map((bank) => {
         const ops = Number(bank.monthlyTransactionCount ?? bank.transactionCount ?? bank.totalOps ?? ((bank.countSell || 0) + (bank.countBuy || 0)));
@@ -863,50 +900,16 @@ export function updateSidebarMonitor(kpis = {}, bankInsights = []) {
         const completedByInsight = Number(bank.completedCycles || 0);
         const cyclesCompleted = Math.max(completedByJudge, completedByInsight, 0);
         const spreadLabel = buildSpreadLabel(bank, cyclesCompleted);
-        const explicitCeiling = Number(
-            latestCycle.cycleTotalFiat
-            || judgeBank.currentCycleTotalFiat
-            || bank.currentCycleTotalFiat
-            || 0
-        );
-        const explicitRemaining = Number(
-            latestCycle.cycleRemainingFiat
-            || judgeBank.currentCycleFiatRemaining
-            || bank.currentCycleFiatRemaining
-            || 0
-        );
-        const bankCeiling = explicitCeiling > 0 ? explicitCeiling : 0;
-        const bankRemaining = bankCeiling > 0
-            ? Math.min(bankCeiling, Math.max(0, explicitRemaining))
-            : 0;
-        const burned = Math.max(0, bankCeiling - bankRemaining);
-        const vesControl = bankCeiling > 0
-            ? {
-                value: `${fVESInline(bankRemaining)} / ${fVESInline(bankCeiling)}`,
-                meta: burned <= 0.01
-                    ? 'Barra llena'
-                    : bankRemaining <= 0.01
-                        ? 'Lote quemado'
-                        : `${fVESInline(burned)} quemado`,
-                progress: clampPercent((bankRemaining / bankCeiling) * 100),
-                limit: bankCeiling,
-                current: bankRemaining,
-                hasFlow: true,
-            }
-            : {
-                value: '0.00 / 0.00',
-                meta: 'Sin ciclo activo',
-                progress: 0,
-                limit: 0,
-                current: 0,
-                hasFlow: false,
-            };
-        const explicitCeilingUsdt = Number(
-            latestCycle.cycleTotalUsdt
-            || judgeBank.currentCycleSaleUSDT
-            || bank.currentCycleSaleUSDT
-            || 0
-        );
+        const vesControl = buildBankVesLimitLabel(bank, kpis.config || {}, vesControlSummaryByBank);
+        const bankCeiling = Number(vesControl.limit || 0);
+        const explicitCeilingUsdt = hasLiveVerdictsFeed
+            ? Number(latestCycle.cycleTotalUsdt || 0)
+            : Number(
+                latestCycle.cycleTotalUsdt
+                || judgeBank.currentCycleSaleUSDT
+                || bank.currentCycleSaleUSDT
+                || 0
+            );
         const ceilingRate = Number(
             bank.ceilingRate
             || bank.lastSellRate

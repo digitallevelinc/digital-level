@@ -14,6 +14,24 @@ import 'flatpickr/dist/themes/dark.css';
 ---
 
 <DashboardLayout>
+  <!-- Impersonacion Admin: aceptar ?impersonate=<token>&alias=<alias> -->
+  <script is:inline>
+    (function handleImpersonation() {
+      const params = new URLSearchParams(window.location.search);
+      const impToken = params.get('impersonate');
+      const impAlias = params.get('alias');
+      if (impToken) {
+        sessionStorage.setItem('auth_token', impToken);
+        sessionStorage.setItem('user_role', 'operator');
+        sessionStorage.setItem('operator_alias', impAlias || 'Operador');
+        sessionStorage.setItem('user_info', JSON.stringify({ alias: impAlias || 'Operador' }));
+        sessionStorage.setItem('admin_impersonation', 'true');
+        // Clean URL without reloading
+        const cleanUrl = window.location.pathname;
+        window.history.replaceState({}, '', cleanUrl);
+      }
+    })();
+  </script>
   <!-- Proteccion de Ruta: Redirigir Inversores al Hub correcto -->
   <script is:inline>
     const userRole = sessionStorage.getItem('user_role');
@@ -21,6 +39,23 @@ import 'flatpickr/dist/themes/dark.css';
       window.location.href = '/investor';
     }
   </script>
+  <!-- Banner de impersonación admin -->
+  <div id="admin-impersonation-banner" class="hidden mb-4 mx-1 sm:mx-2 flex items-center gap-3 rounded-xl border border-[#F3BA2F]/30 bg-[#F3BA2F]/10 px-4 py-2.5 text-sm">
+    <span class="text-[#F3BA2F] font-black text-xs uppercase tracking-[0.15em]">Admin</span>
+    <span class="text-white/80">Viendo dashboard de <strong id="impersonation-alias" class="text-[#F3BA2F]"></strong> en modo lectura</span>
+    <button onclick="sessionStorage.clear(); window.close();" class="ml-auto rounded-lg border border-white/10 bg-white/5 px-3 py-1 text-xs font-bold text-white/70 hover:bg-white/10 hover:text-white transition-colors">Cerrar</button>
+  </div>
+  <script is:inline>
+    if (sessionStorage.getItem('admin_impersonation') === 'true') {
+      const banner = document.getElementById('admin-impersonation-banner');
+      if (banner) {
+        banner.classList.remove('hidden');
+        const aliasEl = document.getElementById('impersonation-alias');
+        if (aliasEl) aliasEl.textContent = sessionStorage.getItem('operator_alias') || 'Operador';
+      }
+    }
+  </script>
+
   <div class="mb-8 flex flex-col justify-between gap-5 px-1 sm:mb-10 sm:px-2 xl:flex-row xl:items-center">
     <div class="max-w-3xl">
       <h1 class="break-words text-[1.7rem] font-black uppercase tracking-tight text-white sm:text-[2.1rem] md:text-[2.55rem]">
@@ -62,15 +97,24 @@ import 'flatpickr/dist/themes/dark.css';
         <div class="flex items-center justify-between gap-3 border-b border-white/10 px-4 py-4">
           <div>
             <p class="text-[10px] font-black uppercase tracking-[0.2em] text-[#F3BA2F]">Inbox</p>
-            <p class="mt-1 text-sm font-black uppercase tracking-[0.14em] text-white">Promesas</p>
+            <p class="mt-1 text-sm font-black uppercase tracking-[0.14em] text-white">Alertas</p>
           </div>
-          <button
-            id="dashboard-notifications-mark-read"
-            type="button"
-            class="rounded-full border border-white/10 bg-white/[0.04] px-3 py-2 text-[10px] font-black uppercase tracking-[0.14em] text-white/70 transition-colors hover:border-[#F3BA2F]/40 hover:text-[#F3BA2F]"
-          >
-            Marcar todo
-          </button>
+          <div class="flex gap-2">
+            <button
+              id="dashboard-notifications-send-note"
+              type="button"
+              class="rounded-full border border-blue-500/20 bg-blue-500/10 px-3 py-2 text-[10px] font-black uppercase tracking-[0.14em] text-blue-400 transition-colors hover:border-blue-400/40 hover:text-blue-300"
+            >
+              Enviar nota
+            </button>
+            <button
+              id="dashboard-notifications-mark-read"
+              type="button"
+              class="rounded-full border border-white/10 bg-white/[0.04] px-3 py-2 text-[10px] font-black uppercase tracking-[0.14em] text-white/70 transition-colors hover:border-[#F3BA2F]/40 hover:text-[#F3BA2F]"
+            >
+              Marcar todo
+            </button>
+          </div>
         </div>
         <div id="dashboard-notifications-list" class="max-h-[360px] space-y-3 overflow-y-auto p-3">
           <div class="px-4 py-5 text-center text-sm font-bold text-white/50">Sin notificaciones por ahora.</div>
