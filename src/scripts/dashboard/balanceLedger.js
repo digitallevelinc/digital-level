@@ -875,7 +875,14 @@ const computeTxSpread = (tx = {}) => {
 
     const bank = matchTxToBank(tx);
     if (type === 'P2P_SELL') {
-        const avgBuyRate = Number(bank?.weightedAvgBuyRate || bank?.avgBuyRate || bank?.buyRate || 0) || getFallbackBuyReferenceRate();
+        // Reference buy rate priority:
+        // 1. Page avg of P2P_BUY rates (same timeframe — most accurate)
+        // 2. Bank-level weighted buy rate from bankInsights
+        // 3. Global fallback (period average)
+        const pageBuyRate = getPageAvgRate(['P2P_BUY']);
+        const avgBuyRate = pageBuyRate > 0
+            ? pageBuyRate
+            : Number(bank?.weightedAvgBuyRate || bank?.avgBuyRate || bank?.buyRate || 0) || getFallbackBuyReferenceRate();
         if (avgBuyRate <= 0) {
             const fallbackSpreadPct = getFallbackSpreadPercent();
             if (fallbackSpreadPct === 0) return 0;
@@ -887,14 +894,21 @@ const computeTxSpread = (tx = {}) => {
         return (grossBuyRef - grossBuyRef * refFeeRate) - (amount + effectiveFee);
     }
 
-    const referenceSellRate = Number(
-        bank?.lastSellRate
-        || bank?.sellRate
-        || bank?.avgSellRate
-        || bank?.weightedAvgSellRate
-        || bank?.ceilingRate
-        || 0
-    ) || getFallbackSellReferenceRate();
+    // Reference sell rate priority:
+    // 1. Page avg of P2P_SELL rates (same timeframe — most accurate)
+    // 2. Bank-level sell rate from bankInsights
+    // 3. Global fallback (period average)
+    const pageSellRate = getPageAvgRate(['P2P_SELL']);
+    const referenceSellRate = pageSellRate > 0
+        ? pageSellRate
+        : Number(
+            bank?.lastSellRate
+            || bank?.sellRate
+            || bank?.avgSellRate
+            || bank?.weightedAvgSellRate
+            || bank?.ceilingRate
+            || 0
+        ) || getFallbackSellReferenceRate();
 
     if (referenceSellRate <= 0) {
         const fallbackSpreadPct = getFallbackSpreadPercent();
