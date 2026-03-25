@@ -1,7 +1,7 @@
 ---
 import CardHelp from './CardHelp.astro';
 ---
-<div class="flex flex-col gap-6 rounded-[1.5rem] border border-emerald-500/20 bg-[#161a1e] p-5 shadow-2xl sm:p-6 lg:p-7">
+<div class="flex flex-col gap-5 rounded-[1.5rem] border border-emerald-500/20 bg-[#161a1e] p-5 shadow-2xl sm:p-6 lg:p-7">
   <div class="flex flex-wrap items-center justify-between gap-3">
     <p class="text-[12px] font-black uppercase tracking-[0.22em] text-white/70 sm:text-[13px]">Resumen de Profit</p>
     <CardHelp
@@ -17,42 +17,42 @@ import CardHelp from './CardHelp.astro';
     />
   </div>
 
-  <div class="grid grid-cols-1 gap-5">
-    <div class="rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-5">
-      <span class="mb-2 block text-center text-[12px] font-black uppercase text-white-500/60 sm:text-[13px]">Binance Wallet (API)</span>
-      <div id="real-binance-balance" class="text-center font-mono text-[2rem] font-bold leading-none text-emerald-400 sm:text-[2.3rem]">---</div>
-      <p class="mt-3 text-center text-[11px] font-bold uppercase tracking-[0.14em] text-white-600">Saldo real verificado</p>
+  <div class="grid grid-cols-1 gap-3 border-t border-white/5 pt-5 md:grid-cols-3">
+    <div class="flex min-h-[132px] items-start gap-4 rounded-xl border border-emerald-500/20 bg-emerald-500/[0.07] p-4 shadow-inner shadow-black/20">
+      <div class="rounded-lg bg-emerald-500/10 p-3 text-emerald-400">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 7.5V6a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-1.5"></path><path d="M16 12h6"></path><path d="M19 9l3 3-3 3"></path></svg>
+      </div>
+      <div class="flex-1">
+        <p class="mb-1 text-[11px] font-black uppercase tracking-[0.16em] text-white/55 sm:text-[12px]">Binance Wallet (API)</p>
+        <h4 id="real-binance-balance" class="font-mono text-[1.75rem] font-bold leading-tight text-emerald-400 sm:text-[1.95rem]">---</h4>
+        <p class="mt-2 text-[10px] italic uppercase tracking-[0.14em] text-white/45 sm:text-[11px]">Saldo real verificado</p>
+      </div>
     </div>
-  </div>
 
-  <div class="grid grid-cols-1 gap-4 border-t border-white/5 pt-6 md:grid-cols-2">
-    <div class="flex items-center gap-4 rounded-xl border border-white/5 bg-white/[0.02] p-5 shadow-inner">
+    <div class="flex min-h-[132px] items-start gap-4 rounded-xl border border-white/5 bg-white/[0.02] p-4 shadow-inner shadow-black/20">
       <div class="rounded-lg bg-blue-500/10 p-3 text-blue-400">
         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline><polyline points="17 6 23 6 23 12"></polyline></svg>
       </div>
-      <div>
-        <p class="mb-1 text-[12px] font-black uppercase tracking-[0.16em] text-white-400 sm:text-[13px]">Profit Operativo</p>
-        <h4 id="audit-total-profit-display" class="font-mono text-[1.8rem] font-bold leading-tight text-white sm:text-[2rem]">---</h4>
-        <p class="mt-1 text-[11px] italic uppercase tracking-[0.12em] text-white-500">Suma de profit neto consolidado del rango</p>
+      <div class="flex-1">
+        <p class="mb-1 text-[11px] font-black uppercase tracking-[0.16em] text-white/55 sm:text-[12px]">Profit Operativo</p>
+        <h4 id="audit-total-profit-display" class="font-mono text-[1.75rem] font-bold leading-tight text-white sm:text-[1.95rem]">---</h4>
+        <p class="mt-2 text-[10px] italic uppercase tracking-[0.14em] text-white/45 sm:text-[11px]">Profit neto consolidado del rango</p>
       </div>
     </div>
 
-    <div class="flex items-center gap-4 rounded-xl border border-white/5 bg-white/[0.02] p-5 shadow-inner">
+    <div class="flex min-h-[132px] items-start gap-4 rounded-xl border border-white/5 bg-white/[0.02] p-4 shadow-inner shadow-black/20">
       <div class="rounded-lg bg-purple-500/10 p-3 text-purple-400">
         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"></line><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
       </div>
       <div class="flex-1">
-        <p class="mb-1 text-[12px] font-black uppercase tracking-[0.16em] text-white-400 sm:text-[13px]">Volumen Total</p>
-        <h4 id="audit-total-volume" class="font-mono text-[1.8rem] font-bold leading-tight text-white sm:text-[2rem]">---</h4>
-        <div class="mt-1 flex items-center justify-between">
-          <p class="text-[11px] italic uppercase tracking-[0.12em] text-white-500">USDT Operados</p>
-        </div>
+        <p class="mb-1 text-[11px] font-black uppercase tracking-[0.16em] text-white/55 sm:text-[12px]">Volumen Total</p>
+        <h4 id="audit-total-volume" class="font-mono text-[1.75rem] font-bold leading-tight text-white sm:text-[1.95rem]">---</h4>
+        <p class="mt-2 text-[10px] italic uppercase tracking-[0.14em] text-white/45 sm:text-[11px]">USDT operados</p>
       </div>
     </div>
   </div>
 
-
-  <div class="mt-2 rounded-xl border border-white/5 bg-white/[0.02] p-4 shadow-inner sm:p-5">
+  <div class="rounded-xl border border-white/5 bg-white/[0.02] p-4 shadow-inner sm:p-5">
     <button id="toggle-evolution-chart" type="button" class="w-full flex items-center justify-between cursor-pointer bg-transparent border-0 p-0 group">
       <h3 class="text-[13px] font-bold uppercase tracking-[0.14em] text-white/70 sm:text-sm group-hover:text-white/90 transition-colors">Evolucion Historica</h3>
       <i id="evolution-chart-icon" class="fas fa-chevron-right text-white/40 text-xs transition-transform duration-300 group-hover:text-white/60"></i>
