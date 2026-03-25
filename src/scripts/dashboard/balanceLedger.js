@@ -267,6 +267,8 @@ const getRowToneClass = (category) => {
             return 'ledger-row-pay';
         case 'LIQUID':
             return 'ledger-row-liquid';
+        case 'PARSEO':
+            return 'ledger-row-parseo';
         default:
             return 'ledger-row-neutral';
     }
@@ -487,6 +489,57 @@ const formatPromiseUsdt = (value) => `${formatNumber(Math.abs(Number(value || 0)
 
 const formatPromiseFiat = (value, tx) => `${formatNumber(Math.abs(Number(value || 0)), 2)} ${getFiatLabel(tx)}`;
 
+const renderReceiversDetail = (receivers = []) => {
+    if (!receivers.length) return '';
+    const sorted = [...receivers].sort((a, b) => Number(b?.pendingUsdt || 0) - Number(a?.pendingUsdt || 0));
+    const rows = sorted.map((r) => {
+        const alias = escapeHtml(r.receiverOperatorAlias || r.receiverLabel || 'Desconocido');
+        const promised = Number(r.promisedUsdt || 0);
+        const pending = Number(r.pendingUsdt || 0);
+        const recovered = Number(r.recoveredUsdtLocal || 0);
+        const coverage = Number(r.localCoveragePercent || 0);
+        const active = Number(r.activePromises || 0);
+        const pendingFiat = Number(r.pendingFiat || 0);
+        const isFulfilled = pending < 0.01;
+        const barPct = promised > 0 ? Math.min(100, ((promised - pending) / promised) * 100) : 0;
+        const statusClass = isFulfilled ? 'dispersor-fulfilled' : pending > promised * 0.5 ? 'dispersor-critical' : 'dispersor-partial';
+        return `
+            <div class="dispersor-receiver-row ${statusClass}">
+                <div class="dispersor-receiver-identity">
+                    <span class="dispersor-receiver-avatar">${escapeHtml(alias.charAt(0).toUpperCase())}</span>
+                    <div class="dispersor-receiver-info">
+                        <span class="dispersor-receiver-name">${alias}</span>
+                        <span class="dispersor-receiver-meta">${active} promesa${active !== 1 ? 's' : ''} activa${active !== 1 ? 's' : ''}</span>
+                    </div>
+                </div>
+                <div class="dispersor-receiver-amounts">
+                    <div class="dispersor-receiver-line">
+                        <span class="dispersor-receiver-label">Prometido</span>
+                        <span class="dispersor-receiver-value">${formatNumber(promised, 2, 'en-US')} USDT</span>
+                    </div>
+                    <div class="dispersor-receiver-line">
+                        <span class="dispersor-receiver-label">Recuperado</span>
+                        <span class="dispersor-receiver-value dispersor-value-recovered">${formatNumber(recovered, 2, 'en-US')} USDT</span>
+                    </div>
+                    <div class="dispersor-receiver-line">
+                        <span class="dispersor-receiver-label">Pendiente</span>
+                        <span class="dispersor-receiver-value ${isFulfilled ? 'dispersor-value-ok' : 'dispersor-value-pending'}">${isFulfilled ? 'Cubierto' : `${formatNumber(pending, 2, 'en-US')} USDT`}</span>
+                    </div>
+                    <div class="dispersor-receiver-bar-wrap">
+                        <div class="dispersor-receiver-bar" style="width:${barPct.toFixed(1)}%"></div>
+                    </div>
+                </div>
+            </div>`;
+    }).join('');
+    return `<div class="dispersor-receivers-panel" id="dispersor-receivers-panel" style="display:none">
+        <div class="dispersor-receivers-header">
+            <span class="dispersor-receivers-title">Desglose por dispersor</span>
+            <span class="dispersor-receivers-count">${sorted.length} dispersor${sorted.length !== 1 ? 'es' : ''}</span>
+        </div>
+        <div class="dispersor-receivers-list">${rows}</div>
+    </div>`;
+};
+
 const renderMetricCard = ({ label, value, sub = '', tone = '' }) => `
     <div class="ledger-metric-card ${tone}">
         <span class="ledger-metric-label">${escapeHtml(label)}</span>
@@ -682,7 +735,8 @@ const buildRowsWithBalance = (transfers = []) => {
                     actualUsdt: recoveredUsdt,
                     actualFiat: recoveredFiat,
                     pendingUsdt: pendingUsdt,
-                    pendingFiat: pendingFiat
+                    pendingFiat: pendingFiat,
+                    receivers: Array.isArray(dispersor?.receivers) ? dispersor.receivers : []
                 }
             };
             rows.unshift(syntheticTx);
@@ -1012,8 +1066,19 @@ const renderRow = (tx, rowBalance, cycleData = undefined) => {
     const fiatHtml = fiatText ? `<div class="ledger-mobile-sub">${escapeHtml(fiatText)}</div>` : '';
     const fiatDesktopHtml = fiatText ? `<div class="ledger-amount-sub">${escapeHtml(fiatText)}</div>` : '';
 
+    const isDispersorPending = String(tx?.type || '').toUpperCase() === 'DISPERSOR_PENDING';
+    const receivers = isDispersorPending ? (tx?.syntheticPromiseMeta?.receivers || []) : [];
+    const hasReceivers = receivers.length > 0;
+    const toggleBtnHtml = hasReceivers
+        ? `<button class="dispersor-toggle-btn" data-dispersor-toggle title="Ver desglose por dispersor">
+            <svg class="dispersor-toggle-icon" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+            <span>${receivers.length} dispersor${receivers.length !== 1 ? 'es' : ''}</span>
+           </button>`
+        : '';
+    const receiversHtml = hasReceivers ? renderReceiversDetail(receivers) : '';
+
     return `
-        <article class="ledger-row ${rowTone}">
+        <article class="ledger-row ${rowTone}${isDispersorPending ? ' ledger-row-dispersor-pending' : ''}">
             <div class="ledger-mobile-scroll lg:hidden">
                 <div class="ledger-mobile-row-track">
                     <div class="ledger-mobile-main-block">
@@ -1029,7 +1094,7 @@ const renderRow = (tx, rowBalance, cycleData = undefined) => {
                         </div>
 
                         <div class="ledger-mobile-title">${top}</div>
-                        <div class="ledger-mobile-kicker">${directionLabel}${methodText ? ` | ${methodText}` : ''}</div>
+                        <div class="ledger-mobile-kicker">${directionLabel}${methodText ? ` | ${methodText}` : ''}${toggleBtnHtml ? ` ${toggleBtnHtml}` : ''}</div>
 
                         <div class="ledger-mobile-meta">
                             ${metaHtml || '<span class="ledger-meta-chip ledger-meta-chip-muted">Sin metadata extra</span>'}
@@ -1055,6 +1120,7 @@ const renderRow = (tx, rowBalance, cycleData = undefined) => {
                 <div class="ledger-description-col">
                     <div class="ledger-title-row">
                         <div class="ledger-title">${top}</div>
+                        ${toggleBtnHtml}
                     </div>
                     <div class="ledger-subtitle">${methodText || 'Operacion del ledger'}</div>
                     <div class="ledger-meta-strip">
@@ -1078,6 +1144,7 @@ const renderRow = (tx, rowBalance, cycleData = undefined) => {
                     ${spreadMetric}
                 </div>
             </div>
+            ${receiversHtml}
         </article>
     `;
 };
@@ -1117,6 +1184,21 @@ const renderTransfers = (transfers = []) => {
     }
 
     body.innerHTML = filteredRows.map(({ tx, balance }) => renderRow(tx, balance, cycleSpreads.get(tx))).join('');
+
+    // Wire dispersor toggle buttons
+    body.querySelectorAll('[data-dispersor-toggle]').forEach((btn) => {
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const article = btn.closest('.ledger-row-dispersor-pending');
+            if (!article) return;
+            const panel = article.querySelector('.dispersor-receivers-panel');
+            if (!panel) return;
+            const isOpen = panel.style.display !== 'none';
+            panel.style.display = isOpen ? 'none' : 'block';
+            btn.classList.toggle('dispersor-toggle-open', !isOpen);
+        });
+    });
+
     updatePaginationUI();
     if (scroll) scroll.scrollTop = 0;
 };
