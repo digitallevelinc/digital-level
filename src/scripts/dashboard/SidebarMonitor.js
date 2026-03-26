@@ -49,11 +49,25 @@ function weightedAverage(items = [], getValue = () => 0, getWeight = () => 0) {
     return weightedSum / totalWeight;
 }
 
+function resolveBankAverageSellRate(bank = {}) {
+    return Number(
+        bank.weightedAvgSellRate
+        || bank.avgSellRate
+        || bank.sellRate
+        || bank.lastSellRate
+        || 0
+    );
+}
+
+function resolveBankCeilingRate(bank = {}, fallbackRate = 0) {
+    return Number(bank.ceilingRate || fallbackRate || 0);
+}
+
 function getBankMonitorSummary(kpis = {}, bankInsights = []) {
     const banks = Array.isArray(bankInsights) ? bankInsights : [];
     const ceilingBanks = banks.filter((bank) => Number(bank.ceilingRate || 0) > 0);
     const sellReferenceBanks = banks.filter(
-        (bank) => Number(bank.lastSellRate || bank.sellRate || bank.weightedAvgSellRate || bank.avgSellRate || 0) > 0
+        (bank) => resolveBankAverageSellRate(bank) > 0
     );
     const spreadBanks = banks.filter(
         (bank) => Number(bank.spreadSellUsdt || 0) > 0 || Number(bank.spreadProfitUsdt || 0) !== 0
@@ -83,25 +97,25 @@ function getBankMonitorSummary(kpis = {}, bankInsights = []) {
         if (sellFiat > 0) return sellFiat;
 
         const sellVolUsdt = Number(bank.sellVolUSDT || bank.realizedVolumeUSDT || bank.spreadSellUsdt || 0);
-        const sellRate = Number(bank.lastSellRate || bank.sellRate || bank.weightedAvgSellRate || bank.avgSellRate || 0);
+        const sellRate = resolveBankAverageSellRate(bank);
         if (sellVolUsdt > 0 && sellRate > 0) return sellVolUsdt * sellRate;
         return sellVolUsdt > 0 ? sellVolUsdt : 0;
     };
 
     const avgSellRateFromBanks = weightedAverage(
         sellReferenceBanks,
-        (bank) => bank.lastSellRate ?? bank.sellRate ?? bank.weightedAvgSellRate ?? bank.avgSellRate,
+        (bank) => resolveBankAverageSellRate(bank),
         getSellWeight
     );
     const avgCeilingRateFromBanks = weightedAverage(
         ceilingBanks,
-        (bank) => bank.ceilingRate,
+        (bank) => resolveBankCeilingRate(bank),
         getSellWeight
     );
     const referenceSellBanks = ceilingBanks.length > 0 ? ceilingBanks : sellReferenceBanks;
     const referenceSellRateFromBanks = weightedAverage(
         referenceSellBanks,
-        (bank) => bank.lastSellRate ?? bank.sellRate ?? bank.weightedAvgSellRate ?? bank.avgSellRate,
+        (bank) => resolveBankAverageSellRate(bank),
         getSellWeight
     );
     const avgSellRate = avgSellRateFromBanks > 0
@@ -125,13 +139,10 @@ function getBankMonitorSummary(kpis = {}, bankInsights = []) {
     };
 }
 
-function buildSpreadLabel(bank, cyclesCompleted = 0) {
-    const spread = Number(bank.spreadProfitUsdt || 0);
-    const profit = Number(bank.profit || 0);
-    if (Math.abs(spread) < 0.0001 && Math.abs(profit) < 0.0001 && Number(cyclesCompleted || 0) <= 0) {
-        return 'Sin spread realizado aun';
-    }
-    return `Spread ${formatSignedUsdt(spread)} | Neto ${formatSignedUsdt(profit)}`;
+function buildBankRateLabel(bank, fallbackRate = 0) {
+    const averageSellRate = resolveBankAverageSellRate(bank);
+    const ceilingRate = resolveBankCeilingRate(bank, fallbackRate);
+    return `Venta prom. ${formatPlain(averageSellRate)} | Techo ${formatPlain(ceilingRate)}`;
 }
 
 function buildPagoMovilLabel(bank, config = {}) {
@@ -382,14 +393,6 @@ function buildJudgeSummaryByBank(entries = []) {
     });
 
     return mergedByKey;
-}
-
-function resolveConfiguredBankSpendLimit(bank, config = {}) {
-    const limits = config?.bankSpendLimitsVes && typeof config.bankSpendLimitsVes === 'object'
-        ? config.bankSpendLimitsVes
-        : {};
-    const key = normalizeBankLimitKey(bank);
-    return Number(limits?.[key] || 0);
 }
 
 function resolveVerdictBankKey(verdict = {}, knownBankKeys = new Set()) {
@@ -715,7 +718,6 @@ function buildLatestCycleByBank(kpis = {}, bankInsights = []) {
 function buildBankVesLimitLabel(bank, _config = {}, vesControlSummaryByBank = new Map()) {
     const key = normalizeBankLimitKey(bank);
     const dynamicSummary = vesControlSummaryByBank.get(key);
-    const configuredLimit = resolveConfiguredBankSpendLimit(bank, _config);
     const fallbackAvailable = Math.max(
         0,
         Number(bank?.currentCycleFiatRemaining || 0),
@@ -734,30 +736,6 @@ function buildBankVesLimitLabel(bank, _config = {}, vesControlSummaryByBank = ne
     );
     const hasFallbackCycleSnapshot =
         fallbackAvailable > 0.00001 || fallbackConsumed > 0.00001 || fallbackInflow > 0.00001;
-
-    if (configuredLimit > 0) {
-        const rawAvailable = dynamicSummary
-            ? Number(dynamicSummary.availableFiat || 0)
-            : hasFallbackCycleSnapshot
-                ? fallbackAvailable
-                : configuredLimit;
-        const available = Math.min(configuredLimit, Math.max(0, rawAvailable));
-        const burned = Math.max(0, configuredLimit - available);
-        const progress = configuredLimit > 0 ? clampPercent((available / configuredLimit) * 100) : 0;
-
-        return {
-            value: `${fVESInline(available)} / ${fVESInline(configuredLimit)}`,
-            meta: burned <= 0.01
-                ? 'Barra llena'
-                : available <= 0.01
-                    ? 'Lote quemado'
-                    : `${fVESInline(burned)} quemado`,
-            progress,
-            limit: configuredLimit,
-            current: available,
-            hasFlow: true,
-        };
-    }
 
     const hasDynamic = Boolean(dynamicSummary);
     if (!hasDynamic) {
@@ -889,16 +867,17 @@ export function updateSidebarMonitor(kpis = {}, bankInsights = []) {
     inject('side-profit-total', fUSDT(profit));
     inject('side-spread-value', formatSignedUsdt(bankSummary.spreadProfitUsdt));
     inject('side-spread-meta', `${formatPlain(bankSummary.spreadPercent)}%`);
-    const criticalCyclesCount = Number(critical.completedCycles || 0);
+    const criticalCyclesCount = Number(
+        critical.cycleEquivalentCount
+        ?? critical.completedCycles
+        ?? 0
+    );
     const judgeCyclesCount = Number(completedCycles.count || 0);
-    const cyclesTotalProfit = Number(completedCycles.totalProfit || 0);
-    const judgeAvgProfitPerCycle = judgeCyclesCount > 0 ? cyclesTotalProfit / judgeCyclesCount : 0;
-    const hasCriticalCycleMetrics =
-        criticalCyclesCount > 0 || Math.abs(Number(critical.averageCycleProfit || 0)) > 0.0001;
-    const avgProfitPerCycle = hasCriticalCycleMetrics
-        ? Number(critical.averageCycleProfit || 0)
-        : judgeAvgProfitPerCycle;
     const cycleCountToDisplay = criticalCyclesCount > 0 ? criticalCyclesCount : judgeCyclesCount;
+    const realizedProfitForAverage = Number(critical.profitTotalUSDT ?? profit ?? 0);
+    const avgProfitPerCycle = cycleCountToDisplay > 0
+        ? realizedProfitForAverage / cycleCountToDisplay
+        : 0;
     inject('side-cycle-avg', formatPlain(avgProfitPerCycle));
     inject('side-cycle-count', formatPlain(cycleCountToDisplay, 0));
 
@@ -978,61 +957,29 @@ export function updateSidebarMonitor(kpis = {}, bankInsights = []) {
         const completedByJudge = Number(judgeBank.completedCycles || 0);
         const completedByInsight = Number(bank.completedCycles || 0);
         const cyclesCompleted = Math.max(completedByJudge, completedByInsight, 0);
-        const spreadLabel = buildSpreadLabel(bank, cyclesCompleted);
+        const rateLabel = buildBankRateLabel(bank, bankSummary.referenceSellRate);
         const vesControl = buildBankVesLimitLabel(bank, kpis.config || {}, vesControlSummaryByBank);
         const bankCeiling = Number(vesControl.limit || 0);
-        const explicitCeilingUsdt = hasLiveVerdictsFeed
-            ? Number(latestCycle.cycleTotalUsdt || 0)
-            : Number(
-                latestCycle.cycleTotalUsdt
-                || judgeBank.currentCycleSaleUSDT
-                || bank.currentCycleSaleUSDT
-                || 0
-            );
         const ceilingRate = Number(
             bank.ceilingRate
-            || bank.lastSellRate
-            || bank.sellRate
-            || bank.weightedAvgSellRate
-            || bank.avgSellRate
+            || resolveBankAverageSellRate(bank)
             || bankSummary.referenceSellRate
             || 0
         );
-        const inferredCeilingUsdt = bankCeiling > 0 && ceilingRate > 0 ? (bankCeiling / ceilingRate) : 0;
-        const bankCeilingUsdt = explicitCeilingUsdt > 0 ? explicitCeilingUsdt : inferredCeilingUsdt;
 
         return {
             bank,
             ops,
             vesControl,
             pagoMovil,
-            spreadLabel,
+            rateLabel,
             promiseLabel,
             cyclesCompleted,
             bankCeiling,
-            bankCeilingUsdt,
         };
     });
 
     const activeBankCards = bankCards.filter((entry) => Number(entry.bankCeiling || 0) > 0);
-    const bankCeilings = activeBankCards
-        .map((entry) => Number(entry.bankCeiling || 0))
-        .filter((value) => value > 0);
-    const bankCeilingsUsdt = activeBankCards
-        .map((entry) => Number(entry.bankCeilingUsdt || 0))
-        .filter((value) => value > 0);
-    const averageBankCeiling = bankCeilings.length
-        ? bankCeilings.reduce((sum, value) => sum + value, 0) / bankCeilings.length
-        : 0;
-    const averageBankCeilingUsdt = bankCeilingsUsdt.length
-        ? bankCeilingsUsdt.reduce((sum, value) => sum + value, 0) / bankCeilingsUsdt.length
-        : 0;
-    const fallbackCeilingRate = Number(
-        bankSummary.avgCeilingRate
-        || bankSummary.referenceSellRate
-        || bankSummary.avgSellRate
-        || 0
-    );
 
     inject('side-ceiling-level-label', 'TECHO GENERAL');
     inject(
@@ -1047,7 +994,7 @@ export function updateSidebarMonitor(kpis = {}, bankInsights = []) {
     inject('side-ceiling-sell-rate', `Nivel ${String(bankSummary.levelLabel || 'Sin nivel').toUpperCase()} | ${formatPlain(bankSummary.verificationPercent)}%`);
     inject('side-ceiling-level-badge', `${formatPlain(activeBankCards.length, 0)} Bancos`);
 
-    bankCards.forEach(({ bank, ops, vesControl, pagoMovil, spreadLabel, promiseLabel, cyclesCompleted, bankCeiling, bankCeilingUsdt }) => {
+    bankCards.forEach(({ bank, ops, vesControl, pagoMovil, rateLabel, promiseLabel, cyclesCompleted }) => {
         const performancePercent = Number(bank.profitPercent ?? bank.margin ?? 0);
         const hasReliablePerformanceBase = (
             Math.abs(Number(bank.spreadSellUsdt || 0)) > 0.0001
@@ -1086,8 +1033,8 @@ export function updateSidebarMonitor(kpis = {}, bankInsights = []) {
                     <span class="text-[9px] text-gray-500 block font-black uppercase tracking-wider">Profit Neto</span>
                 </div>
             </div>
-            <div class="text-[13px] font-mono font-black tracking-tight text-white/90 mt-1">
-                ${spreadLabel}
+            <div class="text-[11px] font-mono font-black tracking-tight text-[#F3BA2F] mt-1">
+                ${rateLabel}
             </div>
             <div class="flex items-center justify-between gap-3 mt-1">
                 <span class="text-[11px] text-slate-500 font-black uppercase tracking-[0.18em]">Parseo 2.0</span>
@@ -1110,9 +1057,6 @@ export function updateSidebarMonitor(kpis = {}, bankInsights = []) {
             </div>
             <div class="text-[13px] font-mono font-black tracking-tight text-white/90">
                 ${vesControl.value}
-            </div>
-            <div class="text-[11px] font-mono font-black tracking-tight text-[#F3BA2F]">
-                Venta: ${formatPlain(Number(bank.lastSellRate || bank.sellRate || bank.weightedAvgSellRate || bank.avgSellRate || 0))} | Techo: ${formatPlain(Number(bank.ceilingRate || 0))}
             </div>
             <div class="h-1.5 w-full bg-[#313842] rounded-full overflow-hidden mt-1">
                 <div class="h-full bg-[#F3BA2F] transition-all duration-700 ease-out" style="width: ${vesControl.progress}%"></div>
