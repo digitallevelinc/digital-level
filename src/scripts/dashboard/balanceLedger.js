@@ -1097,7 +1097,7 @@ const renderRow = (tx, rowBalance, cycleData = undefined) => {
 
     return `
         <article class="ledger-row ${rowTone}${isDispersorPending ? ' ledger-row-dispersor-pending' : ''}">
-            <div class="ledger-mobile-card lg:hidden">
+            <div class="ledger-mobile-card">
                 <div class="ledger-mobile-header">
                     <div class="ledger-mobile-badge-stack">
                         <div class="${typePillTone}">${category}</div>
@@ -1126,7 +1126,7 @@ const renderRow = (tx, rowBalance, cycleData = undefined) => {
                 </div>
             </div>
 
-            <div class="hidden lg:contents">
+            <div class="ledger-desktop-row">
                 <div class="ledger-date-col">
                     <div class="ledger-date-main">${escapeHtml(formatPostingDate(tx.timestamp))}</div>
                     <div class="ledger-date-sub">${directionLabel}</div>

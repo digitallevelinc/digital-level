@@ -116,7 +116,7 @@ import CardHelp from './CardHelp.astro';
                 </div>
             </div>
 
-            <div class="ledger-grid-head mt-3 hidden lg:grid">
+            <div class="ledger-grid-head mt-3">
                 <span>Fecha</span>
                 <span>Descripcion</span>
                 <span class="text-center">Tipo</span>
@@ -352,6 +352,7 @@ import CardHelp from './CardHelp.astro';
     }
 
     .ledger-grid-head {
+        display: none;
         grid-template-columns: 120px minmax(200px, 1.5fr) 80px minmax(120px, 0.9fr) minmax(150px, 1fr) minmax(120px, 0.9fr) minmax(120px, 0.9fr);
         gap: 0.75rem;
         border-block: 1px solid rgba(255, 255, 255, 0.08);
@@ -551,6 +552,10 @@ import CardHelp from './CardHelp.astro';
         display: grid;
         gap: 0.9rem;
         min-width: 0;
+    }
+
+    .ledger-desktop-row {
+        display: none;
     }
 
     .ledger-mobile-header {
@@ -929,6 +934,18 @@ import CardHelp from './CardHelp.astro';
     }
 
     @media (min-width: 1024px) {
+        .ledger-grid-head {
+            display: grid;
+        }
+
+        .ledger-mobile-card {
+            display: none;
+        }
+
+        .ledger-desktop-row {
+            display: contents;
+        }
+
         .ledger-date-main,
         .ledger-title,
         .ledger-amount-sub {
