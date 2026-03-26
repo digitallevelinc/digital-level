@@ -559,6 +559,9 @@ const renderPromiseColumnMeta = (tx) => {
         });
     }
 
+    const isInternalCoverage = promiseMeta.isReceiver
+        && Boolean(tx?.isInternalCounterparty || tx?.internalCounterpartyAlias);
+
     if (String(tx?.type || '').toUpperCase() === 'DISPERSOR_PENDING') {
         const localSummary = promiseMeta.actualUsdt > 0.009
             ? `Local ${formatPromiseUsdt(promiseMeta.actualUsdt)}`
@@ -572,6 +575,21 @@ const renderPromiseColumnMeta = (tx) => {
             value: formatPromiseUsdt(promiseMeta.promiseUsdt),
             sub: `${localSummary} | ${pendingSummary}`,
             tone: 'ledger-metric-promise'
+        });
+    }
+
+    if (isInternalCoverage) {
+        const internalAlias = String(tx?.internalCounterpartyAlias || tx?.counterpartyName || '').trim();
+        const coverageSummary = promiseMeta.pendingUsdt > 0.009
+            ? `Pendiente ${formatPromiseUsdt(promiseMeta.pendingUsdt)}`
+            : 'Cobertura registrada';
+        const actorSummary = internalAlias ? `Equipo ${internalAlias}` : 'Equipo interno';
+
+        return renderMetricCard({
+            label: 'Cobertura interna',
+            value: formatPromiseUsdt(promiseMeta.promiseUsdt),
+            sub: `${actorSummary} | ${coverageSummary}`,
+            tone: 'ledger-metric-warning'
         });
     }
 
@@ -1079,36 +1097,32 @@ const renderRow = (tx, rowBalance, cycleData = undefined) => {
 
     return `
         <article class="ledger-row ${rowTone}${isDispersorPending ? ' ledger-row-dispersor-pending' : ''}">
-            <div class="ledger-mobile-scroll lg:hidden">
-                <div class="ledger-mobile-row-track">
-                    <div class="ledger-mobile-main-block">
-                        <div class="flex items-start justify-between gap-3">
-                            <div class="min-w-0">
-                                <div class="${typePillTone}">${category}</div>
-                                <div class="ledger-mobile-date">${escapeHtml(formatPostingDate(tx.timestamp))}</div>
-                            </div>
-                            <div class="text-right">
-                                <div class="ledger-mobile-amount ${amountTone}">${formatAmount(tx)}</div>
-                                ${fiatHtml}
-                            </div>
-                        </div>
+            <div class="ledger-mobile-card lg:hidden">
+                <div class="ledger-mobile-header">
+                    <div class="ledger-mobile-badge-stack">
+                        <div class="${typePillTone}">${category}</div>
+                        <div class="ledger-mobile-date">${escapeHtml(formatPostingDate(tx.timestamp))}</div>
+                    </div>
+                    <div class="ledger-mobile-amount-block">
+                        <div class="ledger-mobile-amount ${amountTone}">${formatAmount(tx)}</div>
+                        ${fiatHtml}
+                    </div>
+                </div>
 
-                        <div class="ledger-mobile-title">${top}</div>
-                        <div class="ledger-mobile-kicker">${directionLabel}${methodText ? ` | ${methodText}` : ''}${toggleBtnHtml ? ` ${toggleBtnHtml}` : ''}</div>
+                <div class="ledger-mobile-title">${top}</div>
+                <div class="ledger-mobile-kicker-row">
+                    <div class="ledger-mobile-kicker-text">${directionLabel}${methodText ? ` | ${methodText}` : ''}</div>
+                    ${toggleBtnHtml}
+                </div>
 
-                        <div class="ledger-mobile-meta">
-                            ${metaHtml || '<span class="ledger-meta-chip ledger-meta-chip-muted">Sin metadata extra</span>'}
-                        </div>
-                    </div>
-                    <div class="ledger-mobile-metric-panel">
-                        ${promiseMetric}
-                    </div>
-                    <div class="ledger-mobile-metric-panel">
-                        ${balanceMetric}
-                    </div>
-                    <div class="ledger-mobile-metric-panel">
-                        ${spreadMetric}
-                    </div>
+                <div class="ledger-mobile-meta">
+                    ${metaHtml || '<span class="ledger-meta-chip ledger-meta-chip-muted">Sin metadata extra</span>'}
+                </div>
+
+                <div class="ledger-mobile-metrics">
+                    ${promiseMetric}
+                    ${balanceMetric}
+                    ${spreadMetric}
                 </div>
             </div>
 

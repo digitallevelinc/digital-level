@@ -134,6 +134,7 @@ function renderProfitChart(chartData = []) {
     const profitData = sortedData.map(d => d.profit);
     const feesData = sortedData.map(d => d.fees);
     const capitalData = sortedData.map(d => d.capital);
+    const cyclesData = sortedData.map(d => d.cycles ?? 0);
     profitChartInstance = new Chart(ctx, {
         type: 'bar',
         data: {
@@ -165,6 +166,19 @@ function renderProfitChart(chartData = []) {
                     tension: 0.3,
                     order: 0,
                     yAxisID: 'y1'
+                },
+                {
+                    label: 'Ciclos',
+                    data: cyclesData,
+                    type: 'line',
+                    borderColor: '#f3ba2f',
+                    backgroundColor: 'rgba(243,186,47,0.08)',
+                    borderWidth: 2,
+                    pointRadius: 3,
+                    pointBackgroundColor: '#f3ba2f',
+                    tension: 0.3,
+                    order: 1,
+                    yAxisID: 'y2'
                 }
             ]
         },
@@ -180,14 +194,12 @@ function renderProfitChart(chartData = []) {
                     callbacks: {
                         label: function (context) {
                             let label = context.dataset.label || '';
-                            if (label) {
-                                label += ': ';
-                            }
+                            if (label) label += ': ';
                             if (context.raw !== null) {
-                                if (label.includes('Profit') || label.includes('Fees') || label.includes('Capital')) {
-                                    label += fUSDT(context.raw);
-                                } else {
+                                if (label.includes('Ciclos')) {
                                     label += context.raw;
+                                } else {
+                                    label += fUSDT(context.raw);
                                 }
                             }
                             return label;
@@ -219,6 +231,11 @@ function renderProfitChart(chartData = []) {
                     position: 'right',
                     grid: { drawOnChartArea: false },
                     ticks: { color: '#60a5fa' }
+                },
+                y2: {
+                    type: 'linear',
+                    display: false,
+                    position: 'right',
                 }
             }
         }

@@ -483,6 +483,22 @@ async function fetchDashboardKpis(API_BASE, token, range = {}, signal, options =
     return await res.json();
 }
 
+function syncCriticalProfitFromBanks(kpis = {}, metrics = {}, bankData = []) {
+    const bankProfitSum = bankData.reduce((sum, bank) => sum + Number(bank?.profit || 0), 0);
+    if (!kpis.critical) kpis.critical = {};
+
+    const critical = kpis.critical;
+    const completedCycles = Number(critical.completedCycles || 0);
+
+    critical.profitTotalUSDT = bankProfitSum;
+    critical.averageCycleProfit = completedCycles > 0 ? bankProfitSum / completedCycles : 0;
+
+    if (!kpis.metrics) kpis.metrics = metrics;
+    kpis.metrics.totalProfit = bankProfitSum;
+
+    return bankProfitSum;
+}
+
 function normalizeKpiBankData(kpis = {}) {
     const metrics = kpis.metrics || {};
     const bankData = (kpis.bankInsights || []).map(i => {
@@ -583,11 +599,7 @@ function normalizeKpiBankData(kpis = {}) {
         }
     });
 
-    const bankProfitSum = bankData.reduce((sum, b) => sum + Number(b.profit || 0), 0);
-    if (!kpis.critical) kpis.critical = {};
-    kpis.critical.profitTotalUSDT = bankProfitSum;
-    if (!kpis.metrics) kpis.metrics = metrics;
-    kpis.metrics.totalProfit = bankProfitSum;
+    syncCriticalProfitFromBanks(kpis, metrics, bankData);
 
     return { metrics, bankData, kpis };
 }
@@ -768,11 +780,7 @@ export async function updateDashboard(API_BASE, token, alias, range = {}, opts =
         // El backend puede calcular profit por ciclos (Judge) y eso puede no coincidir
         // con lo que el usuario espera como "profit" diario/por periodo.
         // Para la UI, forzamos el Profit Total a ser la suma de los profits por banco.
-        const bankProfitSum = bankData.reduce((sum, b) => sum + Number(b.profit || 0), 0);
-        if (!kpis.critical) kpis.critical = {};
-        kpis.critical.profitTotalUSDT = bankProfitSum;
-        if (!kpis.metrics) kpis.metrics = metrics;
-        kpis.metrics.totalProfit = bankProfitSum;
+        syncCriticalProfitFromBanks(kpis, metrics, bankData);
 
         // --- ACTUALIZACIÓN DE MÉTRICAS BASE ---
         updateMainKpis(kpis);

@@ -716,11 +716,31 @@ function buildBankVesLimitLabel(bank, _config = {}, vesControlSummaryByBank = ne
     const key = normalizeBankLimitKey(bank);
     const dynamicSummary = vesControlSummaryByBank.get(key);
     const configuredLimit = resolveConfiguredBankSpendLimit(bank, _config);
+    const fallbackAvailable = Math.max(
+        0,
+        Number(bank?.currentCycleFiatRemaining || 0),
+        Number(bank?.rangeVesAvailableFiat || 0)
+    );
+    const fallbackConsumed = Math.max(
+        0,
+        Number(bank?.currentCycleFiatSpent || 0),
+        Number(bank?.rangeVesConsumedFiat || 0)
+    );
+    const fallbackInflow = Math.max(
+        0,
+        Number(bank?.currentCycleTotalFiat || 0),
+        Number(bank?.rangeVesInflowFiat || 0),
+        fallbackAvailable + fallbackConsumed
+    );
+    const hasFallbackCycleSnapshot =
+        fallbackAvailable > 0.00001 || fallbackConsumed > 0.00001 || fallbackInflow > 0.00001;
 
     if (configuredLimit > 0) {
         const rawAvailable = dynamicSummary
             ? Number(dynamicSummary.availableFiat || 0)
-            : configuredLimit;
+            : hasFallbackCycleSnapshot
+                ? fallbackAvailable
+                : configuredLimit;
         const available = Math.min(configuredLimit, Math.max(0, rawAvailable));
         const burned = Math.max(0, configuredLimit - available);
         const progress = configuredLimit > 0 ? clampPercent((available / configuredLimit) * 100) : 0;
@@ -741,13 +761,32 @@ function buildBankVesLimitLabel(bank, _config = {}, vesControlSummaryByBank = ne
 
     const hasDynamic = Boolean(dynamicSummary);
     if (!hasDynamic) {
+        if (!hasFallbackCycleSnapshot) {
+            return {
+                value: '0.00 / 0.00',
+                meta: 'Sin flujo activo',
+                progress: 0,
+                limit: 0,
+                current: 0,
+                hasFlow: false,
+            };
+        }
+
+        const effectiveCap = Math.max(0, fallbackInflow, fallbackAvailable + fallbackConsumed);
+        const progress = fallbackAvailable <= 0 ? 0 : clampPercent((fallbackAvailable / effectiveCap) * 100);
+        const burned = Math.max(0, effectiveCap - fallbackAvailable);
+
         return {
-            value: '0.00 / 0.00',
-            meta: 'Sin flujo activo',
-            progress: 0,
-            limit: 0,
-            current: 0,
-            hasFlow: false,
+            value: `${fVESInline(fallbackAvailable)} / ${fVESInline(effectiveCap)}`,
+            meta: burned <= 0.01
+                ? 'Barra llena'
+                : fallbackAvailable <= 0.01
+                    ? 'Lote quemado'
+                    : `${fVESInline(burned)} quemado`,
+            progress,
+            limit: effectiveCap,
+            current: fallbackAvailable,
+            hasFlow: true,
         };
     }
 
@@ -762,13 +801,46 @@ function buildBankVesLimitLabel(bank, _config = {}, vesControlSummaryByBank = ne
     }
 
     if (effectiveCap <= 0) {
+        if (!hasFallbackCycleSnapshot) {
+            return {
+                value: '0.00 / 0.00',
+                meta: 'Sin flujo activo',
+                progress: 0,
+                limit: 0,
+                current: 0,
+                hasFlow: false,
+            };
+        }
+
+        effectiveCap = Math.max(0, fallbackInflow, fallbackAvailable + fallbackConsumed);
+        if (fallbackAvailable > effectiveCap) {
+            effectiveCap = fallbackAvailable;
+        }
+        if (effectiveCap <= 0) {
+            return {
+                value: '0.00 / 0.00',
+                meta: 'Sin flujo activo',
+                progress: 0,
+                limit: 0,
+                current: 0,
+                hasFlow: false,
+            };
+        }
+
+        const progress = fallbackAvailable <= 0 ? 0 : clampPercent((fallbackAvailable / effectiveCap) * 100);
+        const burned = Math.max(0, effectiveCap - fallbackAvailable);
+
         return {
-            value: '0.00 / 0.00',
-            meta: 'Sin flujo activo',
-            progress: 0,
-            limit: 0,
-            current: 0,
-            hasFlow: false,
+            value: `${fVESInline(fallbackAvailable)} / ${fVESInline(effectiveCap)}`,
+            meta: burned <= 0.01
+                ? 'Barra llena'
+                : fallbackAvailable <= 0.01
+                    ? 'Lote quemado'
+                    : `${fVESInline(burned)} quemado`,
+            progress,
+            limit: effectiveCap,
+            current: fallbackAvailable,
+            hasFlow: true,
         };
     }
 
@@ -817,11 +889,18 @@ export function updateSidebarMonitor(kpis = {}, bankInsights = []) {
     inject('side-profit-total', fUSDT(profit));
     inject('side-spread-value', formatSignedUsdt(bankSummary.spreadProfitUsdt));
     inject('side-spread-meta', `${formatPlain(bankSummary.spreadPercent)}%`);
-    const cyclesCount = Number(completedCycles.count || 0);
+    const criticalCyclesCount = Number(critical.completedCycles || 0);
+    const judgeCyclesCount = Number(completedCycles.count || 0);
     const cyclesTotalProfit = Number(completedCycles.totalProfit || 0);
-    const avgProfitPerCycle = cyclesCount > 0 ? cyclesTotalProfit / cyclesCount : 0;
+    const judgeAvgProfitPerCycle = judgeCyclesCount > 0 ? cyclesTotalProfit / judgeCyclesCount : 0;
+    const hasCriticalCycleMetrics =
+        criticalCyclesCount > 0 || Math.abs(Number(critical.averageCycleProfit || 0)) > 0.0001;
+    const avgProfitPerCycle = hasCriticalCycleMetrics
+        ? Number(critical.averageCycleProfit || 0)
+        : judgeAvgProfitPerCycle;
+    const cycleCountToDisplay = criticalCyclesCount > 0 ? criticalCyclesCount : judgeCyclesCount;
     inject('side-cycle-avg', formatPlain(avgProfitPerCycle));
-    inject('side-cycle-count', formatPlain(cyclesCount, 0));
+    inject('side-cycle-count', formatPlain(cycleCountToDisplay, 0));
 
     const spreadEl = document.getElementById('side-spread-value');
     if (spreadEl) {

@@ -92,7 +92,7 @@ import CardHelp from './CardHelp.astro';
                         <input
                             id="balance-ledger-search"
                             type="search"
-                            placeholder="Buscar descripcion, orden, referencia..."
+                            placeholder="Buscar orden, referencia o descripcion..."
                             class="ledger-search-input"
                         />
                     </label>
@@ -121,7 +121,7 @@ import CardHelp from './CardHelp.astro';
                 <span>Descripcion</span>
                 <span class="text-center">Tipo</span>
                 <span class="text-right">Monto</span>
-                <span class="text-right">Promesa</span>
+                <span class="text-right">Cobertura</span>
                 <span class="text-right">Balance</span>
                 <span class="text-right">Spread</span>
             </div>
@@ -518,7 +518,7 @@ import CardHelp from './CardHelp.astro';
     }
 
     .ledger-mobile-date {
-        margin-top: 0.7rem;
+        margin-top: 0.55rem;
     }
 
     .ledger-mobile-amount,
@@ -540,56 +540,69 @@ import CardHelp from './CardHelp.astro';
     }
 
     .ledger-mobile-title {
-        margin-top: 0.85rem;
+        margin-top: 0;
         font-size: 1rem;
         font-weight: 800;
-        line-height: 1.4;
+        line-height: 1.35;
         color: white;
     }
 
-    .ledger-mobile-kicker {
-        margin-top: 0.4rem;
+    .ledger-mobile-card {
+        display: grid;
+        gap: 0.9rem;
+        min-width: 0;
+    }
+
+    .ledger-mobile-header {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 0.8rem;
+        align-items: start;
+    }
+
+    .ledger-mobile-badge-stack {
+        min-width: 0;
+    }
+
+    .ledger-mobile-amount-block {
+        display: grid;
+        justify-items: end;
+        gap: 0.28rem;
+        min-width: 0;
+        max-width: 44vw;
+        text-align: right;
+    }
+
+    .ledger-mobile-kicker-row {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.55rem;
+    }
+
+    .ledger-mobile-kicker-text {
+        flex: 1 1 180px;
+        min-width: 0;
+    }
+
+    .ledger-mobile-kicker,
+    .ledger-mobile-kicker-text {
+        margin-top: 0;
     }
 
     .ledger-mobile-meta {
         display: flex;
         flex-wrap: wrap;
         gap: 0.45rem;
-        margin-top: 0.9rem;
-    }
-
-    .ledger-mobile-scroll {
-        overflow-x: auto;
-        overflow-y: hidden;
-        padding-bottom: 0.15rem;
-        -webkit-overflow-scrolling: touch;
-    }
-
-    .ledger-mobile-row-track {
-        display: grid;
-        grid-template-columns: minmax(280px, 1.35fr) minmax(220px, 1fr) minmax(220px, 1fr) minmax(220px, 1fr);
-        gap: 0.85rem;
-        min-width: min(980px, max-content);
-        align-items: stretch;
-    }
-
-    .ledger-mobile-main-block,
-    .ledger-mobile-metric-panel {
-        min-width: 0;
-    }
-
-    .ledger-mobile-main-block {
-        padding-right: 0.15rem;
-    }
-
-    .ledger-mobile-metric-panel .ledger-metric-card {
-        min-height: 100%;
+        margin-top: 0;
     }
 
     .ledger-mobile-metrics {
         display: grid;
         gap: 0.75rem;
-        margin-top: 1rem;
+        grid-template-columns: minmax(0, 1fr);
+        margin-top: 0;
     }
 
     .ledger-date-col,
@@ -661,6 +674,7 @@ import CardHelp from './CardHelp.astro';
         font-weight: 700;
         line-height: 1.25;
         color: rgba(255, 255, 255, 0.96);
+        overflow-wrap: anywhere;
     }
 
     .ledger-meta-chip-muted {
@@ -799,12 +813,52 @@ import CardHelp from './CardHelp.astro';
             justify-content: center;
         }
 
+        .ledger-toolbar {
+            gap: 0.8rem;
+        }
+
+        .ledger-page-indicator {
+            font-size: 0.68rem;
+            letter-spacing: 0.14em;
+        }
+
+        .ledger-type-filters {
+            flex-wrap: nowrap;
+            overflow-x: auto;
+            scrollbar-width: none;
+            -webkit-overflow-scrolling: touch;
+            padding-bottom: 0.15rem;
+            margin-inline: -0.1rem;
+        }
+
+        .ledger-type-filters::-webkit-scrollbar {
+            display: none;
+        }
+
+        .ledger-type-filter {
+            flex: 0 0 auto;
+            min-width: 76px;
+            min-height: 34px;
+            padding: 0.36rem 0.72rem;
+            font-size: 0.68rem;
+            letter-spacing: 0.1em;
+        }
+
+        .ledger-search-input {
+            padding: 0.78rem 0.85rem 0.78rem 2.25rem;
+            font-size: 0.8rem;
+        }
+
         .ledger-nav {
             width: 100%;
         }
 
         .ledger-nav-btn {
             flex: 1 1 0;
+            min-width: 0;
+            padding: 0.72rem 0.8rem;
+            font-size: 0.68rem;
+            letter-spacing: 0.14em;
         }
 
         .ledger-row {
@@ -814,24 +868,63 @@ import CardHelp from './CardHelp.astro';
 
         .ledger-scroll {
             overflow-x: hidden;
-        }
-
-        .ledger-mobile-row-track {
-            min-width: 960px;
+            max-height: 62dvh;
         }
 
         .ledger-metric-card {
             text-align: left;
         }
 
+        .ledger-mobile-amount {
+            font-size: clamp(1.08rem, 6vw, 1.34rem);
+            line-height: 0.95;
+            word-break: break-word;
+        }
+
+        .ledger-mobile-sub {
+            font-size: 0.84rem;
+            line-height: 1.2;
+        }
+
+        .ledger-mobile-title {
+            font-size: 0.98rem;
+        }
+
+        .ledger-mobile-kicker-text {
+            font-size: 0.72rem;
+            line-height: 1.35;
+        }
+
+        .ledger-mobile-meta {
+            gap: 0.4rem;
+        }
+
+        .ledger-meta-chip {
+            font-size: 0.64rem;
+        }
+
+        .ledger-mobile-metrics {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+        .ledger-mobile-metrics > .ledger-metric-card:last-child {
+            grid-column: 1 / -1;
+        }
+
         .ledger-metric-value {
             font-size: 1rem;
+        }
+
+        .dispersor-toggle-btn {
+            font-size: 0.62rem;
+            letter-spacing: 0.05em;
+            padding: 0.22rem 0.5rem;
         }
     }
 
     @media (min-width: 768px) and (max-width: 1023px) {
         .ledger-mobile-metrics {
-            grid-template-columns: repeat(2, minmax(0, 1fr));
+            grid-template-columns: repeat(3, minmax(0, 1fr));
         }
     }
 

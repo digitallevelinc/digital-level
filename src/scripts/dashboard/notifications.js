@@ -29,6 +29,47 @@ const NOTIF_TYPE_STYLE = {
     admin_note:           { icon: '📝', color: '#60a5fa',  label: 'Nota Admin' },
 };
 
+const INTERNAL_ACTIVATION_STYLE = { icon: '👥', color: '#60a5fa', label: 'Interna' };
+
+function formatUsdtValue(value) {
+    return Number(value || 0).toLocaleString('en-US', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+    });
+}
+
+function isInternalActivationNotification(item = {}) {
+    const meta = item?.metadata || {};
+    return item?.type === 'promise_created'
+        && Boolean(meta?.isInternalActivation || meta?.receiverOperatorId || meta?.receiverOperatorAlias);
+}
+
+function getNotificationPresentation(item = {}) {
+    if (isInternalActivationNotification(item)) {
+        const meta = item?.metadata || {};
+        const ownerAlias = String(meta?.ownerOperatorAlias || '').trim() || 'Un operador';
+        const paymentMethod = String(meta?.paymentMethod || '').trim();
+        const receiverLabel = String(meta?.receiverOperatorAlias || meta?.counterpartyName || '').trim();
+
+        return {
+            icon: INTERNAL_ACTIVATION_STYLE.icon,
+            color: INTERNAL_ACTIVATION_STYLE.color,
+            label: INTERNAL_ACTIVATION_STYLE.label,
+            title: 'Nueva cobertura interna detectada',
+            message: `${ownerAlias} activo una cobertura interna de ${formatUsdtValue(meta?.promiseUsdt)} USDT${paymentMethod ? ` en ${paymentMethod}` : ''}${receiverLabel ? ` para ${receiverLabel}` : ''}.`
+        };
+    }
+
+    const meta = NOTIF_TYPE_STYLE[item?.type] || { icon: '🔔', color: '#F3BA2F', label: '' };
+    return {
+        icon: meta.icon,
+        color: meta.color,
+        label: meta.label,
+        title: item?.title || 'Notificacion',
+        message: item?.message || ''
+    };
+}
+
 async function sendOperatorReply(apiBase, token, message, replyToNotificationId) {
     try {
         const res = await fetch(`${String(apiBase || '').replace(/\/+$/, '')}/api/notifications/reply`, {
@@ -82,19 +123,19 @@ export function initDashboardNotifications({ apiBase, token }) {
 
         list.innerHTML = items.map((item) => {
             const unreadClass = item?.readAt ? 'border-white/8 bg-white/[0.03]' : 'border-[#F3BA2F]/25 bg-[#F3BA2F]/[0.06]';
-            const meta = NOTIF_TYPE_STYLE[item?.type] || { icon: '🔔', color: '#F3BA2F', label: '' };
+            const presentation = getNotificationPresentation(item);
             const isAdminNote = item?.type === 'admin_note';
             const replyBtn = isAdminNote
                 ? `<button class="notif-reply-btn mt-2 rounded-lg border border-white/10 bg-white/5 px-3 py-1 text-[10px] font-bold text-white/60 hover:bg-white/10 hover:text-white transition-colors" data-notif-id="${escapeHtml(item?.id || '')}">Responder</button>`
                 : '';
             return `
-                <article class="rounded-2xl border ${unreadClass} px-4 py-3" style="border-left: 3px solid ${meta.color};">
-                    <div class="flex items-center gap-1.5 mb-1">
-                        <span class="text-sm">${meta.icon}</span>
-                        <span class="text-[9px] font-black uppercase tracking-[0.1em]" style="color:${meta.color};">${meta.label}</span>
+                <article class="min-w-0 rounded-2xl border ${unreadClass} px-4 py-3" style="border-left: 3px solid ${presentation.color};">
+                    <div class="mb-1 flex min-w-0 items-center gap-1.5">
+                        <span class="text-sm">${presentation.icon}</span>
+                        <span class="text-[9px] font-black uppercase tracking-[0.1em]" style="color:${presentation.color};">${presentation.label}</span>
                     </div>
-                    <p class="text-[12px] font-black uppercase tracking-[0.16em] text-[#F3BA2F]">${escapeHtml(item?.title || 'Notificacion')}</p>
-                    <p class="mt-2 text-sm leading-relaxed text-white/80">${escapeHtml(item?.message || '')}</p>
+                    <p class="break-words text-[12px] font-black uppercase tracking-[0.16em] text-[#F3BA2F]">${escapeHtml(presentation.title)}</p>
+                    <p class="mt-2 break-words text-sm leading-relaxed text-white/80">${escapeHtml(presentation.message)}</p>
                     <p class="mt-3 text-[10px] font-black uppercase tracking-[0.18em] text-white/40">${escapeHtml(formatTimestamp(item?.createdAt))}</p>
                     ${replyBtn}
                 </article>
