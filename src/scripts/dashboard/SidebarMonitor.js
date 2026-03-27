@@ -50,11 +50,18 @@ function weightedAverage(items = [], getValue = () => 0, getWeight = () => 0) {
 }
 
 function resolveBankAverageSellRate(bank = {}) {
+    const promisedUsdt = Number(bank.rangePromisedUsdt || 0);
+    const promisedFiat = Number(bank.rangePromisedFiat || 0);
+    const promiseRate = promisedUsdt > 0 && promisedFiat > 0
+        ? promisedFiat / promisedUsdt
+        : 0;
+
     return Number(
         bank.weightedAvgSellRate
         || bank.avgSellRate
         || bank.sellRate
         || bank.lastSellRate
+        || promiseRate
         || 0
     );
 }
@@ -99,6 +106,8 @@ function getBankMonitorSummary(kpis = {}, bankInsights = []) {
         const sellVolUsdt = Number(bank.sellVolUSDT || bank.realizedVolumeUSDT || bank.spreadSellUsdt || 0);
         const sellRate = resolveBankAverageSellRate(bank);
         if (sellVolUsdt > 0 && sellRate > 0) return sellVolUsdt * sellRate;
+        const promisedFiat = Number(bank.rangePromisedFiat || 0);
+        if (promisedFiat > 0) return promisedFiat;
         return sellVolUsdt > 0 ? sellVolUsdt : 0;
     };
 

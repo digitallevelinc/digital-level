@@ -803,6 +803,13 @@ const matchTxToBank = (tx) => {
     }) || null;
 };
 
+const getBankPromiseRate = (bank = {}) => {
+    const promisedUsdt = Number(bank?.rangePromisedUsdt || 0);
+    const promisedFiat = Number(bank?.rangePromisedFiat || 0);
+    if (promisedUsdt <= 0 || promisedFiat <= 0) return 0;
+    return promisedFiat / promisedUsdt;
+};
+
 const getWeightedRateFromBanks = (rateCandidates = [], weightCandidates = []) => {
     if (!Array.isArray(state.bankData) || state.bankData.length === 0) return 0;
 
@@ -819,6 +826,39 @@ const getWeightedRateFromBanks = (rateCandidates = [], weightCandidates = []) =>
         const weight = weightCandidates
             .map((key) => Number(bank?.[key] || 0))
             .find((value) => value > 0) || 1;
+
+        weightedSum += rate * weight;
+        totalWeight += weight;
+    });
+
+    if (totalWeight <= 0) return 0;
+    return weightedSum / totalWeight;
+};
+
+const getWeightedSellReferenceRateFromBanks = () => {
+    if (!Array.isArray(state.bankData) || state.bankData.length === 0) return 0;
+
+    let weightedSum = 0;
+    let totalWeight = 0;
+
+    state.bankData.forEach((bank) => {
+        const rate = [
+            Number(bank?.lastSellRate || 0),
+            Number(bank?.sellRate || 0),
+            Number(bank?.avgSellRate || 0),
+            Number(bank?.weightedAvgSellRate || 0),
+            Number(bank?.ceilingRate || 0),
+            getBankPromiseRate(bank),
+        ].find((value) => value > 0) || 0;
+
+        if (rate <= 0) return;
+
+        const weight = [
+            Number(bank?.sellVolUSDT || 0),
+            Number(bank?.realizedVolumeUSDT || 0),
+            Number(bank?.spreadSellUsdt || 0),
+            Number(bank?.rangePromisedUsdt || 0),
+        ].find((value) => value > 0) || 1;
 
         weightedSum += rate * weight;
         totalWeight += weight;
@@ -893,10 +933,7 @@ const getFallbackSellReferenceRate = () => {
     const pageRate = getPageAvgRate(['P2P_SELL']);
     if (pageRate > 0) return pageRate;
 
-    const bankRate = getWeightedRateFromBanks(
-        ['lastSellRate', 'sellRate', 'avgSellRate', 'weightedAvgSellRate', 'ceilingRate'],
-        ['sellVolUSDT', 'realizedVolumeUSDT', 'spreadSellUsdt']
-    );
+    const bankRate = getWeightedSellReferenceRateFromBanks();
     if (bankRate > 0) return bankRate;
 
     // breakEvenRate as absolute last resort for sell reference is acceptable
@@ -979,6 +1016,7 @@ const computeTxSpread = (tx = {}) => {
             || bank?.avgSellRate
             || bank?.weightedAvgSellRate
             || bank?.ceilingRate
+            || getBankPromiseRate(bank)
             || 0
         ) || getFallbackSellReferenceRate();
 

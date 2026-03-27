@@ -12,6 +12,13 @@ const formatSignedUsdtPlain = (val) => {
     return `${sign}${num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USDT`;
 };
 
+const getPromiseSellRate = (bank = {}) => {
+    const promisedUsdt = safeFloat(bank.rangePromisedUsdt);
+    const promisedFiat = safeFloat(bank.rangePromisedFiat);
+    if (promisedUsdt <= 0 || promisedFiat <= 0) return 0;
+    return promisedFiat / promisedUsdt;
+};
+
 export function updateBancosUI(insights = [], kpis = {}) {
     if (!insights) return;
 
@@ -278,8 +285,9 @@ export function updateBancosUI(insights = [], kpis = {}) {
             ui.pmBadge.classList.toggle('hidden', !hasPM);
         }
 
+        const fallbackPromiseRate = getPromiseSellRate(b);
         const buyRate = safeFloat(b.weightedAvgBuyRate);
-        const sellRate = safeFloat(b.weightedAvgSellRate);
+        const sellRate = safeFloat(b.weightedAvgSellRate || b.sellRate || fallbackPromiseRate);
 
         if (ui.buy) ui.buy.textContent = buyRate > 0 ? buyRate.toFixed(2) : '---';
         if (ui.sell) ui.sell.textContent = sellRate > 0 ? sellRate.toFixed(2) : '---';
@@ -300,7 +308,7 @@ export function updateBancosUI(insights = [], kpis = {}) {
         if (ui.feeBuy) ui.feeBuy.textContent = fUSDT(totalFeeBuy);
         if (ui.feeSell) ui.feeSell.textContent = fUSDT(totalFeeSell);
 
-        const techo = safeFloat(b.ceilingRate || b.breakEvenRate || 0);
+        const techo = safeFloat(b.ceilingRate || b.breakEvenRate || fallbackPromiseRate || 0);
         const baseVerificationPercent = safeFloat(b.verificationPercent);
         const lastSellRole = String(b.lastSellRole || 'TAKER').toUpperCase();
         const appliedPercent = safeFloat(
@@ -310,7 +318,7 @@ export function updateBancosUI(insights = [], kpis = {}) {
                     ? baseVerificationPercent * (lastSellRole === 'MAKER' ? 2 : 1)
                     : 0)
         );
-        const lastSellRate = safeFloat(b.lastSellRate);
+        const lastSellRate = safeFloat(b.lastSellRate || fallbackPromiseRate);
         const spreadProfitUsdt = safeFloat(b.spreadProfitUsdt);
         const profitPercent = safeFloat(b.profitPercent || b.margin);
         const verificationLevel = String(b.verificationLevel || '').trim();
@@ -359,7 +367,7 @@ export function updateBancosUI(insights = [], kpis = {}) {
         }
 
         if (ui.spreadUsdt) {
-            if (buyRate > 0 && sellRate > 0) {
+            if (buyRate > 0 && sellRate > 0 || Math.abs(spreadProfitUsdt) > 0.0001 || Math.abs(bankProfit) > 0.0001) {
                 ui.spreadUsdt.textContent =
                     `${formatSignedUsdtPlain(spreadProfitUsdt)} | Neto ${formatSignedUsdtPlain(bankProfit)}`;
                 ui.spreadUsdt.className = `text-[15px] font-black tracking-tight ${spreadProfitUsdt >= 0 ? 'text-emerald-400' : 'text-rose-400'}`;
