@@ -724,7 +724,42 @@ function buildLatestCycleByBank(kpis = {}, bankInsights = []) {
     return latest;
 }
 
-function buildBankVesLimitLabel(bank, _config = {}, vesControlSummaryByBank = new Map()) {
+function buildLiveCycleVesLabel(latestCycle = {}) {
+    const totalFiat = Math.max(0, Number(latestCycle?.cycleTotalFiat || 0));
+    const remainingFiat = Math.min(
+        totalFiat,
+        Math.max(0, Number(latestCycle?.cycleRemainingFiat || 0))
+    );
+
+    if (totalFiat <= 0.00001) {
+        return null;
+    }
+
+    const burned = Math.max(0, totalFiat - remainingFiat);
+    const progress = remainingFiat <= 0 ? 0 : clampPercent((remainingFiat / totalFiat) * 100);
+
+    return {
+        value: `${fVESInline(remainingFiat)} / ${fVESInline(totalFiat)}`,
+        meta: burned <= 0.01
+            ? 'Barra llena'
+            : remainingFiat <= 0.01
+                ? 'Lote quemado'
+                : `${fVESInline(burned)} quemado`,
+        progress,
+        limit: totalFiat,
+        current: remainingFiat,
+        hasFlow: true,
+    };
+}
+
+function buildBankVesLimitLabel(bank, latestCycle = {}, vesControlSummaryByBank = new Map(), hasLiveVerdictsFeed = false) {
+    if (hasLiveVerdictsFeed) {
+        const liveCycleLabel = buildLiveCycleVesLabel(latestCycle);
+        if (liveCycleLabel) {
+            return liveCycleLabel;
+        }
+    }
+
     const key = normalizeBankLimitKey(bank);
     const dynamicSummary = vesControlSummaryByBank.get(key);
     const fallbackAvailable = Math.max(
@@ -848,6 +883,54 @@ function buildBankVesLimitLabel(bank, _config = {}, vesControlSummaryByBank = ne
     };
 }
 
+function resolveSidebarBankProfit(bank = {}, judgeBank = {}) {
+    const activeVerdicts = Math.max(
+        toNumber(judgeBank?.activeVerdictsCount),
+        toNumber(bank?.activeVerdictsCount)
+    );
+    const currentCycleTotalFiat = Math.max(
+        toNumber(judgeBank?.currentCycleTotalFiat),
+        toNumber(bank?.currentCycleTotalFiat)
+    );
+    const currentCycleFiatSpent = Math.max(
+        toNumber(judgeBank?.currentCycleFiatSpent),
+        toNumber(bank?.currentCycleFiatSpent)
+    );
+    const hasActiveCycle =
+        activeVerdicts > 0
+        || currentCycleTotalFiat > 0.00001
+        || currentCycleFiatSpent > 0.00001;
+
+    if (!hasActiveCycle) {
+        return {
+            amount: toNumber(bank?.profit),
+            label: 'Profit Neto',
+            performancePercent: toNumber(bank?.profitPercent ?? bank?.margin),
+            hasReliablePerformanceBase:
+                Math.abs(toNumber(bank?.spreadSellUsdt)) > 0.0001
+                || Math.abs(toNumber(bank?.realizedVolumeUSDT)) > 0.0001
+                || Math.abs(toNumber(bank?.sellVolUSDT)) > 0.0001,
+        };
+    }
+
+    const cycleProfit = toNumber(
+        judgeBank?.currentCycleProfitUSDT ?? bank?.currentCycleProfitUSDT
+    );
+    const cyclePerformancePercent = toNumber(
+        judgeBank?.currentCycleProfitPercent ?? bank?.currentCycleProfitPercent
+    );
+
+    return {
+        amount: cycleProfit,
+        label: 'Profit Ciclo',
+        performancePercent: cyclePerformancePercent,
+        hasReliablePerformanceBase:
+            activeVerdicts > 0
+            || currentCycleTotalFiat > 0.0001
+            || currentCycleFiatSpent > 0.0001,
+    };
+}
+
 export function updateSidebarMonitor(kpis = {}, bankInsights = []) {
     const summary = kpis.metrics || kpis.kpis || kpis.summary || {};
     const audit = kpis.audit || {};
@@ -967,7 +1050,13 @@ export function updateSidebarMonitor(kpis = {}, bankInsights = []) {
         const completedByInsight = Number(bank.completedCycles || 0);
         const cyclesCompleted = Math.max(completedByJudge, completedByInsight, 0);
         const rateLabel = buildBankRateLabel(bank, bankSummary.referenceSellRate);
-        const vesControl = buildBankVesLimitLabel(bank, kpis.config || {}, vesControlSummaryByBank);
+        const vesControl = buildBankVesLimitLabel(
+            bank,
+            latestCycle,
+            vesControlSummaryByBank,
+            hasLiveVerdictsFeed
+        );
+        const profitDisplay = resolveSidebarBankProfit(bank, judgeBank);
         const bankCeiling = Number(vesControl.limit || 0);
         const ceilingRate = Number(
             bank.ceilingRate
@@ -985,6 +1074,7 @@ export function updateSidebarMonitor(kpis = {}, bankInsights = []) {
             promiseLabel,
             cyclesCompleted,
             bankCeiling,
+            profitDisplay,
         };
     });
 
@@ -1003,13 +1093,9 @@ export function updateSidebarMonitor(kpis = {}, bankInsights = []) {
     inject('side-ceiling-sell-rate', `Nivel ${String(bankSummary.levelLabel || 'Sin nivel').toUpperCase()} | ${formatPlain(bankSummary.verificationPercent)}%`);
     inject('side-ceiling-level-badge', `${formatPlain(activeBankCards.length, 0)} Bancos`);
 
-    bankCards.forEach(({ bank, ops, vesControl, pagoMovil, rateLabel, promiseLabel, cyclesCompleted }) => {
-        const performancePercent = Number(bank.profitPercent ?? bank.margin ?? 0);
-        const hasReliablePerformanceBase = (
-            Math.abs(Number(bank.spreadSellUsdt || 0)) > 0.0001
-            || Math.abs(Number(bank.realizedVolumeUSDT || 0)) > 0.0001
-            || Math.abs(Number(bank.sellVolUSDT || 0)) > 0.0001
-        );
+    bankCards.forEach(({ bank, ops, vesControl, pagoMovil, rateLabel, promiseLabel, cyclesCompleted, profitDisplay }) => {
+        const performancePercent = Number(profitDisplay.performancePercent || 0);
+        const hasReliablePerformanceBase = Boolean(profitDisplay.hasReliablePerformanceBase);
         const showPerformanceBadge = Number.isFinite(performancePercent) && hasReliablePerformanceBase;
         const promiseTextClass = promiseLabel.pendingUsdt > 0 || promiseLabel.pendingFiat > 0
             ? 'text-amber-300'
@@ -1038,8 +1124,8 @@ export function updateSidebarMonitor(kpis = {}, bankInsights = []) {
                     </span>
                 </div>
                 <div class="text-right">
-                    <span class="text-[1rem] font-mono font-black ${Number(bank.profit || 0) >= 0 ? 'text-emerald-400' : 'text-rose-500'} tracking-tight">${formatSignedUsdt(bank.profit || 0)}</span>
-                    <span class="text-[9px] text-gray-500 block font-black uppercase tracking-wider">Profit Neto</span>
+                    <span class="text-[1rem] font-mono font-black ${Number(profitDisplay.amount || 0) >= 0 ? 'text-emerald-400' : 'text-rose-500'} tracking-tight">${formatSignedUsdt(profitDisplay.amount || 0)}</span>
+                    <span class="text-[9px] text-gray-500 block font-black uppercase tracking-wider">${profitDisplay.label}</span>
                 </div>
             </div>
             <div class="text-[11px] font-mono font-black tracking-tight text-[#F3BA2F] mt-1">
