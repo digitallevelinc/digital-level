@@ -489,12 +489,18 @@ function syncCriticalProfitFromBanks(kpis = {}, metrics = {}, bankData = []) {
 
     const critical = kpis.critical;
     const completedCycles = Number(critical.completedCycles || 0);
-
-    critical.profitTotalUSDT = bankProfitSum;
-    critical.averageCycleProfit = completedCycles > 0 ? bankProfitSum / completedCycles : 0;
+    const hasCanonicalProfit =
+        critical.profitTotalUSDT !== null &&
+        critical.profitTotalUSDT !== undefined &&
+        Number.isFinite(Number(critical.profitTotalUSDT));
 
     if (!kpis.metrics) kpis.metrics = metrics;
-    kpis.metrics.totalProfit = bankProfitSum;
+
+    if (!hasCanonicalProfit) {
+        critical.profitTotalUSDT = bankProfitSum;
+        critical.averageCycleProfit = completedCycles > 0 ? bankProfitSum / completedCycles : 0;
+        kpis.metrics.totalProfit = bankProfitSum;
+    }
 
     return bankProfitSum;
 }
@@ -774,12 +780,8 @@ export async function updateDashboard(API_BASE, token, alias, range = {}, opts =
             }
         });
 
-        // ---------------------------------------------------------
-        // PROFIT TOTAL = SUMA DE PROFITS POR BANCO (Fuente: bankInsights)
-        // ---------------------------------------------------------
-        // El backend puede calcular profit por ciclos (Judge) y eso puede no coincidir
-        // con lo que el usuario espera como "profit" diario/por periodo.
-        // Para la UI, forzamos el Profit Total a ser la suma de los profits por banco.
+        // Keep the canonical backend profit when present.
+        // Bank sums are only a fallback if the API omitted a usable value.
         syncCriticalProfitFromBanks(kpis, metrics, bankData);
 
         // --- ACTUALIZACIÓN DE MÉTRICAS BASE ---
