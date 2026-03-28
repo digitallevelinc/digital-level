@@ -502,7 +502,100 @@ function syncCriticalProfitFromBanks(kpis = {}, metrics = {}, bankData = []) {
         kpis.metrics.totalProfit = bankProfitSum;
     }
 
-    return bankProfitSum;
+    return {
+        bankProfitSum,
+        usedFallback: !hasCanonicalProfit,
+        hasCanonicalProfit,
+    };
+}
+
+function toDebugNumber(value) {
+    const numeric = Number(value ?? 0);
+    return Number.isFinite(numeric) ? numeric : 0;
+}
+
+function inferProfitSource(kpis = {}, profitSync = null) {
+    const critical = kpis.critical || {};
+    const explicitSource = String(critical.profitSource || '').trim();
+    if (explicitSource) return explicitSource;
+    if (profitSync?.usedFallback) return 'frontend_bank_fallback';
+
+    const currentCycleProfit = toDebugNumber(critical.currentCycleProfit);
+    const completedCycles = toDebugNumber(critical.completedCycles);
+    if (completedCycles === 0 && Math.abs(currentCycleProfit) > 0.00001) {
+        return 'active_cycle_profit';
+    }
+
+    return 'capital_delta';
+}
+
+function logOperationalProfitDebug(kpis = {}, bankData = [], range = {}, profitSync = null) {
+    const critical = kpis.critical || {};
+    const summary = kpis.metrics || kpis.kpis || kpis.summary || {};
+    const judge = kpis.judge || {};
+    const alias = kpis.operatorAlias || critical.operatorAlias || 'Operador';
+    const source = inferProfitSource(kpis, profitSync);
+    const backendProfit = toDebugNumber(critical.profitTotalUSDT ?? summary.totalProfit ?? summary.profit);
+    const currentCycleProfit = toDebugNumber(critical.currentCycleProfit);
+    const theoreticalStartBalance = toDebugNumber(critical.balanceTotal);
+    const currentBalance = toDebugNumber(summary.totalBalance ?? kpis.currentBalance ?? critical.realBalance);
+    const capitalDeltaProfitUSDT = currentBalance - theoreticalStartBalance;
+    const bankProfitSum = bankData.reduce((sum, bank) => sum + toDebugNumber(bank?.profit), 0);
+    const activeCycleProfitSum = bankData.reduce((sum, bank) => {
+        const hasActiveCycle =
+            toDebugNumber(bank?.activeVerdictsCount) > 0
+            || toDebugNumber(bank?.currentCycleTotalFiat) > 0.00001
+            || toDebugNumber(bank?.currentCycleFiatSpent) > 0.00001;
+        return sum + (hasActiveCycle ? toDebugNumber(bank?.currentCycleProfitUSDT) : 0);
+    }, 0);
+    const rangeLabel = `${range?.from || 'auto'} -> ${range?.to || 'auto'}`;
+
+    const summaryRow = {
+        alias,
+        range: rangeLabel,
+        source,
+        backendProfit,
+        currentCycleProfit,
+        bankProfitSum,
+        activeCycleProfitSum,
+        theoreticalStartBalance,
+        currentBalance,
+        capitalDeltaProfitUSDT,
+        completedCycles: toDebugNumber(critical.completedCycles),
+        openVerdicts: toDebugNumber(judge?.summary?.openVerdictsCount ?? judge?.openVerdictsCount ?? (Array.isArray(judge?.openVerdicts) ? judge.openVerdicts.length : 0)),
+        frontendFallback: Boolean(profitSync?.usedFallback),
+    };
+
+    const relevantBanks = bankData
+        .filter((bank) =>
+            Math.abs(toDebugNumber(bank?.profit)) > 0.00001
+            || Math.abs(toDebugNumber(bank?.currentCycleProfitUSDT)) > 0.00001
+            || toDebugNumber(bank?.activeVerdictsCount) > 0
+            || toDebugNumber(bank?.currentCycleTotalFiat) > 0.00001
+            || toDebugNumber(bank?.currentCycleFiatSpent) > 0.00001
+        )
+        .map((bank) => ({
+            bank: bank.bank || bank.bankName || 'BANCO',
+            profit: toDebugNumber(bank.profit),
+            currentCycleProfitUSDT: toDebugNumber(bank.currentCycleProfitUSDT),
+            activeVerdictsCount: toDebugNumber(bank.activeVerdictsCount),
+            currentCycleTotalFiat: toDebugNumber(bank.currentCycleTotalFiat),
+            currentCycleFiatSpent: toDebugNumber(bank.currentCycleFiatSpent),
+            currentCycleFiatRemaining: toDebugNumber(bank.currentCycleFiatRemaining),
+            spreadProfitUsdt: toDebugNumber(bank.spreadProfitUsdt),
+        }));
+
+    console.groupCollapsed(
+        `[Sentinel Profit Debug] ${alias} | ${rangeLabel} | ${backendProfit.toFixed(2)} USDT`
+    );
+    console.log('Formula activa del dashboard:', summaryRow);
+    console.table([summaryRow]);
+    if (relevantBanks.length > 0) {
+        console.table(relevantBanks);
+    } else {
+        console.log('Sin bancos relevantes para el profit en este rango.');
+    }
+    console.groupEnd();
 }
 
 function normalizeKpiBankData(kpis = {}) {
@@ -782,7 +875,8 @@ export async function updateDashboard(API_BASE, token, alias, range = {}, opts =
 
         // Keep the canonical backend profit when present.
         // Bank sums are only a fallback if the API omitted a usable value.
-        syncCriticalProfitFromBanks(kpis, metrics, bankData);
+        const profitSync = syncCriticalProfitFromBanks(kpis, metrics, bankData);
+        logOperationalProfitDebug(kpis, bankData, mainRange, profitSync);
 
         // --- ACTUALIZACIÓN DE MÉTRICAS BASE ---
         updateMainKpis(kpis);
