@@ -72,6 +72,15 @@ function resolveBankCeilingRate(bank = {}, fallbackRate = 0) {
 
 function getBankMonitorSummary(kpis = {}, bankInsights = []) {
     const banks = Array.isArray(bankInsights) ? bankInsights : [];
+    const liveVerdicts = Array.isArray(kpis?.judge?.openVerdicts)
+        ? kpis.judge.openVerdicts
+            .filter((verdict) => Number(verdict?.saleRate || 0) > 0 || Number(verdict?.ceilingRate || 0) > 0)
+            .sort((a, b) => {
+                const aTime = a?.createdAt ? new Date(a.createdAt).getTime() : 0;
+                const bTime = b?.createdAt ? new Date(b.createdAt).getTime() : 0;
+                return bTime - aTime;
+            })
+        : [];
     const ceilingBanks = banks.filter((bank) => Number(bank.ceilingRate || 0) > 0);
     const sellReferenceBanks = banks.filter(
         (bank) => resolveBankAverageSellRate(bank) > 0
@@ -134,6 +143,9 @@ function getBankMonitorSummary(kpis = {}, bankInsights = []) {
         ? avgCeilingRateFromBanks
         : Number(kpis?.bankSummary?.generalCeilingRate || 0);
     const referenceSellRate = referenceSellRateFromBanks > 0 ? referenceSellRateFromBanks : avgSellRate;
+    const latestLiveVerdict = liveVerdicts[0] || null;
+    const liveSellRate = Number(latestLiveVerdict?.saleRate || 0);
+    const liveCeilingRate = Number(latestLiveVerdict?.ceilingRate || 0);
 
     return {
         levelLabel,
@@ -141,6 +153,9 @@ function getBankMonitorSummary(kpis = {}, bankInsights = []) {
         avgCeilingRate,
         avgSellRate,
         referenceSellRate,
+        liveSellRate,
+        liveCeilingRate,
+        liveVerdictCount: liveVerdicts.length,
         spreadProfitUsdt,
         spreadPercent: spreadBaseUsdt > 0 ? (spreadProfitUsdt / spreadBaseUsdt) * 100 : 0,
         banksWithCeiling: ceilingBanks.length,
@@ -468,9 +483,42 @@ function isTerminalVerdict(verdict = {}) {
     return Boolean(verdict?.closedAt || verdict?.completedAt || verdict?.releasedAt);
 }
 
+function getWalletLiveDayRange(kpis = {}) {
+    const anchor = new Date(kpis?.judge?.reportDate || kpis?.reportDate || Date.now());
+    if (Number.isNaN(anchor.getTime())) return null;
+
+    const venezuelaOffsetMs = 4 * 60 * 60 * 1000;
+    const shifted = new Date(anchor.getTime() - venezuelaOffsetMs);
+    const year = shifted.getUTCFullYear();
+    const month = shifted.getUTCMonth();
+    const day = shifted.getUTCDate();
+
+    return {
+        start: new Date(Date.UTC(year, month, day, 4, 0, 0, 0)),
+        end: new Date(Date.UTC(year, month, day + 1, 3, 59, 59, 999)),
+    };
+}
+
+function isTimestampInsideRange(value, range) {
+    if (!range?.start || !range?.end || !value) return false;
+    const timestamp = new Date(value).getTime();
+    if (Number.isNaN(timestamp)) return false;
+    return timestamp >= range.start.getTime() && timestamp <= range.end.getTime();
+}
+
 function getActiveOpenVerdicts(kpis = {}) {
     const openVerdicts = Array.isArray(kpis?.judge?.openVerdicts) ? kpis.judge.openVerdicts : [];
-    return openVerdicts.filter((verdict) => !isTerminalVerdict(verdict));
+    const walletLiveRange = getWalletLiveDayRange(kpis);
+
+    return openVerdicts.filter((verdict) => {
+        if (isTerminalVerdict(verdict)) return false;
+        if (!walletLiveRange) return true;
+
+        return (
+            isTimestampInsideRange(verdict?.createdAt, walletLiveRange)
+            || isTimestampInsideRange(verdict?.promiseActivatedAt, walletLiveRange)
+        );
+    });
 }
 
 function isPromiseVerdict(verdict) {
@@ -1083,13 +1131,21 @@ export function updateSidebarMonitor(kpis = {}, bankInsights = []) {
     inject('side-ceiling-level-label', 'TECHO GENERAL');
     inject(
         'side-ceiling-level-value',
-        bankSummary.avgSellRate > 0 || bankSummary.avgCeilingRate > 0
-            ? `${formatPlain(bankSummary.avgSellRate)} Venta | ${formatPlain(bankSummary.avgCeilingRate)} Techo`
-            : '0,00 Venta | 0,00 Techo'
+        bankSummary.liveSellRate > 0 || bankSummary.liveCeilingRate > 0
+            ? `${formatPlain(bankSummary.liveSellRate)} Venta | ${formatPlain(bankSummary.liveCeilingRate)} Techo`
+            : bankSummary.avgSellRate > 0 || bankSummary.avgCeilingRate > 0
+                ? `${formatPlain(bankSummary.avgSellRate)} Venta | ${formatPlain(bankSummary.avgCeilingRate)} Techo`
+                : '0,00 Venta | 0,00 Techo'
     );
-    inject('side-ceiling-level-meta', bankSummary.banksWithSell > 0
-        ? `Tasa promedio de ${formatPlain(bankSummary.banksWithSell, 0)} bancos con venta`
-        : 'Sin bancos con venta activa');
+    inject('side-ceiling-level-meta',
+        bankSummary.liveVerdictCount > 0
+            ? bankSummary.liveVerdictCount === 1
+                ? 'Ultimo ciclo abierto visible'
+                : `${formatPlain(bankSummary.liveVerdictCount, 0)} ciclos abiertos visibles`
+            : bankSummary.banksWithSell > 0
+                ? `Tasa promedio de ${formatPlain(bankSummary.banksWithSell, 0)} bancos con venta`
+                : 'Sin bancos con venta activa'
+    );
     inject('side-ceiling-sell-rate', `Nivel ${String(bankSummary.levelLabel || 'Sin nivel').toUpperCase()} | ${formatPlain(bankSummary.verificationPercent)}%`);
     inject('side-ceiling-level-badge', `${formatPlain(activeBankCards.length, 0)} Bancos`);
 

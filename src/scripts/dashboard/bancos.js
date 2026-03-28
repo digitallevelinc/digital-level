@@ -66,9 +66,39 @@ export function updateBancosUI(insights = [], kpis = {}) {
 
         return Boolean(verdict?.closedAt || verdict?.completedAt || verdict?.releasedAt);
     };
+    const getWalletLiveDayRange = (inputKpis = {}) => {
+        const anchor = new Date(inputKpis?.judge?.reportDate || inputKpis?.reportDate || Date.now());
+        if (Number.isNaN(anchor.getTime())) return null;
+
+        const venezuelaOffsetMs = 4 * 60 * 60 * 1000;
+        const shifted = new Date(anchor.getTime() - venezuelaOffsetMs);
+        const year = shifted.getUTCFullYear();
+        const month = shifted.getUTCMonth();
+        const day = shifted.getUTCDate();
+
+        return {
+            start: new Date(Date.UTC(year, month, day, 4, 0, 0, 0)),
+            end: new Date(Date.UTC(year, month, day + 1, 3, 59, 59, 999)),
+        };
+    };
+    const isTimestampInsideRange = (value, range) => {
+        if (!range?.start || !range?.end || !value) return false;
+        const timestamp = new Date(value).getTime();
+        if (Number.isNaN(timestamp)) return false;
+        return timestamp >= range.start.getTime() && timestamp <= range.end.getTime();
+    };
     const getActiveOpenVerdicts = (inputKpis = {}) => {
         const openVerdicts = Array.isArray(inputKpis?.judge?.openVerdicts) ? inputKpis.judge.openVerdicts : [];
-        return openVerdicts.filter((verdict) => !isTerminalVerdict(verdict));
+        const walletLiveRange = getWalletLiveDayRange(inputKpis);
+        return openVerdicts.filter((verdict) => {
+            if (isTerminalVerdict(verdict)) return false;
+            if (!walletLiveRange) return true;
+
+            return (
+                isTimestampInsideRange(verdict?.createdAt, walletLiveRange)
+                || isTimestampInsideRange(verdict?.promiseActivatedAt, walletLiveRange)
+            );
+        });
     };
 
     const buildVesControlSummaryByBank = (inputKpis = {}) => {
