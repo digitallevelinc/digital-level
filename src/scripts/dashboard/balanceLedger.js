@@ -1003,8 +1003,7 @@ const computeTxSpread = (tx = {}) => {
     const amount = Math.abs(Number(tx?.amount || 0));
     if (amount <= 0) return 0;
 
-    // Fee is shown in the row (FEE ...). For the displayed spread on buys,
-    // the user expects net spread after subtracting the paid fee (when in USDT).
+    // Fee is shown in the row (FEE ...). Used to infer Cc (buy commission rate) when in USDT.
     const fee = toFiniteNumber(tx?.fee);
     const feeCurrency = String(tx?.feeCurrency || '').toUpperCase();
     const effectiveFee = fee > 0 && (!feeCurrency || feeCurrency === 'USDT') ? fee : 0;
@@ -1049,9 +1048,23 @@ const computeTxSpread = (tx = {}) => {
         return 0;
     }
 
-    // Spread only (no commissions): (USDT received) − (USDT needed at sell ref rate)
-    const grossSellRef = ves / referenceSellRate;
-    return (amount - effectiveFee) - grossSellRef;
+    // Spread (net) per formula:
+    // Rendimiento = (VES / tasaCompra × (1 − Cc)) − (VES / (tasaVenta × (1 − Cv)))
+    //
+    // Cc: from the order fee when it's in USDT (fee/amount). Fallback to maker rate.
+    // Cv: maker rate from config (fallback to Cc if that's all we have).
+    const configMakerRate = Number(state.kpis?.config?.verificationPercent || 0) / 100;
+    const cc = effectiveFee > 0 && amount > 0 ? (effectiveFee / amount) : (configMakerRate > 0 ? configMakerRate : 0);
+    const cv = configMakerRate > 0 ? configMakerRate : cc;
+
+    const buyGrossUsdt = ves / txRate;
+    const buyNetUsdt = buyGrossUsdt * (1 - cc);
+
+    const sellDen = referenceSellRate * (1 - cv);
+    if (sellDen <= 0) return 0;
+    const sellEffectiveUsdt = ves / sellDen;
+
+    return buyNetUsdt - sellEffectiveUsdt;
 };
 
 // Iterates transfers oldest-first and accumulates P2P spreads per cycle.
