@@ -985,6 +985,52 @@ const getAvgTakerSellFeeForBank = (txToMatch) => {
     return count > 0 ? feeSum / count : 0;
 };
 
+const getNearestTakerSellForBuy = (buyTx) => {
+    if (!state.currentTransfers?.length) return null;
+    const buyBankKey = normalizeBankKey(buyTx?.bankName || buyTx?.bank || buyTx?.paymentMethod);
+    if (!buyBankKey) return null;
+
+    const buyTs = new Date(buyTx?.timestamp || 0).getTime();
+    if (!Number.isFinite(buyTs) || buyTs <= 0) return null;
+
+    let best = null;
+    let bestScore = Number.POSITIVE_INFINITY;
+
+    for (const tx of state.currentTransfers) {
+        if (tx === buyTx) continue;
+        if (normalizeTxType(tx) !== 'P2P_SELL') continue;
+
+        const role = String(tx?.advertisementRole || '').toUpperCase();
+        if (role && role !== 'TAKER') continue;
+
+        const sellBankKey = normalizeBankKey(tx?.bankName || tx?.bank || tx?.paymentMethod);
+        if (!sellBankKey) continue;
+        if (!(sellBankKey === buyBankKey || sellBankKey.includes(buyBankKey) || buyBankKey.includes(sellBankKey))) continue;
+
+        const rate = getTxRate(tx);
+        if (rate <= 0) continue;
+
+        const fee = toFiniteNumber(tx?.fee);
+        const feeCurrency = String(tx?.feeCurrency || '').toUpperCase();
+        const effectiveFee = fee > 0 && (!feeCurrency || feeCurrency === 'USDT') ? fee : 0;
+
+        const sellTs = new Date(tx?.timestamp || 0).getTime();
+        if (!Number.isFinite(sellTs) || sellTs <= 0) continue;
+
+        // Prefer nearest previous sell; if none, nearest absolute.
+        const isPrevious = sellTs <= buyTs;
+        const delta = Math.abs(buyTs - sellTs);
+        const score = (isPrevious ? 0 : 1_000_000_000_000) + delta;
+
+        if (score < bestScore) {
+            bestScore = score;
+            best = { rate, fee: effectiveFee };
+        }
+    }
+
+    return best;
+};
+
 const getFallbackBuyReferenceRate = () => {
     const directCandidates = [
         state.kpis?.operations?.weightedAvgBuyRate,
@@ -1090,7 +1136,10 @@ const computeTxSpread = (tx = {}) => {
     // 1. Page avg of P2P_SELL rates (same timeframe — most accurate)
     // 2. Bank-level sell rate from bankInsights
     // 3. Global fallback (period average)
-    const pageSellRate = getPageAvgRateForBank(['P2P_SELL'], tx) || getPageAvgRate(['P2P_SELL']);
+    const nearestTakerSell = getNearestTakerSellForBuy(tx);
+    const pageSellRate = nearestTakerSell?.rate
+        || getPageAvgRateForBank(['P2P_SELL'], tx)
+        || getPageAvgRate(['P2P_SELL']);
     const referenceSellRate = pageSellRate > 0
         ? pageSellRate
         : Number(
@@ -1116,7 +1165,7 @@ const computeTxSpread = (tx = {}) => {
     // Spread      = USDT_Compra - USDT_Venta
     const buyRole = String(tx?.advertisementRole || '').toUpperCase();
     if (buyRole === 'TAKER') {
-        const sellTakerFee = getAvgTakerSellFeeForBank(tx) || effectiveFee;
+        const sellTakerFee = nearestTakerSell?.fee || getAvgTakerSellFeeForBank(tx) || effectiveFee;
         if (sellTakerFee > 0) {
             return buyNetUsdt - (grossSellRef + sellTakerFee);
         }
