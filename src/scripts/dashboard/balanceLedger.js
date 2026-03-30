@@ -502,10 +502,20 @@ const formatFiat = (tx) => {
 
 const formatAmount = (tx) => {
     if (tx?.type === 'DISPERSOR_PENDING') return 'INFO';
-    const direction = getDirection(tx?.type);
+    const type = normalizeTxType(tx);
+    const direction = getDirection(type);
     const amount = Number(tx?.amount || 0);
     const sign = direction < 0 ? '-' : direction > 0 ? '+' : '';
-    return `${sign}${formatUsd(Math.abs(amount))}`;
+
+    // Display net amount for P2P buys when fee is in USDT.
+    const fee = toFiniteNumber(tx?.fee);
+    const feeCurrency = String(tx?.feeCurrency || '').toUpperCase();
+    const effectiveFee = fee > 0 && (!feeCurrency || feeCurrency === 'USDT') ? fee : 0;
+    const displayBase = (type === 'P2P_BUY' && direction > 0)
+        ? Math.max(0, Math.abs(amount) - effectiveFee)
+        : Math.abs(amount);
+
+    return `${sign}${formatUsd(displayBase)}`;
 };
 
 const formatPromiseUsdt = (value) => `${formatNumber(Math.abs(Number(value || 0)), 2, 'en-US')} USDT`;
