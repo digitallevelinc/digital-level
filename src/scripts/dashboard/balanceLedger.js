@@ -1112,7 +1112,7 @@ const renderRow = (tx, rowBalance, cycleData = undefined) => {
         spreadMetric = renderMetricCard({
             label: 'Spread',
             value: spreadVal !== 0 ? `${spreadVal > 0 ? '+' : '-'}${formatUsd(Math.abs(spreadVal))}` : '--',
-            sub: spreadVal !== 0 ? 'Estimado (sin comisiones)' : 'Sin spread calculable',
+            sub: spreadVal !== 0 ? '' : 'Sin spread calculable',
             tone: spreadTone
         });
     }
