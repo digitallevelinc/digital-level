@@ -993,6 +993,9 @@ const getNearestSellForBuy = (buyTx) => {
     if (!state.currentTransfers?.length) return null;
     const buyBankKey = normalizeBankKey(buyTx?.bankName || buyTx?.bank || buyTx?.paymentMethod);
     if (!buyBankKey) return null;
+    // Generic BANK label is too broad and causes false pairings.
+    // Keep nearest-sell matching only for specific banks.
+    if (buyBankKey === 'bank') return null;
 
     const buyTs = new Date(buyTx?.timestamp || 0).getTime();
     if (!Number.isFinite(buyTs) || buyTs <= 0) return null;
