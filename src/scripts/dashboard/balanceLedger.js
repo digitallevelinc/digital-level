@@ -458,6 +458,15 @@ const buildDescriptionMeta = (tx, topLine = '') => {
     if (rateText) parts.push(rateText);
     if (orderNumber) parts.push(`ORD ${orderNumber}`);
     if (tx?.tradeType) parts.push(`TRADE ${tx.tradeType}`);
+    const txType = String(tx?.type || '').toUpperCase();
+    if (txType === 'P2P_BUY' || txType === 'P2P_SELL') {
+        const role = inferMakerTakerRole({
+            explicitRole: tx?.advertisementRole,
+            fee: toFiniteNumber(tx?.fee),
+            amount: Math.abs(Number(tx?.amount || 0))
+        });
+        if (role) parts.push(`__ROLE__${role}`);
+    }
     if (tx?.counterpartyId && tx?.counterpartyName !== topLine) {
         parts.push(`ID ${tx.counterpartyId}`);
     }
@@ -1257,7 +1266,14 @@ const renderRow = (tx, rowBalance, cycleData = undefined) => {
     const topRaw = buildDescriptionTop(tx);
     const top = escapeHtml(topRaw);
     const meta = buildDescriptionMeta(tx, topRaw);
-    const metaHtml = meta.map((line) => `<span class="ledger-meta-chip">${escapeHtml(line)}</span>`).join('');
+    const metaHtml = meta.map((line) => {
+        if (line.startsWith('__ROLE__')) {
+            const role = line.slice('__ROLE__'.length);
+            const roleClass = role === 'MAKER' ? 'ledger-meta-chip-maker' : 'ledger-meta-chip-taker';
+            return `<span class="ledger-meta-chip ${roleClass}">${escapeHtml(role)}</span>`;
+        }
+        return `<span class="ledger-meta-chip">${escapeHtml(line)}</span>`;
+    }).join('');
 
     let spreadMetric;
     if (isSettlement && cycleData) {
