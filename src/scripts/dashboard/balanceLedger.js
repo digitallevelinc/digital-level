@@ -40,6 +40,10 @@ const formatNumber = (value, decimals = 2, locale = 'es-VE') => Number(value || 
 });
 
 const formatUsd = (value) => `$${formatNumber(value, 2, 'en-US')}`;
+const truncateTowardZero = (value, decimals = 2) => {
+    const factor = 10 ** decimals;
+    return Math.trunc(Number(value || 0) * factor) / factor;
+};
 const toFiniteNumber = (value) => {
     const n = Number(value);
     return Number.isFinite(n) ? n : 0;
@@ -1224,7 +1228,8 @@ const renderRow = (tx, rowBalance, cycleData = undefined) => {
             tone: sum !== 0 ? cycleTone : 'ledger-metric-muted',
         });
     } else {
-        const spreadVal = computeTxSpread(tx);
+        const spreadValRaw = computeTxSpread(tx);
+        const spreadVal = truncateTowardZero(spreadValRaw, 2);
         const spreadTone = spreadVal > 0
             ? 'ledger-metric-positive'
             : spreadVal < 0
