@@ -1001,11 +1001,7 @@ const computeTxSpread = (tx = {}) => {
         const avgBuyRate = pageBuyRate > 0
             ? pageBuyRate
             : Number(bank?.weightedAvgBuyRate || bank?.avgBuyRate || bank?.buyRate || 0) || getFallbackBuyReferenceRate();
-        if (avgBuyRate <= 0) {
-            const fallbackSpreadPct = getFallbackSpreadPercent();
-            if (fallbackSpreadPct === 0) return 0;
-            return amount * (fallbackSpreadPct / 100);
-        }
+        if (avgBuyRate <= 0) return 0;
 
         // Spread only (no commissions): (USDT recovered at buy ref rate) − (USDT sold)
         const grossBuyRef = ves / avgBuyRate;
@@ -1030,9 +1026,7 @@ const computeTxSpread = (tx = {}) => {
         ) || getFallbackSellReferenceRate();
 
     if (referenceSellRate <= 0) {
-        const fallbackSpreadPct = getFallbackSpreadPercent();
-        if (fallbackSpreadPct === 0) return 0;
-        return amount * (fallbackSpreadPct / 100);
+        return 0;
     }
 
     // Spread only (no commissions): (USDT received) − (USDT needed at sell ref rate)
