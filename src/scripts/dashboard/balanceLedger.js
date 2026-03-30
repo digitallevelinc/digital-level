@@ -52,6 +52,27 @@ const WRAPPED_NOTE_PATTERN = /[\(\{]\s*([^\)\}]+?)\s*[\)\}]/s;
 const PLAIN_NOTE_PATTERN = /^\s*([^()\{\}\n]+?)\s*$/s;
 const PROMISE_ACTIVATION_MAX_USDT = 1.0;
 
+const normalizeTxType = (tx = {}) => {
+    const rawType = String(tx?.type || '').toUpperCase().trim();
+    if (!rawType) {
+        const tradeType = String(tx?.tradeType || '').toUpperCase().trim();
+        if (tradeType === 'BUY') return 'P2P_BUY';
+        if (tradeType === 'SELL') return 'P2P_SELL';
+        return '';
+    }
+
+    if (rawType === 'P2P_BUY' || rawType === 'P2P_SELL') return rawType;
+
+    // Some ledger rows arrive as generic P2P with a tradeType field (BUY/SELL).
+    if (rawType === 'P2P' || rawType === 'P2P_TRADE' || rawType === 'P2P_ORDER') {
+        const tradeType = String(tx?.tradeType || '').toUpperCase().trim();
+        if (tradeType === 'BUY') return 'P2P_BUY';
+        if (tradeType === 'SELL') return 'P2P_SELL';
+    }
+
+    return rawType;
+};
+
 const isSettlementTransfer = (tx = {}) => {
     const excludedReason = String(tx?.excludedReason || '').trim().toUpperCase();
     if (excludedReason === 'INTER_OPERATOR_SETTLEMENT') return true;
@@ -100,7 +121,7 @@ const getDirection = (type) => {
 };
 
 const getSignedAmount = (tx = {}) => {
-    const type = String(tx?.type || '').toUpperCase();
+    const type = normalizeTxType(tx);
     const status = String(tx?.status || '').toUpperCase();
     const asset = String(tx?.asset || '').toUpperCase();
     const pm = String(tx?.paymentMethod || '').toUpperCase();
@@ -875,7 +896,7 @@ const getPageAvgRate = (typesToMatch) => {
     let totalAmount = 0;
 
     for (const tx of state.currentTransfers) {
-        const type = String(tx?.type || '').toUpperCase();
+        const type = normalizeTxType(tx);
         if (!typesToMatch.includes(type)) continue;
 
         const rate = getTxRate(tx);
@@ -957,7 +978,7 @@ const getFallbackSpreadPercent = () => {
 };
 
 const computeTxSpread = (tx = {}) => {
-    const type = String(tx?.type || '').toUpperCase();
+    const type = normalizeTxType(tx);
     if (type !== 'P2P_SELL' && type !== 'P2P_BUY') return 0;
 
     const txRate = getTxRate(tx);
