@@ -1408,9 +1408,14 @@ const renderRow = (tx, rowBalance, cycleData = undefined) => {
     `;
 };
 
-const renderTransfers = (transfers = []) => {
+const renderTransfers = (transfers = [], options = {}) => {
     const { body, count, scroll } = getElements();
     if (!body) return;
+
+    // Only reset scroll when explicitly requested (first load, pagination, filter change).
+    // Silent refreshes preserve position so the list does not jump to the top.
+    const resetScroll = options.resetScroll === true;
+    const savedScrollTop = scroll && !resetScroll ? scroll.scrollTop : 0;
 
     const allTransfers = Array.isArray(transfers) ? transfers : [];
     const scopedTransfers = allTransfers.filter((tx) => isLedgerChannelAllowed(tx));
@@ -1438,7 +1443,16 @@ const renderTransfers = (transfers = []) => {
             </div>
         `;
         updatePaginationUI();
-        if (scroll) scroll.scrollTop = 0;
+        if (scroll) {
+            if (resetScroll) {
+                scroll.scrollTop = 0;
+            } else {
+                requestAnimationFrame(() => {
+                    const max = Math.max(0, scroll.scrollHeight - scroll.clientHeight);
+                    scroll.scrollTop = Math.min(savedScrollTop, max);
+                });
+            }
+        }
         return;
     }
 
@@ -1459,7 +1473,16 @@ const renderTransfers = (transfers = []) => {
     });
 
     updatePaginationUI();
-    if (scroll) scroll.scrollTop = 0;
+    if (scroll) {
+        if (resetScroll) {
+            scroll.scrollTop = 0;
+        } else {
+            requestAnimationFrame(() => {
+                const max = Math.max(0, scroll.scrollHeight - scroll.clientHeight);
+                scroll.scrollTop = Math.min(savedScrollTop, max);
+            });
+        }
+    }
 };
 
 const fetchTransfersPage = async (page = 1, options = {}) => {
@@ -1527,7 +1550,9 @@ const fetchTransfersPage = async (page = 1, options = {}) => {
         state.loadedOnce = true;
         state.needsRefresh = false;
 
-        renderTransfers(Array.isArray(payload?.transfers) ? payload.transfers : []);
+        renderTransfers(Array.isArray(payload?.transfers) ? payload.transfers : [], {
+            resetScroll: showLoading,
+        });
     } catch (error) {
         if (error?.name === 'AbortError') return;
         console.warn('No fue posible cargar el historial de balance:', error);
