@@ -956,6 +956,35 @@ const getPageAvgRateForBank = (typesToMatch, txToMatch) => {
     return totalAmount > 0 ? weightedSum / totalAmount : 0;
 };
 
+const getAvgTakerSellFeeForBank = (txToMatch) => {
+    const bankKey = normalizeBankKey(txToMatch?.bankName || txToMatch?.bank || txToMatch?.paymentMethod);
+    if (!bankKey || !state.currentTransfers?.length) return 0;
+
+    let feeSum = 0;
+    let count = 0;
+
+    for (const tx of state.currentTransfers) {
+        const type = normalizeTxType(tx);
+        if (type !== 'P2P_SELL') continue;
+
+        const role = String(tx?.advertisementRole || '').toUpperCase();
+        if (role && role !== 'TAKER') continue;
+
+        const txBankKey = normalizeBankKey(tx?.bankName || tx?.bank || tx?.paymentMethod);
+        if (!txBankKey) continue;
+        if (!(txBankKey === bankKey || txBankKey.includes(bankKey) || bankKey.includes(txBankKey))) continue;
+
+        const fee = toFiniteNumber(tx?.fee);
+        const feeCurrency = String(tx?.feeCurrency || '').toUpperCase();
+        if (!(fee > 0 && (!feeCurrency || feeCurrency === 'USDT'))) continue;
+
+        feeSum += fee;
+        count += 1;
+    }
+
+    return count > 0 ? feeSum / count : 0;
+};
+
 const getFallbackBuyReferenceRate = () => {
     const directCandidates = [
         state.kpis?.operations?.weightedAvgBuyRate,
@@ -1078,9 +1107,23 @@ const computeTxSpread = (tx = {}) => {
         return 0;
     }
 
-    // Spread only (no commissions): (USDT received) − (USDT needed at sell ref rate)
     const grossSellRef = ves / referenceSellRate;
-    return (amount - effectiveFee) - grossSellRef;
+    const buyNetUsdt = amount - effectiveFee;
+
+    // TAKER-TAKER override (fixed fee model):
+    // USDT_Compra = (VES / tasaCompra) - fee_buy
+    // USDT_Venta  = (VES / tasaVenta) + fee_sell
+    // Spread      = USDT_Compra - USDT_Venta
+    const buyRole = String(tx?.advertisementRole || '').toUpperCase();
+    if (buyRole === 'TAKER') {
+        const sellTakerFee = getAvgTakerSellFeeForBank(tx) || effectiveFee;
+        if (sellTakerFee > 0) {
+            return buyNetUsdt - (grossSellRef + sellTakerFee);
+        }
+    }
+
+    // Default path (what was working for the rest):
+    return buyNetUsdt - grossSellRef;
 };
 
 // Iterates transfers oldest-first and accumulates P2P spreads per cycle.
