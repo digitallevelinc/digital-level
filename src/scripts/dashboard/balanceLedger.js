@@ -1190,11 +1190,16 @@ const computeTxSpread = (tx = {}) => {
         fee: effectiveFee,
         amount
     });
-    const sellRole = inferMakerTakerRole({
-        explicitRole: nearestSell?.role,
-        fee: nearestSell?.fee,
-        amount: nearestSell?.amount
-    });
+    // When no sell found, default to TAKER (the typical sell role in this operation).
+    // Using MAKER as default would apply the % formula (/ (1-r)) to the sell side,
+    // which produces the same cost as using the BUY's maker fee — both incorrect for Taker-Maker cycles.
+    const sellRole = nearestSell
+        ? inferMakerTakerRole({
+            explicitRole: nearestSell.role,
+            fee: nearestSell.fee,
+            amount: nearestSell.amount
+        })
+        : 'TAKER';
 
     const buyGrossUsdt = ves / txRate;
     const buyUsdtIn = buyRole === 'TAKER'
@@ -1204,7 +1209,9 @@ const computeTxSpread = (tx = {}) => {
             : buyGrossUsdt;
 
     const sellGrossUsdt = ves / referenceSellRate;
-    const sellTakerFee = nearestSell?.fee || getAvgTakerSellFeeForBank(tx) || effectiveFee;
+    // Do NOT fall back to the buy transaction's effectiveFee: that is the MAKER buy fee
+    // and has nothing to do with the TAKER sell fee. Use 0.06 (Binance P2P flat taker fee).
+    const sellTakerFee = nearestSell?.fee || getAvgTakerSellFeeForBank(tx) || 0.06;
     const sellUsdtOut = sellRole === 'TAKER'
         ? (sellGrossUsdt + sellTakerFee)
         : makerFeeRate > 0
