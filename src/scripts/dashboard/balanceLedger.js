@@ -511,9 +511,12 @@ const formatAmount = (tx) => {
     const fee = toFiniteNumber(tx?.fee);
     const feeCurrency = String(tx?.feeCurrency || '').toUpperCase();
     const effectiveFee = fee > 0 && (!feeCurrency || feeCurrency === 'USDT') ? fee : 0;
+    const absAmount = Math.abs(amount);
     const displayBase = (type === 'P2P_BUY' && direction > 0)
-        ? Math.max(0, Math.abs(amount) - effectiveFee)
-        : Math.abs(amount);
+        ? Math.max(0, absAmount - effectiveFee)
+        : (type === 'P2P_SELL' && direction < 0)
+            ? (absAmount + effectiveFee)
+            : absAmount;
 
     return `${sign}${formatUsd(displayBase)}`;
 };
