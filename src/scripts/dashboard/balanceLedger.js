@@ -445,12 +445,14 @@ const buildDescriptionMeta = (tx, topLine = '') => {
     const asset = String(tx?.asset || '').toUpperCase();
     const fiatCurrency = String(tx?.fiatCurrency || '').toUpperCase();
     const promiseMeta = getPromiseMeta(tx);
+    const orderNumber = String(tx?.orderNumber || '').trim();
 
     // Keep sender/receiver identity only in the top line to avoid redundancy.
     if (asset) parts.push(asset);
     if (fiatCurrency) parts.push(fiatCurrency);
     if (feeText) parts.push(feeText);
     if (rateText) parts.push(rateText);
+    if (orderNumber) parts.push(`ORD ${orderNumber}`);
     if (tx?.tradeType) parts.push(`TRADE ${tx.tradeType}`);
     if (tx?.counterpartyId && tx?.counterpartyName !== topLine) {
         parts.push(`ID ${tx.counterpartyId}`);
@@ -987,20 +989,6 @@ const computeTxSpread = (tx = {}) => {
     const amount = Math.abs(Number(tx?.amount || 0));
     if (amount <= 0) return 0;
 
-    // Current side fee (exact, from transaction data).
-    const fee = toFiniteNumber(tx?.fee);
-    const feeCurrency = String(tx?.feeCurrency || '').toUpperCase();
-    const effectiveFee = (fee > 0 && (!feeCurrency || feeCurrency === 'USDT')) ? fee : 0;
-
-    // Reference side fee rate: operator's maker rate from config.
-    // verificationPercent is stored as a percentage value (e.g., 0.17 → 0.17% → ÷100 = 0.0017).
-    // Used for the counterpart side of the spread regardless of whether the current tx was maker
-    // or taker — this correctly covers maker-maker and taker-maker (most common) scenarios.
-    const configMakerRate = Number(state.kpis?.config?.verificationPercent || 0) / 100;
-    const refFeeRate = configMakerRate > 0
-        ? configMakerRate
-        : (effectiveFee > 0 && amount > 0 ? effectiveFee / amount : 0);
-
     const ves = resolveFiatAmount(tx) || amount * txRate;
 
     const bank = matchTxToBank(tx);
@@ -1016,12 +1004,12 @@ const computeTxSpread = (tx = {}) => {
         if (avgBuyRate <= 0) {
             const fallbackSpreadPct = getFallbackSpreadPercent();
             if (fallbackSpreadPct === 0) return 0;
-            return (amount - effectiveFee) * (fallbackSpreadPct / 100);
+            return amount * (fallbackSpreadPct / 100);
         }
 
-        // Net: (USDT recovered at buy ref rate − est. buy fee) − (USDT sold + sell fee paid)
+        // Spread only (no commissions): (USDT recovered at buy ref rate) − (USDT sold)
         const grossBuyRef = ves / avgBuyRate;
-        return (grossBuyRef - grossBuyRef * refFeeRate) - (amount + effectiveFee);
+        return grossBuyRef - amount;
     }
 
     // Reference sell rate priority:
@@ -1044,12 +1032,12 @@ const computeTxSpread = (tx = {}) => {
     if (referenceSellRate <= 0) {
         const fallbackSpreadPct = getFallbackSpreadPercent();
         if (fallbackSpreadPct === 0) return 0;
-        return (amount - effectiveFee) * (fallbackSpreadPct / 100);
+        return amount * (fallbackSpreadPct / 100);
     }
 
-    // Net: (USDT received − buy fee paid) − (USDT needed at sell ref rate + est. sell fee)
+    // Spread only (no commissions): (USDT received) − (USDT needed at sell ref rate)
     const grossSellRef = ves / referenceSellRate;
-    return (amount - effectiveFee) - (grossSellRef + grossSellRef * refFeeRate);
+    return amount - grossSellRef;
 };
 
 // Iterates transfers oldest-first and accumulates P2P spreads per cycle.
@@ -1110,7 +1098,7 @@ const renderRow = (tx, rowBalance, cycleData = undefined) => {
         spreadMetric = renderMetricCard({
             label: 'Spread',
             value: spreadVal !== 0 ? `${spreadVal > 0 ? '+' : '-'}${formatUsd(Math.abs(spreadVal))}` : '--',
-            sub: spreadVal !== 0 ? 'Estimado neto (c/ comisiones)' : 'Sin spread calculable',
+            sub: spreadVal !== 0 ? 'Estimado (sin comisiones)' : 'Sin spread calculable',
             tone: spreadTone
         });
     }
