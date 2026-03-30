@@ -1030,11 +1030,33 @@ const getNearestSellForBuy = (buyTx) => {
 
         if (score < bestScore) {
             bestScore = score;
-            best = { rate, fee: effectiveFee, role: role || '' };
+            const amount = Math.abs(Number(tx?.amount || 0));
+            best = { rate, fee: effectiveFee, role: role || '', amount };
         }
     }
 
     return best;
+};
+
+const inferMakerTakerRole = ({ explicitRole = '', fee = 0, amount = 0 } = {}) => {
+    const role = String(explicitRole || '').toUpperCase().trim();
+    if (role === 'MAKER' || role === 'TAKER') return role;
+
+    const feeNum = Math.abs(Number(fee || 0));
+    const amountNum = Math.abs(Number(amount || 0));
+    const makerFeeRate = Number(state.kpis?.config?.verificationPercent || 0) / 100;
+
+    if (feeNum > 0 && amountNum > 0) {
+        // If fee roughly matches maker percentage fee, classify as MAKER; otherwise TAKER.
+        const expectedMakerFee = amountNum * makerFeeRate;
+        if (expectedMakerFee > 0) {
+            const relativeDiff = Math.abs(feeNum - expectedMakerFee) / expectedMakerFee;
+            if (relativeDiff <= 0.2) return 'MAKER';
+        }
+        return 'TAKER';
+    }
+
+    return makerFeeRate > 0 ? 'MAKER' : '';
 };
 
 const getFallbackBuyReferenceRate = () => {
@@ -1163,8 +1185,16 @@ const computeTxSpread = (tx = {}) => {
     }
 
     const makerFeeRate = Number(state.kpis?.config?.verificationPercent || 0) / 100;
-    const buyRole = String(tx?.advertisementRole || '').toUpperCase() || (effectiveFee > 0 ? 'TAKER' : 'MAKER');
-    const sellRole = String(nearestSell?.role || '').toUpperCase();
+    const buyRole = inferMakerTakerRole({
+        explicitRole: tx?.advertisementRole,
+        fee: effectiveFee,
+        amount
+    });
+    const sellRole = inferMakerTakerRole({
+        explicitRole: nearestSell?.role,
+        fee: nearestSell?.fee,
+        amount: nearestSell?.amount
+    });
 
     const buyGrossUsdt = ves / txRate;
     const buyUsdtIn = buyRole === 'TAKER'
