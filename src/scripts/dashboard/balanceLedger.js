@@ -956,59 +956,6 @@ const getPageAvgRateForBank = (typesToMatch, txToMatch) => {
     return totalAmount > 0 ? weightedSum / totalAmount : 0;
 };
 
-const getPageAvgFeeRateForBank = (typesToMatch, txToMatch) => {
-    const bankKey = normalizeBankKey(txToMatch?.bankName || txToMatch?.bank || txToMatch?.paymentMethod);
-    if (!bankKey) return 0;
-    if (!state.currentTransfers?.length) return 0;
-
-    let feeSum = 0;
-    let amountSum = 0;
-
-    for (const tx of state.currentTransfers) {
-        const type = normalizeTxType(tx);
-        if (!typesToMatch.includes(type)) continue;
-
-        const txBankKey = normalizeBankKey(tx?.bankName || tx?.bank || tx?.paymentMethod);
-        if (!txBankKey) continue;
-        if (!(txBankKey === bankKey || txBankKey.includes(bankKey) || bankKey.includes(txBankKey))) continue;
-
-        const amount = Math.abs(Number(tx?.amount || 0));
-        if (amount <= 0) continue;
-
-        const fee = toFiniteNumber(tx?.fee);
-        const feeCurrency = String(tx?.feeCurrency || '').toUpperCase();
-        if (!(fee > 0 && (!feeCurrency || feeCurrency === 'USDT'))) continue;
-
-        feeSum += fee;
-        amountSum += amount;
-    }
-
-    return amountSum > 0 ? feeSum / amountSum : 0;
-};
-
-const getPageAvgFeeRate = (typesToMatch) => {
-    if (!state.currentTransfers?.length) return 0;
-    let feeSum = 0;
-    let amountSum = 0;
-
-    for (const tx of state.currentTransfers) {
-        const type = normalizeTxType(tx);
-        if (!typesToMatch.includes(type)) continue;
-
-        const amount = Math.abs(Number(tx?.amount || 0));
-        if (amount <= 0) continue;
-
-        const fee = toFiniteNumber(tx?.fee);
-        const feeCurrency = String(tx?.feeCurrency || '').toUpperCase();
-        if (!(fee > 0 && (!feeCurrency || feeCurrency === 'USDT'))) continue;
-
-        feeSum += fee;
-        amountSum += amount;
-    }
-
-    return amountSum > 0 ? feeSum / amountSum : 0;
-};
-
 const getFallbackBuyReferenceRate = () => {
     const directCandidates = [
         state.kpis?.operations?.weightedAvgBuyRate,
@@ -1131,25 +1078,9 @@ const computeTxSpread = (tx = {}) => {
         return 0;
     }
 
-    // Net spread using the "rendimiento real" formula:
-    //   (VES / buyRate × (1 − Cc)) − (VES / (sellRate × (1 − Cv)))
-    // Here, buyRate is the tx rate. sellRate is the reference sell rate.
-    // Cc is inferred from the order fee when in USDT (fee/amount).
-    // Cv is inferred from page sell fees (same bank if possible), else config maker rate.
-    const cc = effectiveFee > 0 && amount > 0 ? (effectiveFee / amount) : 0;
-
-    const configMakerRate = Number(state.kpis?.config?.verificationPercent || 0) / 100;
-    const pageCv = getPageAvgFeeRateForBank(['P2P_SELL'], tx) || getPageAvgFeeRate(['P2P_SELL']);
-    const cv = pageCv > 0 ? pageCv : (configMakerRate > 0 ? configMakerRate : cc);
-
-    const buyGrossUsdt = ves / txRate;
-    const buyNetUsdt = buyGrossUsdt * (1 - cc);
-
-    const sellDen = referenceSellRate * (1 - cv);
-    if (sellDen <= 0) return 0;
-    const sellEffectiveUsdt = ves / sellDen;
-
-    return buyNetUsdt - sellEffectiveUsdt;
+    // Spread only (no commissions): (USDT received) − (USDT needed at sell ref rate)
+    const grossSellRef = ves / referenceSellRate;
+    return (amount - effectiveFee) - grossSellRef;
 };
 
 // Iterates transfers oldest-first and accumulates P2P spreads per cycle.
