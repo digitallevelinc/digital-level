@@ -927,6 +927,35 @@ const getPageAvgRate = (typesToMatch) => {
     return totalAmount > 0 ? weightedSum / totalAmount : 0;
 };
 
+const getPageAvgRateForBank = (typesToMatch, txToMatch) => {
+    const bankKey = normalizeBankKey(txToMatch?.bankName || txToMatch?.bank || txToMatch?.paymentMethod);
+    if (!bankKey) return 0;
+    if (!state.currentTransfers?.length) return 0;
+
+    let weightedSum = 0;
+    let totalAmount = 0;
+
+    for (const tx of state.currentTransfers) {
+        const type = normalizeTxType(tx);
+        if (!typesToMatch.includes(type)) continue;
+
+        const txBankKey = normalizeBankKey(tx?.bankName || tx?.bank || tx?.paymentMethod);
+        if (!txBankKey) continue;
+        if (!(txBankKey === bankKey || txBankKey.includes(bankKey) || bankKey.includes(txBankKey))) continue;
+
+        const rate = getTxRate(tx);
+        if (rate <= 0) continue;
+
+        const amount = Math.abs(Number(tx?.amount || 0));
+        if (amount <= 0) continue;
+
+        weightedSum += rate * amount;
+        totalAmount += amount;
+    }
+
+    return totalAmount > 0 ? weightedSum / totalAmount : 0;
+};
+
 const getFallbackBuyReferenceRate = () => {
     const directCandidates = [
         state.kpis?.operations?.weightedAvgBuyRate,
@@ -1032,7 +1061,7 @@ const computeTxSpread = (tx = {}) => {
     // 1. Page avg of P2P_SELL rates (same timeframe — most accurate)
     // 2. Bank-level sell rate from bankInsights
     // 3. Global fallback (period average)
-    const pageSellRate = getPageAvgRate(['P2P_SELL']);
+    const pageSellRate = getPageAvgRateForBank(['P2P_SELL'], tx) || getPageAvgRate(['P2P_SELL']);
     const referenceSellRate = pageSellRate > 0
         ? pageSellRate
         : Number(
