@@ -992,6 +992,7 @@ const getFallbackSpreadPercent = () => {
 const computeTxSpread = (tx = {}) => {
     const type = normalizeTxType(tx);
     if (type !== 'P2P_SELL' && type !== 'P2P_BUY') return 0;
+    if (type === 'P2P_SELL') return 0;
 
     const txRate = getTxRate(tx);
     if (txRate <= 0) return 0;
