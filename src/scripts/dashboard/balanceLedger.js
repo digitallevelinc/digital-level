@@ -989,7 +989,7 @@ const getAvgTakerSellFeeForBank = (txToMatch) => {
     return count > 0 ? feeSum / count : 0;
 };
 
-const getNearestTakerSellForBuy = (buyTx) => {
+const getNearestSellForBuy = (buyTx) => {
     if (!state.currentTransfers?.length) return null;
     const buyBankKey = normalizeBankKey(buyTx?.bankName || buyTx?.bank || buyTx?.paymentMethod);
     if (!buyBankKey) return null;
@@ -1005,7 +1005,6 @@ const getNearestTakerSellForBuy = (buyTx) => {
         if (normalizeTxType(tx) !== 'P2P_SELL') continue;
 
         const role = String(tx?.advertisementRole || '').toUpperCase();
-        if (role && role !== 'TAKER') continue;
 
         const sellBankKey = normalizeBankKey(tx?.bankName || tx?.bank || tx?.paymentMethod);
         if (!sellBankKey) continue;
@@ -1028,7 +1027,7 @@ const getNearestTakerSellForBuy = (buyTx) => {
 
         if (score < bestScore) {
             bestScore = score;
-            best = { rate, fee: effectiveFee };
+            best = { rate, fee: effectiveFee, role: role || '' };
         }
     }
 
@@ -1140,8 +1139,8 @@ const computeTxSpread = (tx = {}) => {
     // 1. Page avg of P2P_SELL rates (same timeframe — most accurate)
     // 2. Bank-level sell rate from bankInsights
     // 3. Global fallback (period average)
-    const nearestTakerSell = getNearestTakerSellForBuy(tx);
-    const pageSellRate = nearestTakerSell?.rate
+    const nearestSell = getNearestSellForBuy(tx);
+    const pageSellRate = nearestSell?.rate
         || getPageAvgRateForBank(['P2P_SELL'], tx)
         || getPageAvgRate(['P2P_SELL']);
     const referenceSellRate = pageSellRate > 0
@@ -1160,23 +1159,26 @@ const computeTxSpread = (tx = {}) => {
         return 0;
     }
 
-    const grossSellRef = ves / referenceSellRate;
-    const buyNetUsdt = amount - effectiveFee;
+    const makerFeeRate = Number(state.kpis?.config?.verificationPercent || 0) / 100;
+    const buyRole = String(tx?.advertisementRole || '').toUpperCase() || (effectiveFee > 0 ? 'TAKER' : 'MAKER');
+    const sellRole = String(nearestSell?.role || '').toUpperCase();
 
-    // TAKER-TAKER override (fixed fee model):
-    // USDT_Compra = (VES / tasaCompra) - fee_buy
-    // USDT_Venta  = (VES / tasaVenta) + fee_sell
-    // Spread      = USDT_Compra - USDT_Venta
-    const buyRole = String(tx?.advertisementRole || '').toUpperCase();
-    if (buyRole === 'TAKER') {
-        const sellTakerFee = nearestTakerSell?.fee || getAvgTakerSellFeeForBank(tx) || effectiveFee;
-        if (sellTakerFee > 0) {
-            return buyNetUsdt - (grossSellRef + sellTakerFee);
-        }
-    }
+    const buyGrossUsdt = ves / txRate;
+    const buyUsdtIn = buyRole === 'TAKER'
+        ? (buyGrossUsdt - effectiveFee)
+        : makerFeeRate > 0
+            ? (buyGrossUsdt * (1 - makerFeeRate))
+            : buyGrossUsdt;
 
-    // Default path (what was working for the rest):
-    return buyNetUsdt - grossSellRef;
+    const sellGrossUsdt = ves / referenceSellRate;
+    const sellTakerFee = nearestSell?.fee || getAvgTakerSellFeeForBank(tx) || effectiveFee;
+    const sellUsdtOut = sellRole === 'TAKER'
+        ? (sellGrossUsdt + sellTakerFee)
+        : makerFeeRate > 0
+            ? (sellGrossUsdt / (1 - makerFeeRate))
+            : sellGrossUsdt;
+
+    return buyUsdtIn - sellUsdtOut;
 };
 
 // Iterates transfers oldest-first and accumulates P2P spreads per cycle.
