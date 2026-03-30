@@ -1000,6 +1000,12 @@ const computeTxSpread = (tx = {}) => {
     const amount = Math.abs(Number(tx?.amount || 0));
     if (amount <= 0) return 0;
 
+    // Fee is shown in the row (FEE ...). For the displayed spread on buys,
+    // the user expects net spread after subtracting the paid fee (when in USDT).
+    const fee = toFiniteNumber(tx?.fee);
+    const feeCurrency = String(tx?.feeCurrency || '').toUpperCase();
+    const effectiveFee = fee > 0 && (!feeCurrency || feeCurrency === 'USDT') ? fee : 0;
+
     const ves = resolveFiatAmount(tx) || amount * txRate;
 
     const bank = matchTxToBank(tx);
@@ -1042,7 +1048,7 @@ const computeTxSpread = (tx = {}) => {
 
     // Spread only (no commissions): (USDT received) − (USDT needed at sell ref rate)
     const grossSellRef = ves / referenceSellRate;
-    return amount - grossSellRef;
+    return (amount - effectiveFee) - grossSellRef;
 };
 
 // Iterates transfers oldest-first and accumulates P2P spreads per cycle.
