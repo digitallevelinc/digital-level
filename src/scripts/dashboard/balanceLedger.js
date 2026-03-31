@@ -284,7 +284,11 @@ const getCategoryChipClass = (category) => {
     }
 };
 
-const getRowToneClass = (category) => {
+const getRowToneClass = (category, type) => {
+    if (category === 'P2P') {
+        if (type === 'P2P_SELL') return 'ledger-row-liquid';
+        if (type === 'P2P_BUY') return 'ledger-row-parseo';
+    }
     switch (category) {
         case 'P2P':
             return 'ledger-row-p2p';
@@ -770,19 +774,19 @@ const matchesSearch = (tx, searchTerm) => {
 
 const buildRowsWithBalance = (transfers = []) => {
     let rows = Array.isArray(transfers) ? [...transfers] : [];
-    
+
     if (state.page === 1) {
         const dispersor = state.kpis?.judge?.dispersor || state.kpis?.dispersor;
         const pendingUsdt = Number(dispersor?.pendingUsdt || 0);
         const promisedUsdt = Number(dispersor?.promisedUsdt || 0);
         const activePromises = Number(dispersor?.activePromises || 0);
-        
+
         if (promisedUsdt > 0 || activePromises > 0) {
             const pendingFiat = Number(dispersor?.pendingFiat || 0);
             const recoveredUsdt = Number(dispersor?.recoveredUsdtLocal || 0);
             const recoveredFiat = Number(dispersor?.recoveredFiatLocal || 0);
             const promisedFiat = Number(dispersor?.promisedFiat || 0);
-            
+
             const syntheticTx = {
                 id: 'synthetic-dispersor',
                 timestamp: Date.now(),
@@ -1231,10 +1235,11 @@ const computeCycleSpreads = (transfers) => {
 const renderRow = (tx, rowBalance, cycleData = undefined) => {
     const isSettlement = isSettlementTransfer(tx);
     const category = isSettlement ? 'LIQUID' : getCategory(tx.type);
+    const type = normalizeTxType(tx);
     const signedAmount = getSignedAmount(tx);
     const amountTone = signedAmount < 0 ? 'ledger-amount-negative' : 'ledger-amount-positive';
     const balanceTone = rowBalance < 0 ? 'ledger-balance-negative' : 'ledger-balance-neutral';
-    const rowTone = getRowToneClass(category);
+    const rowTone = getRowToneClass(category, type);
     const typePillTone = getCategoryChipClass(category);
     const topRaw = buildDescriptionTop(tx);
     const top = escapeHtml(topRaw);
