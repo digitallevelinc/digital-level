@@ -1183,16 +1183,31 @@ const computeTxSpread = (tx = {}) => {
     // so `amount` is more accurate than reconstructing it via VES/rate ± fee formula.
     const buyUsdtIn = amount;
 
-    const sellGrossUsdt = ves / referenceSellRate;
-    // Do NOT fall back to the buy transaction's effectiveFee: that is the MAKER buy fee
-    // and has nothing to do with the TAKER sell fee. Use 0.06 (Binance P2P flat taker fee).
-    const sellTakerFee = (nearestSell?.fee || sellRoleSource?.fee) || getAvgTakerSellFeeForBank(tx) || 0.06;
+    const nearestSellAmount = Math.abs(Number(nearestSell?.amount || 0));
+    const hasNearestSellAmount = nearestSellAmount > 0;
+
+    // Prefer the real matched sell amount from the ledger when available.
+    // This keeps per-row spread aligned with what the operator sees in Monto.
+    const sellGrossUsdt = hasNearestSellAmount
+        ? nearestSellAmount
+        : (ves / referenceSellRate);
+
+    // Apply extra sell-side fee only when we had to reconstruct the sell from VES/rate.
+    // If we already have nearest sell amount, that amount is the reference baseline.
+    const sellTakerFee = hasNearestSellAmount
+        ? 0
+        : (nearestSell?.fee || sellRoleSource?.fee) || getAvgTakerSellFeeForBank(tx) || 0.06;
     const sellUsdtOut = sellRole === 'TAKER'
         ? (sellGrossUsdt + sellTakerFee)
         : makerFeeRate > 0
             ? (sellGrossUsdt / (1 - makerFeeRate))
             : sellGrossUsdt;
 
+    // Spread por orden según la fórmula de referencia:
+    // RENDIMIENTO = USDT_entrada − USDT_salida
+    // donde:
+    //   USDT_entrada = buyUsdtIn  (lo que realmente entra en la billetera al comprar)
+    //   USDT_salida  = sellUsdtOut (lo que costó generar los VES de la venta)
     return buyUsdtIn - sellUsdtOut;
 };
 
