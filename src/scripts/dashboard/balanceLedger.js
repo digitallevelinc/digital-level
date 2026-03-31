@@ -1203,28 +1203,78 @@ const computeTxSpread = (tx = {}) => {
     return buyUsdtIn - sellUsdtOut;
 };
 
-// Iterates transfers oldest-first and accumulates P2P spreads per cycle.
-// A cycle ends at each LIQUID (settlement) row; it's "complete" on this page
-// if a DISPERSOR_PENDING row was seen since the previous LIQUID.
-// Returns Map<tx, { sum: number, complete: boolean }>.
+// Ciclo basado en recuperación de bolívares:
+// Un ciclo INICIA en cada P2P_SELL (vendes USDT, recibes VES).
+// Los P2P_BUY posteriores van "consumiendo" esos VES.
+// El ciclo se CIERRA cuando la suma de VES gastados en compras >= VES recibidos de la venta.
+// Ventas consecutivas se acumulan (stack) en un solo pool.
+// Returns Map<sellTx, { sum, complete, totalSellFiat, recoveredFiat, recoveredPct }>.
 const computeCycleSpreads = (transfers) => {
     const result = new Map();
-    let cycleSpread = 0;
-    let hasDispersador = false;
 
+    // Estado del ciclo abierto
+    let pendingSellFiat = 0;   // VES que faltan por recuperar
+    let totalSellFiat = 0;     // VES totales de todas las ventas del ciclo
+    let recoveredFiat = 0;     // VES recuperados via compras
+    let cycleSpread = 0;       // Spread acumulado de las compras del ciclo
+    let cycleSells = [];       // Transacciones P2P_SELL que forman este ciclo
+
+    const closeCycle = (complete) => {
+        const pct = totalSellFiat > 0
+            ? Math.min(100, (recoveredFiat / totalSellFiat) * 100)
+            : 0;
+        for (const sellTx of cycleSells) {
+            result.set(sellTx, {
+                sum: cycleSpread,
+                complete,
+                totalSellFiat,
+                recoveredFiat,
+                recoveredPct: pct,
+            });
+        }
+        pendingSellFiat = 0;
+        totalSellFiat = 0;
+        recoveredFiat = 0;
+        cycleSpread = 0;
+        cycleSells = [];
+    };
+
+    // Recorrer de más antiguo a más reciente (el array viene newest-first)
     for (let i = transfers.length - 1; i >= 0; i--) {
         const tx = transfers[i];
-        if (isSettlementTransfer(tx)) {
-            result.set(tx, { sum: cycleSpread, complete: hasDispersador });
-            cycleSpread = 0;
-            hasDispersador = false;
-        } else {
-            if (String(tx?.type || '').toUpperCase() === 'DISPERSOR_PENDING') {
-                hasDispersador = true;
+        const type = normalizeTxType(tx);
+
+        if (type === 'P2P_SELL') {
+            // Una venta agrega VES al pool de recuperación (se acumulan)
+            const sellFiat = resolveFiatAmount(tx);
+            if (sellFiat > 0) {
+                pendingSellFiat += sellFiat;
+                totalSellFiat += sellFiat;
+                cycleSells.push(tx);
+            }
+        } else if (type === 'P2P_BUY' && pendingSellFiat > 0) {
+            // Una compra consume VES del pool y aporta su spread
+            const buyFiat = resolveFiatAmount(tx);
+            if (buyFiat > 0) {
+                recoveredFiat += buyFiat;
+                pendingSellFiat = Math.max(0, pendingSellFiat - buyFiat);
             }
             cycleSpread += computeTxSpread(tx);
+
+            // ¿Se recuperaron todos los VES? → ciclo cerrado
+            if (pendingSellFiat <= 0) {
+                closeCycle(true);
+            }
         }
+        // Compras sin ciclo abierto se ignoran para acumulación de ciclo
+        // (siguen mostrando su spread individual en la columna SPREAD)
     }
+
+    // Ciclo abierto restante (ventas sin recuperación completa en esta página)
+    if (cycleSells.length > 0) {
+        closeCycle(false);
+    }
+
     return result;
 };
 
@@ -1248,14 +1298,17 @@ const renderRow = (tx, rowBalance, cycleData = undefined) => {
         return `<span class="ledger-meta-chip">${escapeHtml(line)}</span>`;
     }).join('');
 
+    const isCycleSell = normalizeTxType(tx) === 'P2P_SELL' && cycleData != null;
+
     let spreadMetric;
-    if (isSettlement && cycleData) {
-        const { sum, complete } = cycleData;
+    if (isCycleSell) {
+        const { sum, complete, recoveredPct } = cycleData;
         const cycleTone = sum > 0 ? 'ledger-metric-positive' : sum < 0 ? 'ledger-metric-negative' : 'ledger-metric-muted';
+        const pctText = complete ? 'Ciclo cerrado' : `${Math.round(recoveredPct)}% recuperado`;
         spreadMetric = renderMetricCard({
             label: 'Ciclo',
             value: sum !== 0 ? `${sum > 0 ? '+' : ''}${formatUsd(sum)}` : '--',
-            sub: complete ? 'Spread neto del ciclo' : 'Acumulado en página',
+            sub: pctText,
             tone: sum !== 0 ? cycleTone : 'ledger-metric-muted',
         });
     } else {
@@ -1280,17 +1333,19 @@ const renderRow = (tx, rowBalance, cycleData = undefined) => {
         tone: rowBalance < 0 ? 'ledger-metric-negative' : 'ledger-metric-balance'
     });
 
-    // PROMESA column: for LIQUID rows show inferred capital (liq − cycle spread);
-    // for all others show the normal promise meta.
+    // COBERTURA column: para ventas con ciclo muestra progreso de recuperación de VES;
+    // para el resto muestra la promesa normal.
     let promiseMetric;
-    if (isSettlement && cycleData) {
-        const liqAmount = Math.abs(Number(tx?.amount || 0));
-        const inferredCapital = liqAmount - cycleData.sum;
+    if (isCycleSell) {
+        const { complete, totalSellFiat, recoveredFiat, recoveredPct } = cycleData;
+        const remaining = Math.max(0, totalSellFiat - recoveredFiat);
         promiseMetric = renderMetricCard({
-            label: 'Capital',
-            value: inferredCapital > 0 ? formatUsd(inferredCapital) : '--',
-            sub: cycleData.complete ? 'Liq. − spread del ciclo' : 'Estimado (pág. parcial)',
-            tone: 'ledger-metric-promise',
+            label: 'Cobertura',
+            value: `${Math.round(recoveredPct)}%`,
+            sub: complete
+                ? `${formatNumber(totalSellFiat, 0)} VES cubierto`
+                : `Faltan ${formatNumber(remaining, 0)} VES`,
+            tone: complete ? 'ledger-metric-positive' : 'ledger-metric-warning',
         });
     } else {
         promiseMetric = renderPromiseColumnMeta(tx);
