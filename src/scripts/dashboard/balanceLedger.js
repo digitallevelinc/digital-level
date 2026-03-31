@@ -1019,7 +1019,7 @@ const getNearestSellForBuy = (buyTx) => {
         if (score < bestScore) {
             bestScore = score;
             const amount = Math.abs(Number(tx?.amount || 0));
-            best = { rate, fee: effectiveFee, role: role || '', amount, fiat: resolveFiatAmount(tx) };
+            best = { rate, fee: effectiveFee, role: role || '', amount };
         }
     }
 
@@ -1143,10 +1143,12 @@ const computeTxSpread = (tx = {}) => {
     const nearestSell = getNearestSellForBuy(tx);
     if (!nearestSell || nearestSell.rate <= 0) return 0;
 
-    // Fórmula de venta: usar VES/rate de la transacción pareada
-    const sellGross = nearestSell.fiat > 0
-        ? nearestSell.fiat / nearestSell.rate
-        : nearestSell.amount; // fallback: amount = VES/rate del API
+    // Fórmula de venta: se usan los VES de la COMPRA divididos por la tasa de la venta.
+    // Así comparamos el mismo volumen fiat: cuánto costó comprarlo vs cuánto costaría venderlo.
+    const buyFiat = resolveFiatAmount(tx);
+    const sellGross = buyFiat > 0
+        ? buyFiat / nearestSell.rate
+        : nearestSell.amount; // fallback si no hay fiat en la compra
 
     const sellRole = inferMakerTakerRole({
         explicitRole: nearestSell.role,
