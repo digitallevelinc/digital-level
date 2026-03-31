@@ -1336,17 +1336,7 @@ const renderRow = (tx, rowBalance, cycleData = undefined) => {
     const isCycleBuyOverride = normalizeTxType(tx) === 'P2P_BUY' && cycleData?.rateOverride > 0;
 
     let spreadMetric;
-    if (isCycleSell) {
-        const { sum, complete, recoveredPct } = cycleData;
-        const cycleTone = sum > 0 ? 'ledger-metric-positive' : sum < 0 ? 'ledger-metric-negative' : 'ledger-metric-muted';
-        const pctText = complete ? 'Ciclo cerrado' : `${Math.round(recoveredPct)}% recuperado`;
-        spreadMetric = renderMetricCard({
-            label: 'Ciclo',
-            value: sum !== 0 ? `${sum > 0 ? '+' : ''}${formatUsd(sum)}` : '--',
-            sub: pctText,
-            tone: sum !== 0 ? cycleTone : 'ledger-metric-muted',
-        });
-    } else {
+    {
         const spreadValRaw = isCycleBuyOverride
             ? computeTxSpread(tx, cycleData.rateOverride)
             : computeTxSpread(tx);
