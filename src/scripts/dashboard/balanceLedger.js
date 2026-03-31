@@ -1208,7 +1208,10 @@ const computeTxSpread = (tx = {}, rateOverride = 0) => {
         });
 
     const makerFeeRate = Number(state.kpis?.config?.verificationPercent || 0) / 100;
-    const sellFee = sellFeeSource > 0 ? sellFeeSource : 0.06; // flat TAKER fallback
+    // sellFee solo aplica en la rama TAKER (fórmula a). La rama MAKER usa makerFeeRate,
+    // no sellFeeSource, por lo que tomar el fee de la venta pareada (que puede ser MAKER = 0.02)
+    // generaba un cálculo incorrecto cuando el BUY es TAKER.
+    const sellFee = 0.06;
 
     // Fórmula a (TAKER):  VES/rate + fee
     // Fórmula b (MAKER):  (VES/rate) / (1 − makerFeeRate)
