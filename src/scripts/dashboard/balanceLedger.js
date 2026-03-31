@@ -22,7 +22,9 @@ const state = {
     searchTerm: '',
     typeFilter: 'ALL',
     currentTransfers: [],
+    transfersCache: new Map(),
     pageNetByPage: new Map(),
+    prefetchedPages: new Set(),
     bankData: [],
     closingBalance: null,
 };
@@ -981,7 +983,11 @@ const getAvgTakerSellFeeForBank = (txToMatch) => {
 const BANK_GENERIC_PAIRING_WINDOW_MS = 30 * 60 * 1000; // 30 min strict window for generic BANK
 
 const getNearestSellForBuy = (buyTx) => {
-    if (!state.currentTransfers?.length) return null;
+    // Search the full cache (all visited pages) so sells on page 2 are found when browsing page 1.
+    const searchPool = state.transfersCache.size > 0
+        ? Array.from(state.transfersCache.values())
+        : state.currentTransfers;
+    if (!searchPool?.length) return null;
     const buyBankKey = normalizeBankKey(buyTx?.bankName || buyTx?.bank || buyTx?.paymentMethod);
     if (!buyBankKey) return null;
     const isGenericBank = buyBankKey === 'bank';
@@ -992,7 +998,7 @@ const getNearestSellForBuy = (buyTx) => {
     let best = null;
     let bestScore = Number.POSITIVE_INFINITY;
 
-    for (const tx of state.currentTransfers) {
+    for (const tx of searchPool) {
         if (tx === buyTx) continue;
         if (normalizeTxType(tx) !== 'P2P_SELL') continue;
 
@@ -1035,14 +1041,18 @@ const getNearestSellForBuy = (buyTx) => {
 // Never used for rate — rate comes from getPageAvgRateForBank / getPageAvgRate.
 const MAX_SELL_ROLE_LOOKUP_MS = 4 * 60 * 60 * 1000; // 4h window
 const getNearestSellRoleForBuy = (buyTx) => {
-    if (!state.currentTransfers?.length) return null;
+    // Search the full cache (all visited pages) so sells on page 2 are found when browsing page 1.
+    const searchPool = state.transfersCache.size > 0
+        ? Array.from(state.transfersCache.values())
+        : state.currentTransfers;
+    if (!searchPool?.length) return null;
     const buyTs = new Date(buyTx?.timestamp || 0).getTime();
     if (!Number.isFinite(buyTs) || buyTs <= 0) return null;
 
     let best = null;
     let bestScore = Number.POSITIVE_INFINITY;
 
-    for (const tx of state.currentTransfers) {
+    for (const tx of searchPool) {
         if (tx === buyTx) continue;
         if (normalizeTxType(tx) !== 'P2P_SELL') continue;
 
@@ -1207,28 +1217,78 @@ const computeTxSpread = (tx = {}) => {
     return buyUsdtIn - sellUsdtOut;
 };
 
-// Iterates transfers oldest-first and accumulates P2P spreads per cycle.
-// A cycle ends at each LIQUID (settlement) row; it's "complete" on this page
-// if a DISPERSOR_PENDING row was seen since the previous LIQUID.
-// Returns Map<tx, { sum: number, complete: boolean }>.
+// Ciclo basado en recuperación de bolívares:
+// Un ciclo INICIA en cada P2P_SELL (vendes USDT, recibes VES).
+// Los P2P_BUY posteriores van "consumiendo" esos VES.
+// El ciclo se CIERRA cuando la suma de VES gastados en compras >= VES recibidos de la venta.
+// Ventas consecutivas se acumulan (stack) en un solo pool.
+// Returns Map<sellTx, { sum, complete, totalSellFiat, recoveredFiat, recoveredPct }>.
 const computeCycleSpreads = (transfers) => {
     const result = new Map();
-    let cycleSpread = 0;
-    let hasDispersador = false;
 
+    // Estado del ciclo abierto
+    let pendingSellFiat = 0;   // VES que faltan por recuperar
+    let totalSellFiat = 0;     // VES totales de todas las ventas del ciclo
+    let recoveredFiat = 0;     // VES recuperados via compras
+    let cycleSpread = 0;       // Spread acumulado de las compras del ciclo
+    let cycleSells = [];       // Transacciones P2P_SELL que forman este ciclo
+
+    const closeCycle = (complete) => {
+        const pct = totalSellFiat > 0
+            ? Math.min(100, (recoveredFiat / totalSellFiat) * 100)
+            : 0;
+        for (const sellTx of cycleSells) {
+            result.set(sellTx, {
+                sum: cycleSpread,
+                complete,
+                totalSellFiat,
+                recoveredFiat,
+                recoveredPct: pct,
+            });
+        }
+        pendingSellFiat = 0;
+        totalSellFiat = 0;
+        recoveredFiat = 0;
+        cycleSpread = 0;
+        cycleSells = [];
+    };
+
+    // Recorrer de más antiguo a más reciente (el array viene newest-first)
     for (let i = transfers.length - 1; i >= 0; i--) {
         const tx = transfers[i];
-        if (isSettlementTransfer(tx)) {
-            result.set(tx, { sum: cycleSpread, complete: hasDispersador });
-            cycleSpread = 0;
-            hasDispersador = false;
-        } else {
-            if (String(tx?.type || '').toUpperCase() === 'DISPERSOR_PENDING') {
-                hasDispersador = true;
+        const type = normalizeTxType(tx);
+
+        if (type === 'P2P_SELL') {
+            // Una venta agrega VES al pool de recuperación (se acumulan)
+            const sellFiat = resolveFiatAmount(tx);
+            if (sellFiat > 0) {
+                pendingSellFiat += sellFiat;
+                totalSellFiat += sellFiat;
+                cycleSells.push(tx);
+            }
+        } else if (type === 'P2P_BUY' && pendingSellFiat > 0) {
+            // Una compra consume VES del pool y aporta su spread
+            const buyFiat = resolveFiatAmount(tx);
+            if (buyFiat > 0) {
+                recoveredFiat += buyFiat;
+                pendingSellFiat = Math.max(0, pendingSellFiat - buyFiat);
             }
             cycleSpread += computeTxSpread(tx);
+
+            // ¿Se recuperaron todos los VES? → ciclo cerrado
+            if (pendingSellFiat <= 0) {
+                closeCycle(true);
+            }
         }
+        // Compras sin ciclo abierto se ignoran para acumulación de ciclo
+        // (siguen mostrando su spread individual en la columna SPREAD)
     }
+
+    // Ciclo abierto restante (ventas sin recuperación completa en esta página)
+    if (cycleSells.length > 0) {
+        closeCycle(false);
+    }
+
     return result;
 };
 
@@ -1253,14 +1313,17 @@ const renderRow = (tx, rowBalance, cycleData = undefined) => {
         return `<span class="ledger-meta-chip">${escapeHtml(line)}</span>`;
     }).join('');
 
+    const isCycleSell = normalizeTxType(tx) === 'P2P_SELL' && cycleData != null;
+
     let spreadMetric;
-    if (isSettlement && cycleData) {
-        const { sum, complete } = cycleData;
+    if (isCycleSell) {
+        const { sum, complete, recoveredPct } = cycleData;
         const cycleTone = sum > 0 ? 'ledger-metric-positive' : sum < 0 ? 'ledger-metric-negative' : 'ledger-metric-muted';
+        const pctText = complete ? 'Ciclo cerrado' : `${Math.round(recoveredPct)}% recuperado`;
         spreadMetric = renderMetricCard({
             label: 'Ciclo',
             value: sum !== 0 ? `${sum > 0 ? '+' : ''}${formatUsd(sum)}` : '--',
-            sub: complete ? 'Spread neto del ciclo' : 'Acumulado en página',
+            sub: pctText,
             tone: sum !== 0 ? cycleTone : 'ledger-metric-muted',
         });
     } else {
@@ -1285,17 +1348,19 @@ const renderRow = (tx, rowBalance, cycleData = undefined) => {
         tone: rowBalance < 0 ? 'ledger-metric-negative' : 'ledger-metric-balance'
     });
 
-    // PROMESA column: for LIQUID rows show inferred capital (liq − cycle spread);
-    // for all others show the normal promise meta.
+    // COBERTURA column: para ventas con ciclo muestra progreso de recuperación de VES;
+    // para el resto muestra la promesa normal.
     let promiseMetric;
-    if (isSettlement && cycleData) {
-        const liqAmount = Math.abs(Number(tx?.amount || 0));
-        const inferredCapital = liqAmount - cycleData.sum;
+    if (isCycleSell) {
+        const { complete, totalSellFiat, recoveredFiat, recoveredPct } = cycleData;
+        const remaining = Math.max(0, totalSellFiat - recoveredFiat);
         promiseMetric = renderMetricCard({
-            label: 'Capital',
-            value: inferredCapital > 0 ? formatUsd(inferredCapital) : '--',
-            sub: cycleData.complete ? 'Liq. − spread del ciclo' : 'Estimado (pág. parcial)',
-            tone: 'ledger-metric-promise',
+            label: 'Cobertura',
+            value: `${Math.round(recoveredPct)}%`,
+            sub: complete
+                ? `${formatNumber(totalSellFiat, 0)} VES cubierto`
+                : `Faltan ${formatNumber(remaining, 0)} VES`,
+            tone: complete ? 'ledger-metric-positive' : 'ledger-metric-warning',
         });
     } else {
         promiseMetric = renderPromiseColumnMeta(tx);
@@ -1396,6 +1461,15 @@ const renderTransfers = (transfers = [], options = {}) => {
     const savedScrollTop = scroll && !resetScroll ? scroll.scrollTop : 0;
 
     const allTransfers = Array.isArray(transfers) ? transfers : [];
+
+    // Llenar el caché global con las transacciones recién cargadas
+    allTransfers.forEach((tx) => {
+        const key = tx.id || tx.txHash || tx.orderNumber || tx.binanceRawId || `${tx.timestamp}_${tx.amount}`;
+        if (key && !state.transfersCache.has(key)) {
+            state.transfersCache.set(key, tx);
+        }
+    });
+
     const scopedTransfers = allTransfers.filter((tx) => isLedgerChannelAllowed(tx));
     state.currentTransfers = scopedTransfers;
 
@@ -1405,7 +1479,12 @@ const renderTransfers = (transfers = [], options = {}) => {
     }
 
     const rowsWithBalance = buildRowsWithBalance(scopedTransfers);
-    const cycleSpreads = computeCycleSpreads(scopedTransfers);
+
+    // Los ciclos se calculan sobre TODO el caché (para que compras de págs previas sumen al spread)
+    const cachedTransfers = Array.from(state.transfersCache.values()).sort((a, b) => b.timestamp - a.timestamp);
+    const cachedScopedTransfers = cachedTransfers.filter((tx) => isLedgerChannelAllowed(tx));
+    const cycleSpreads = computeCycleSpreads(cachedScopedTransfers);
+    
     const filteredRows = rowsWithBalance.filter(({ tx }) => matchesSearch(tx, state.searchTerm));
 
     if (count) {
@@ -1531,6 +1610,10 @@ const fetchTransfersPage = async (page = 1, options = {}) => {
         renderTransfers(Array.isArray(payload?.transfers) ? payload.transfers : [], {
             resetScroll: showLoading,
         });
+
+        // Silently prefetch subsequent pages to populate sell context for spread calculation.
+        // This ensures page 1 buys can find their matching sells even on first visit.
+        void prefetchSellContextPages(state.page);
     } catch (error) {
         if (error?.name === 'AbortError') return;
         console.warn('No fue posible cargar el historial de balance:', error);
@@ -1541,6 +1624,60 @@ const fetchTransfersPage = async (page = 1, options = {}) => {
         if (requestSeq === state.requestSeq) {
             state.abortController = null;
         }
+    }
+};
+
+// Silently fetches subsequent pages into the cache to provide P2P_SELL context for
+// spread calculation on the current page. Fetches one page at a time until a P2P_SELL
+// is found (then stops — no need to go further for the cycle reference rate).
+// Skips pages already prefetched. Re-renders current view once a sell is discovered.
+const prefetchSellContextPages = async (fromPage) => {
+    if (!state.apiBase || !state.token) return;
+
+    let needsRerender = false;
+
+    for (let p = fromPage + 1; p <= state.totalPages; p++) {
+        if (state.prefetchedPages.has(p)) {
+            // Page already cached — check if it had sells and keep scanning if not.
+            const pageHadSell = Array.from(state.transfersCache.values()).some(
+                (tx) => normalizeTxType(tx) === 'P2P_SELL'
+            );
+            if (pageHadSell) break; // Sell already in cache — no need to keep going.
+            continue;
+        }
+        state.prefetchedPages.add(p);
+
+        try {
+            const res = await fetch(
+                buildTransfersUrl(state.apiBase, state.range, p, state.limit, true),
+                { headers: { 'Authorization': `Bearer ${state.token}` }, cache: 'no-store' }
+            );
+            if (!res.ok) continue;
+
+            const payload = await res.json();
+            const transfers = Array.isArray(payload?.transfers) ? payload.transfers : [];
+
+            let foundSell = false;
+            transfers.forEach((tx) => {
+                const key = tx.id || tx.txHash || tx.orderNumber || tx.binanceRawId || `${tx.timestamp}_${tx.amount}`;
+                if (key && !state.transfersCache.has(key)) {
+                    state.transfersCache.set(key, tx);
+                    if (normalizeTxType(tx) === 'P2P_SELL') foundSell = true;
+                }
+            });
+
+            if (foundSell) {
+                needsRerender = true;
+                break; // Found a sell — the spread calculation now has what it needs.
+            }
+        } catch {
+            // Silent failure — prefetch is best-effort and never blocks the UI.
+        }
+    }
+
+    // Re-render the current page with the enriched cache (no scroll reset).
+    if (needsRerender && state.currentTransfers.length > 0) {
+        renderTransfers(state.currentTransfers, { resetScroll: false });
     }
 };
 
@@ -1573,6 +1710,8 @@ const bindEventsOnce = () => {
             }
             state.typeFilter = nextType;
             state.pageNetByPage.clear();
+            state.transfersCache.clear();
+            state.prefetchedPages.clear();
             state.closingBalance = null;
             state.total = 0;
             state.totalPages = 0;
@@ -1613,6 +1752,8 @@ export const updateBalanceLedgerUI = (kpis = {}, context = {}) => {
 
     if (!state.loadedOnce) {
         state.pageNetByPage.clear();
+        state.transfersCache.clear();
+        state.prefetchedPages.clear();
         state.closingBalance = null;
         state.needsRefresh = true;
         state.total = 0;
@@ -1625,6 +1766,8 @@ export const updateBalanceLedgerUI = (kpis = {}, context = {}) => {
 
     if (rangeChanged || apiChanged || tokenChanged) {
         state.pageNetByPage.clear();
+        state.transfersCache.clear();
+        state.prefetchedPages.clear();
         state.closingBalance = null;
         state.needsRefresh = true;
         state.total = 0;
