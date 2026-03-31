@@ -974,13 +974,13 @@ const getAvgTakerSellFeeForBank = (txToMatch) => {
     return count > 0 ? feeSum / count : 0;
 };
 
+const BANK_GENERIC_PAIRING_WINDOW_MS = 30 * 60 * 1000; // 30 min strict window for generic BANK
+
 const getNearestSellForBuy = (buyTx) => {
     if (!state.currentTransfers?.length) return null;
     const buyBankKey = normalizeBankKey(buyTx?.bankName || buyTx?.bank || buyTx?.paymentMethod);
     if (!buyBankKey) return null;
-    // Generic BANK label is too broad and causes false pairings.
-    // Keep nearest-sell matching only for specific banks.
-    if (buyBankKey === 'bank') return null;
+    const isGenericBank = buyBankKey === 'bank';
 
     const buyTs = new Date(buyTx?.timestamp || 0).getTime();
     if (!Number.isFinite(buyTs) || buyTs <= 0) return null;
@@ -1008,6 +1008,9 @@ const getNearestSellForBuy = (buyTx) => {
         const sellTs = new Date(tx?.timestamp || 0).getTime();
         if (!Number.isFinite(sellTs) || sellTs <= 0) continue;
 
+        // For generic BANK label enforce a strict time window to avoid false pairings.
+        if (isGenericBank && Math.abs(buyTs - sellTs) > BANK_GENERIC_PAIRING_WINDOW_MS) continue;
+
         // Prefer nearest previous sell; if none, nearest absolute.
         const isPrevious = sellTs <= buyTs;
         const delta = Math.abs(buyTs - sellTs);
@@ -1016,7 +1019,7 @@ const getNearestSellForBuy = (buyTx) => {
         if (score < bestScore) {
             bestScore = score;
             const amount = Math.abs(Number(tx?.amount || 0));
-            best = { rate, fee: effectiveFee, role: role || '', amount };
+            best = { rate, fee: effectiveFee, role: role || '', amount, fiat: resolveFiatAmount(tx) };
         }
     }
 
@@ -1133,81 +1136,33 @@ const computeTxSpread = (tx = {}) => {
     if (type !== 'P2P_SELL' && type !== 'P2P_BUY') return 0;
     if (type === 'P2P_SELL') return 0;
 
-    const txRate = getTxRate(tx);
-    if (txRate <= 0) return 0;
+    // Monto neto recibido en la compra (getSignedAmount ya descuenta el fee)
+    const buyUsdtIn = getSignedAmount(tx);
+    if (buyUsdtIn <= 0) return 0;
 
-    const amount = Math.abs(Number(tx?.amount || 0));
-    if (amount <= 0) return 0;
-
-    const ves = resolveFiatAmount(tx) || amount * txRate;
-
-    const bank = matchTxToBank(tx);
-
-    // Reference sell rate priority:
-    // 1. Page avg of P2P_SELL rates (same timeframe — most accurate)
-    // 2. Bank-level sell rate from bankInsights
-    // 3. Global fallback (period average)
     const nearestSell = getNearestSellForBuy(tx);
-    const pageSellRate = nearestSell?.rate
-        || getPageAvgRateForBank(['P2P_SELL'], tx)
-        || getPageAvgRate(['P2P_SELL']);
-    const referenceSellRate = pageSellRate > 0
-        ? pageSellRate
-        : Number(
-            bank?.lastSellRate
-            || bank?.sellRate
-            || bank?.avgSellRate
-            || bank?.weightedAvgSellRate
-            || bank?.ceilingRate
-            || getBankPromiseRate(bank)
-            || 0
-        ) || getFallbackSellReferenceRate();
+    if (!nearestSell || nearestSell.rate <= 0) return 0;
 
-    if (referenceSellRate <= 0) {
-        return 0;
-    }
+    // Fórmula de venta: usar VES/rate de la transacción pareada
+    const sellGross = nearestSell.fiat > 0
+        ? nearestSell.fiat / nearestSell.rate
+        : nearestSell.amount; // fallback: amount = VES/rate del API
 
+    const sellRole = inferMakerTakerRole({
+        explicitRole: nearestSell.role,
+        fee: nearestSell.fee,
+        amount: nearestSell.amount,
+    });
     const makerFeeRate = Number(state.kpis?.config?.verificationPercent || 0) / 100;
-    // When no sell found by bank match, try a wider time-window lookup (role only, not rate).
-    // Falls back to TAKER only if truly no nearby sell exists on the page.
-    const sellRoleSource = nearestSell || getNearestSellRoleForBuy(tx);
-    const sellRole = sellRoleSource
-        ? inferMakerTakerRole({
-            explicitRole: sellRoleSource.role,
-            fee: sellRoleSource.fee,
-            amount: sellRoleSource.amount
-        })
-        : 'TAKER';
+    const sellFee = nearestSell.fee > 0 ? nearestSell.fee : 0.06; // flat TAKER fallback
 
-    // Use the actual received amount from the transaction — Binance already nets out the fee,
-    // so `amount` is more accurate than reconstructing it via VES/rate ± fee formula.
-    const buyUsdtIn = amount;
+    // Fórmula a (TAKER):  VES/rate + fee
+    // Fórmula b (MAKER):  (VES/rate) / (1 − makerFeeRate)
+    const sellUsdtOut = sellRole === 'MAKER' && makerFeeRate > 0
+        ? sellGross / (1 - makerFeeRate)
+        : sellGross + sellFee;
 
-    const nearestSellAmount = Math.abs(Number(nearestSell?.amount || 0));
-    const hasNearestSellAmount = nearestSellAmount > 0;
-
-    // Prefer the real matched sell amount from the ledger when available.
-    // This keeps per-row spread aligned with what the operator sees in Monto.
-    const sellGrossUsdt = hasNearestSellAmount
-        ? nearestSellAmount
-        : (ves / referenceSellRate);
-
-    // Apply extra sell-side fee only when we had to reconstruct the sell from VES/rate.
-    // If we already have nearest sell amount, that amount is the reference baseline.
-    const sellTakerFee = hasNearestSellAmount
-        ? 0
-        : (nearestSell?.fee || sellRoleSource?.fee) || getAvgTakerSellFeeForBank(tx) || 0.06;
-    const sellUsdtOut = sellRole === 'TAKER'
-        ? (sellGrossUsdt + sellTakerFee)
-        : makerFeeRate > 0
-            ? (sellGrossUsdt / (1 - makerFeeRate))
-            : sellGrossUsdt;
-
-    // Spread por orden según la fórmula de referencia:
-    // RENDIMIENTO = USDT_entrada − USDT_salida
-    // donde:
-    //   USDT_entrada = buyUsdtIn  (lo que realmente entra en la billetera al comprar)
-    //   USDT_salida  = sellUsdtOut (lo que costó generar los VES de la venta)
+    // Spread = monto neto compra − costo total venta
     return buyUsdtIn - sellUsdtOut;
 };
 
