@@ -1141,7 +1141,7 @@ const getFallbackSpreadPercent = () => {
     return 0;
 };
 
-const computeTxSpread = (tx = {}) => {
+const computeTxSpread = (tx = {}, rateOverride = 0) => {
     const type = normalizeTxType(tx);
     if (type !== 'P2P_SELL' && type !== 'P2P_BUY') return 0;
     if (type === 'P2P_SELL') return 0;
@@ -1166,7 +1166,14 @@ const computeTxSpread = (tx = {}) => {
     // cuyas ventas correspondientes están en la página 2), usamos la tasa de referencia
     // global del KPI para estimar igualmente el spread en vez de devolver 0.
     let sellRate, sellRoleSource, sellFeeSource, sellAmountSource;
-    if (nearestSell && nearestSell.rate > 0) {
+    if (rateOverride > 0) {
+        // Ciclo con múltiples ventas abiertas: se usa la tasa promedio ponderada
+        // calculada por computeCycleSpreads. Para role/fee se toma la venta más cercana.
+        sellRate = rateOverride;
+        sellRoleSource = nearestSell?.role || '';
+        sellFeeSource = nearestSell?.fee || 0;
+        sellAmountSource = nearestSell?.amount || buyUsdtIn;
+    } else if (nearestSell && nearestSell.rate > 0) {
         sellRate = nearestSell.rate;
         sellRoleSource = nearestSell.role;
         sellFeeSource = nearestSell.fee;
@@ -1269,7 +1276,20 @@ const computeCycleSpreads = (transfers) => {
                 recoveredFiat += buyFiat;
                 pendingSellFiat = Math.max(0, pendingSellFiat - buyFiat);
             }
-            cycleSpread += computeTxSpread(tx);
+            // Con múltiples ventas abiertas usamos la tasa promedio ponderada por volumen
+            // (totalVES / totalUSDT) para evitar que el spread se calcule solo con
+            // la venta más cercana e ignore las demás ventas del ciclo.
+            let cycleRateOverride = 0;
+            if (cycleSells.length > 1) {
+                let totalFiat = 0;
+                let totalUsdt = 0;
+                for (const sell of cycleSells) {
+                    totalFiat += resolveFiatAmount(sell);
+                    totalUsdt += Math.abs(Number(sell?.amount || 0));
+                }
+                if (totalUsdt > 0) cycleRateOverride = totalFiat / totalUsdt;
+            }
+            cycleSpread += computeTxSpread(tx, cycleRateOverride);
 
             // ¿Se recuperaron todos los VES? → ciclo cerrado
             if (pendingSellFiat <= 0) {
