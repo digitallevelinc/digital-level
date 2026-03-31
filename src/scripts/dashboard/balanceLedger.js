@@ -859,30 +859,6 @@ const getBankPromiseRate = (bank = {}) => {
     return promisedFiat / promisedUsdt;
 };
 
-const getWeightedRateFromBanks = (rateCandidates = [], weightCandidates = []) => {
-    if (!Array.isArray(state.bankData) || state.bankData.length === 0) return 0;
-
-    let weightedSum = 0;
-    let totalWeight = 0;
-
-    state.bankData.forEach((bank) => {
-        const rate = rateCandidates
-            .map((key) => Number(bank?.[key] || 0))
-            .find((value) => value > 0) || 0;
-
-        if (rate <= 0) return;
-
-        const weight = weightCandidates
-            .map((key) => Number(bank?.[key] || 0))
-            .find((value) => value > 0) || 1;
-
-        weightedSum += rate * weight;
-        totalWeight += weight;
-    });
-
-    if (totalWeight <= 0) return 0;
-    return weightedSum / totalWeight;
-};
 
 const getWeightedSellReferenceRateFromBanks = () => {
     if (!Array.isArray(state.bankData) || state.bankData.length === 0) return 0;
@@ -1047,6 +1023,47 @@ const getNearestSellForBuy = (buyTx) => {
     return best;
 };
 
+// Like getNearestSellForBuy but skips the bank-key restriction.
+// Used ONLY to infer the sell role when bank matching was skipped (e.g. generic 'BANK').
+// Never used for rate — rate comes from getPageAvgRateForBank / getPageAvgRate.
+const MAX_SELL_ROLE_LOOKUP_MS = 4 * 60 * 60 * 1000; // 4h window
+const getNearestSellRoleForBuy = (buyTx) => {
+    if (!state.currentTransfers?.length) return null;
+    const buyTs = new Date(buyTx?.timestamp || 0).getTime();
+    if (!Number.isFinite(buyTs) || buyTs <= 0) return null;
+
+    let best = null;
+    let bestScore = Number.POSITIVE_INFINITY;
+
+    for (const tx of state.currentTransfers) {
+        if (tx === buyTx) continue;
+        if (normalizeTxType(tx) !== 'P2P_SELL') continue;
+
+        const sellTs = new Date(tx?.timestamp || 0).getTime();
+        if (!Number.isFinite(sellTs) || sellTs <= 0) continue;
+
+        const delta = Math.abs(buyTs - sellTs);
+        if (delta > MAX_SELL_ROLE_LOOKUP_MS) continue;
+
+        const isPrevious = sellTs <= buyTs;
+        const score = (isPrevious ? 0 : 1_000_000_000_000) + delta;
+
+        if (score < bestScore) {
+            bestScore = score;
+            const role = String(tx?.advertisementRole || '').toUpperCase();
+            const fee = toFiniteNumber(tx?.fee);
+            const feeCurrency = String(tx?.feeCurrency || '').toUpperCase();
+            best = {
+                role: role || '',
+                fee: fee > 0 && (!feeCurrency || feeCurrency === 'USDT') ? fee : 0,
+                amount: Math.abs(Number(tx?.amount || 0)),
+            };
+        }
+    }
+
+    return best;
+};
+
 const inferMakerTakerRole = ({ explicitRole = '', fee = 0, amount = 0 } = {}) => {
     const role = String(explicitRole || '').toUpperCase().trim();
     if (role === 'MAKER' || role === 'TAKER') return role;
@@ -1068,28 +1085,6 @@ const inferMakerTakerRole = ({ explicitRole = '', fee = 0, amount = 0 } = {}) =>
     return makerFeeRate > 0 ? 'MAKER' : '';
 };
 
-const getFallbackBuyReferenceRate = () => {
-    const directCandidates = [
-        state.kpis?.operations?.weightedAvgBuyRate,
-        state.kpis?.rates?.buyRate,
-        state.kpis?.rates?.buy,
-        state.kpis?.summary?.minBuyRate,
-    ];
-
-    for (const candidate of directCandidates) {
-        const n = Number(candidate || 0);
-        if (n > 0) return n;
-    }
-
-    // Compute from the current page's actual buy transactions.
-    const pageRate = getPageAvgRate(['P2P_BUY']);
-    if (pageRate > 0) return pageRate;
-
-    return getWeightedRateFromBanks(
-        ['weightedAvgBuyRate', 'avgBuyRate', 'buyRate'],
-        ['buyVolUSDT', 'realizedVolumeUSDT']
-    );
-};
 
 const getFallbackSellReferenceRate = () => {
     const directCandidates = [
@@ -1144,30 +1139,9 @@ const computeTxSpread = (tx = {}) => {
     const amount = Math.abs(Number(tx?.amount || 0));
     if (amount <= 0) return 0;
 
-    // Fee is shown in the row (FEE ...). For the displayed spread on buys,
-    // the user expects net spread after subtracting the paid fee (when in USDT).
-    const fee = toFiniteNumber(tx?.fee);
-    const feeCurrency = String(tx?.feeCurrency || '').toUpperCase();
-    const effectiveFee = fee > 0 && (!feeCurrency || feeCurrency === 'USDT') ? fee : 0;
-
     const ves = resolveFiatAmount(tx) || amount * txRate;
 
     const bank = matchTxToBank(tx);
-    if (type === 'P2P_SELL') {
-        // Reference buy rate priority:
-        // 1. Page avg of P2P_BUY rates (same timeframe — most accurate)
-        // 2. Bank-level weighted buy rate from bankInsights
-        // 3. Global fallback (period average)
-        const pageBuyRate = getPageAvgRate(['P2P_BUY']);
-        const avgBuyRate = pageBuyRate > 0
-            ? pageBuyRate
-            : Number(bank?.weightedAvgBuyRate || bank?.avgBuyRate || bank?.buyRate || 0) || getFallbackBuyReferenceRate();
-        if (avgBuyRate <= 0) return 0;
-
-        // Spread only (no commissions): (USDT recovered at buy ref rate) − (USDT sold)
-        const grossBuyRef = ves / avgBuyRate;
-        return grossBuyRef - amount;
-    }
 
     // Reference sell rate priority:
     // 1. Page avg of P2P_SELL rates (same timeframe — most accurate)
@@ -1194,33 +1168,25 @@ const computeTxSpread = (tx = {}) => {
     }
 
     const makerFeeRate = Number(state.kpis?.config?.verificationPercent || 0) / 100;
-    const buyRole = inferMakerTakerRole({
-        explicitRole: tx?.advertisementRole,
-        fee: effectiveFee,
-        amount
-    });
-    // When no sell found, default to TAKER (the typical sell role in this operation).
-    // Using MAKER as default would apply the % formula (/ (1-r)) to the sell side,
-    // which produces the same cost as using the BUY's maker fee — both incorrect for Taker-Maker cycles.
-    const sellRole = nearestSell
+    // When no sell found by bank match, try a wider time-window lookup (role only, not rate).
+    // Falls back to TAKER only if truly no nearby sell exists on the page.
+    const sellRoleSource = nearestSell || getNearestSellRoleForBuy(tx);
+    const sellRole = sellRoleSource
         ? inferMakerTakerRole({
-            explicitRole: nearestSell.role,
-            fee: nearestSell.fee,
-            amount: nearestSell.amount
+            explicitRole: sellRoleSource.role,
+            fee: sellRoleSource.fee,
+            amount: sellRoleSource.amount
         })
         : 'TAKER';
 
-    const buyGrossUsdt = ves / txRate;
-    const buyUsdtIn = buyRole === 'TAKER'
-        ? (buyGrossUsdt - effectiveFee)
-        : makerFeeRate > 0
-            ? (buyGrossUsdt * (1 - makerFeeRate))
-            : buyGrossUsdt;
+    // Use the actual received amount from the transaction — Binance already nets out the fee,
+    // so `amount` is more accurate than reconstructing it via VES/rate ± fee formula.
+    const buyUsdtIn = amount;
 
     const sellGrossUsdt = ves / referenceSellRate;
     // Do NOT fall back to the buy transaction's effectiveFee: that is the MAKER buy fee
     // and has nothing to do with the TAKER sell fee. Use 0.06 (Binance P2P flat taker fee).
-    const sellTakerFee = nearestSell?.fee || getAvgTakerSellFeeForBank(tx) || 0.06;
+    const sellTakerFee = (nearestSell?.fee || sellRoleSource?.fee) || getAvgTakerSellFeeForBank(tx) || 0.06;
     const sellUsdtOut = sellRole === 'TAKER'
         ? (sellGrossUsdt + sellTakerFee)
         : makerFeeRate > 0
