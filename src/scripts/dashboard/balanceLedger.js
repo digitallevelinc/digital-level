@@ -22,6 +22,7 @@ const state = {
     searchTerm: '',
     typeFilter: 'ALL',
     currentTransfers: [],
+    transfersCache: new Map(),
     pageNetByPage: new Map(),
     bankData: [],
     closingBalance: null,
@@ -1446,6 +1447,15 @@ const renderTransfers = (transfers = [], options = {}) => {
     const savedScrollTop = scroll && !resetScroll ? scroll.scrollTop : 0;
 
     const allTransfers = Array.isArray(transfers) ? transfers : [];
+
+    // Llenar el caché global con las transacciones recién cargadas
+    allTransfers.forEach((tx) => {
+        const key = tx.id || tx.txHash || tx.orderNumber || tx.binanceRawId || `${tx.timestamp}_${tx.amount}`;
+        if (key && !state.transfersCache.has(key)) {
+            state.transfersCache.set(key, tx);
+        }
+    });
+
     const scopedTransfers = allTransfers.filter((tx) => isLedgerChannelAllowed(tx));
     state.currentTransfers = scopedTransfers;
 
@@ -1455,7 +1465,12 @@ const renderTransfers = (transfers = [], options = {}) => {
     }
 
     const rowsWithBalance = buildRowsWithBalance(scopedTransfers);
-    const cycleSpreads = computeCycleSpreads(scopedTransfers);
+
+    // Los ciclos se calculan sobre TODO el caché (para que compras de págs previas sumen al spread)
+    const cachedTransfers = Array.from(state.transfersCache.values()).sort((a, b) => b.timestamp - a.timestamp);
+    const cachedScopedTransfers = cachedTransfers.filter((tx) => isLedgerChannelAllowed(tx));
+    const cycleSpreads = computeCycleSpreads(cachedScopedTransfers);
+    
     const filteredRows = rowsWithBalance.filter(({ tx }) => matchesSearch(tx, state.searchTerm));
 
     if (count) {
@@ -1623,6 +1638,7 @@ const bindEventsOnce = () => {
             }
             state.typeFilter = nextType;
             state.pageNetByPage.clear();
+            state.transfersCache.clear();
             state.closingBalance = null;
             state.total = 0;
             state.totalPages = 0;
@@ -1663,6 +1679,7 @@ export const updateBalanceLedgerUI = (kpis = {}, context = {}) => {
 
     if (!state.loadedOnce) {
         state.pageNetByPage.clear();
+        state.transfersCache.clear();
         state.closingBalance = null;
         state.needsRefresh = true;
         state.total = 0;
@@ -1675,6 +1692,7 @@ export const updateBalanceLedgerUI = (kpis = {}, context = {}) => {
 
     if (rangeChanged || apiChanged || tokenChanged) {
         state.pageNetByPage.clear();
+        state.transfersCache.clear();
         state.closingBalance = null;
         state.needsRefresh = true;
         state.total = 0;
