@@ -1622,18 +1622,24 @@ const fetchTransfersPage = async (page = 1, options = {}) => {
     }
 };
 
-// Silently fetches pages after `fromPage` into the cache to provide P2P_SELL context
-// for spread calculation. Skips pages already prefetched. Re-renders current view
-// once per batch if new sells were discovered, so spreads appear correct on first load.
+// Silently fetches subsequent pages into the cache to provide P2P_SELL context for
+// spread calculation on the current page. Fetches one page at a time until a P2P_SELL
+// is found (then stops — no need to go further for the cycle reference rate).
+// Skips pages already prefetched. Re-renders current view once a sell is discovered.
 const prefetchSellContextPages = async (fromPage) => {
     if (!state.apiBase || !state.token) return;
-    // Only prefetch up to 3 pages ahead to bound the number of background requests.
-    const MAX_PREFETCH_LOOKAHEAD = 3;
 
     let needsRerender = false;
 
-    for (let p = fromPage + 1; p <= Math.min(state.totalPages, fromPage + MAX_PREFETCH_LOOKAHEAD); p++) {
-        if (state.prefetchedPages.has(p)) continue;
+    for (let p = fromPage + 1; p <= state.totalPages; p++) {
+        if (state.prefetchedPages.has(p)) {
+            // Page already cached — check if it had sells and keep scanning if not.
+            const pageHadSell = Array.from(state.transfersCache.values()).some(
+                (tx) => normalizeTxType(tx) === 'P2P_SELL'
+            );
+            if (pageHadSell) break; // Sell already in cache — no need to keep going.
+            continue;
+        }
         state.prefetchedPages.add(p);
 
         try {
@@ -1646,23 +1652,25 @@ const prefetchSellContextPages = async (fromPage) => {
             const payload = await res.json();
             const transfers = Array.isArray(payload?.transfers) ? payload.transfers : [];
 
-            let addedNewSell = false;
+            let foundSell = false;
             transfers.forEach((tx) => {
                 const key = tx.id || tx.txHash || tx.orderNumber || tx.binanceRawId || `${tx.timestamp}_${tx.amount}`;
                 if (key && !state.transfersCache.has(key)) {
                     state.transfersCache.set(key, tx);
-                    if (normalizeTxType(tx) === 'P2P_SELL') addedNewSell = true;
+                    if (normalizeTxType(tx) === 'P2P_SELL') foundSell = true;
                 }
             });
 
-            // Only re-render if we found new sells that could fix spread calculations.
-            if (addedNewSell) needsRerender = true;
+            if (foundSell) {
+                needsRerender = true;
+                break; // Found a sell — the spread calculation now has what it needs.
+            }
         } catch {
             // Silent failure — prefetch is best-effort and never blocks the UI.
         }
     }
 
-    // Re-render the current page once with the enriched cache (no scroll reset).
+    // Re-render the current page with the enriched cache (no scroll reset).
     if (needsRerender && state.currentTransfers.length > 0) {
         renderTransfers(state.currentTransfers, { resetScroll: false });
     }
