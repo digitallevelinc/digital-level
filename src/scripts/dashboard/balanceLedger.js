@@ -1289,6 +1289,10 @@ const computeCycleSpreads = (transfers) => {
                 }
                 if (totalUsdt > 0) cycleRateOverride = totalFiat / totalUsdt;
             }
+            // Guardar el override en el resultado para que renderRow lo use en el SPREAD del BUY
+            if (cycleRateOverride > 0) {
+                result.set(tx, { rateOverride: cycleRateOverride });
+            }
             cycleSpread += computeTxSpread(tx, cycleRateOverride);
 
             // ¿Se recuperaron todos los VES? → ciclo cerrado
@@ -1329,6 +1333,7 @@ const renderRow = (tx, rowBalance, cycleData = undefined) => {
     }).join('');
 
     const isCycleSell = normalizeTxType(tx) === 'P2P_SELL' && cycleData != null;
+    const isCycleBuyOverride = normalizeTxType(tx) === 'P2P_BUY' && cycleData?.rateOverride > 0;
 
     let spreadMetric;
     if (isCycleSell) {
@@ -1342,7 +1347,9 @@ const renderRow = (tx, rowBalance, cycleData = undefined) => {
             tone: sum !== 0 ? cycleTone : 'ledger-metric-muted',
         });
     } else {
-        const spreadValRaw = computeTxSpread(tx);
+        const spreadValRaw = isCycleBuyOverride
+            ? computeTxSpread(tx, cycleData.rateOverride)
+            : computeTxSpread(tx);
         const spreadVal = truncateTowardZero(spreadValRaw, 2);
         const spreadTone = spreadVal > 0
             ? 'ledger-metric-positive'
