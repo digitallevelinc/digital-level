@@ -24,6 +24,7 @@ const state = {
     currentTransfers: [],
     transfersCache: new Map(),
     pageNetByPage: new Map(),
+    prefetchedPages: new Set(),
     bankData: [],
     closingBalance: null,
 };
@@ -1604,6 +1605,10 @@ const fetchTransfersPage = async (page = 1, options = {}) => {
         renderTransfers(Array.isArray(payload?.transfers) ? payload.transfers : [], {
             resetScroll: showLoading,
         });
+
+        // Silently prefetch subsequent pages to populate sell context for spread calculation.
+        // This ensures page 1 buys can find their matching sells even on first visit.
+        void prefetchSellContextPages(state.page);
     } catch (error) {
         if (error?.name === 'AbortError') return;
         console.warn('No fue posible cargar el historial de balance:', error);
@@ -1614,6 +1619,52 @@ const fetchTransfersPage = async (page = 1, options = {}) => {
         if (requestSeq === state.requestSeq) {
             state.abortController = null;
         }
+    }
+};
+
+// Silently fetches pages after `fromPage` into the cache to provide P2P_SELL context
+// for spread calculation. Skips pages already prefetched. Re-renders current view
+// once per batch if new sells were discovered, so spreads appear correct on first load.
+const prefetchSellContextPages = async (fromPage) => {
+    if (!state.apiBase || !state.token) return;
+    // Only prefetch up to 3 pages ahead to bound the number of background requests.
+    const MAX_PREFETCH_LOOKAHEAD = 3;
+
+    let needsRerender = false;
+
+    for (let p = fromPage + 1; p <= Math.min(state.totalPages, fromPage + MAX_PREFETCH_LOOKAHEAD); p++) {
+        if (state.prefetchedPages.has(p)) continue;
+        state.prefetchedPages.add(p);
+
+        try {
+            const res = await fetch(
+                buildTransfersUrl(state.apiBase, state.range, p, state.limit, true),
+                { headers: { 'Authorization': `Bearer ${state.token}` }, cache: 'no-store' }
+            );
+            if (!res.ok) continue;
+
+            const payload = await res.json();
+            const transfers = Array.isArray(payload?.transfers) ? payload.transfers : [];
+
+            let addedNewSell = false;
+            transfers.forEach((tx) => {
+                const key = tx.id || tx.txHash || tx.orderNumber || tx.binanceRawId || `${tx.timestamp}_${tx.amount}`;
+                if (key && !state.transfersCache.has(key)) {
+                    state.transfersCache.set(key, tx);
+                    if (normalizeTxType(tx) === 'P2P_SELL') addedNewSell = true;
+                }
+            });
+
+            // Only re-render if we found new sells that could fix spread calculations.
+            if (addedNewSell) needsRerender = true;
+        } catch {
+            // Silent failure — prefetch is best-effort and never blocks the UI.
+        }
+    }
+
+    // Re-render the current page once with the enriched cache (no scroll reset).
+    if (needsRerender && state.currentTransfers.length > 0) {
+        renderTransfers(state.currentTransfers, { resetScroll: false });
     }
 };
 
@@ -1647,6 +1698,7 @@ const bindEventsOnce = () => {
             state.typeFilter = nextType;
             state.pageNetByPage.clear();
             state.transfersCache.clear();
+            state.prefetchedPages.clear();
             state.closingBalance = null;
             state.total = 0;
             state.totalPages = 0;
@@ -1688,6 +1740,7 @@ export const updateBalanceLedgerUI = (kpis = {}, context = {}) => {
     if (!state.loadedOnce) {
         state.pageNetByPage.clear();
         state.transfersCache.clear();
+        state.prefetchedPages.clear();
         state.closingBalance = null;
         state.needsRefresh = true;
         state.total = 0;
@@ -1701,6 +1754,7 @@ export const updateBalanceLedgerUI = (kpis = {}, context = {}) => {
     if (rangeChanged || apiChanged || tokenChanged) {
         state.pageNetByPage.clear();
         state.transfersCache.clear();
+        state.prefetchedPages.clear();
         state.closingBalance = null;
         state.needsRefresh = true;
         state.total = 0;
