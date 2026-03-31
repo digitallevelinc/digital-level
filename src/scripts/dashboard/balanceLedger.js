@@ -978,7 +978,11 @@ const getAvgTakerSellFeeForBank = (txToMatch) => {
 const BANK_GENERIC_PAIRING_WINDOW_MS = 30 * 60 * 1000; // 30 min strict window for generic BANK
 
 const getNearestSellForBuy = (buyTx) => {
-    if (!state.currentTransfers?.length) return null;
+    // Search the full cache (all visited pages) so sells on page 2 are found when browsing page 1.
+    const searchPool = state.transfersCache.size > 0
+        ? Array.from(state.transfersCache.values())
+        : state.currentTransfers;
+    if (!searchPool?.length) return null;
     const buyBankKey = normalizeBankKey(buyTx?.bankName || buyTx?.bank || buyTx?.paymentMethod);
     if (!buyBankKey) return null;
     const isGenericBank = buyBankKey === 'bank';
@@ -989,7 +993,7 @@ const getNearestSellForBuy = (buyTx) => {
     let best = null;
     let bestScore = Number.POSITIVE_INFINITY;
 
-    for (const tx of state.currentTransfers) {
+    for (const tx of searchPool) {
         if (tx === buyTx) continue;
         if (normalizeTxType(tx) !== 'P2P_SELL') continue;
 
@@ -1032,14 +1036,18 @@ const getNearestSellForBuy = (buyTx) => {
 // Never used for rate — rate comes from getPageAvgRateForBank / getPageAvgRate.
 const MAX_SELL_ROLE_LOOKUP_MS = 4 * 60 * 60 * 1000; // 4h window
 const getNearestSellRoleForBuy = (buyTx) => {
-    if (!state.currentTransfers?.length) return null;
+    // Search the full cache (all visited pages) so sells on page 2 are found when browsing page 1.
+    const searchPool = state.transfersCache.size > 0
+        ? Array.from(state.transfersCache.values())
+        : state.currentTransfers;
+    if (!searchPool?.length) return null;
     const buyTs = new Date(buyTx?.timestamp || 0).getTime();
     if (!Number.isFinite(buyTs) || buyTs <= 0) return null;
 
     let best = null;
     let bestScore = Number.POSITIVE_INFINITY;
 
-    for (const tx of state.currentTransfers) {
+    for (const tx of searchPool) {
         if (tx === buyTx) continue;
         if (normalizeTxType(tx) !== 'P2P_SELL') continue;
 
