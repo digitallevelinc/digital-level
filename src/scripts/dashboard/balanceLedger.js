@@ -1141,22 +1141,41 @@ const computeTxSpread = (tx = {}) => {
     if (buyUsdtIn <= 0) return 0;
 
     const nearestSell = getNearestSellForBuy(tx);
-    if (!nearestSell || nearestSell.rate <= 0) return 0;
+
+    // Si no hay una venta pairable en la página actual (p.ej. la página 1 tiene compras
+    // cuyas ventas correspondientes están en la página 2), usamos la tasa de referencia
+    // global del KPI para estimar igualmente el spread en vez de devolver 0.
+    let sellRate, sellRoleSource, sellFeeSource, sellAmountSource;
+    if (nearestSell && nearestSell.rate > 0) {
+        sellRate = nearestSell.rate;
+        sellRoleSource = nearestSell.role;
+        sellFeeSource = nearestSell.fee;
+        sellAmountSource = nearestSell.amount;
+    } else {
+        sellRate = getFallbackSellReferenceRate();
+        if (sellRate <= 0) return 0;
+
+        // Intentar inferir el rol desde la venta más cercana sin restricción de banco.
+        const nearestSellRole = getNearestSellRoleForBuy(tx);
+        sellRoleSource = nearestSellRole?.role || '';
+        sellFeeSource = nearestSellRole?.fee || 0;
+        sellAmountSource = nearestSellRole?.amount || buyUsdtIn;
+    }
 
     // Fórmula de venta: se usan los VES de la COMPRA divididos por la tasa de la venta.
     // Así comparamos el mismo volumen fiat: cuánto costó comprarlo vs cuánto costaría venderlo.
     const buyFiat = resolveFiatAmount(tx);
     const sellGross = buyFiat > 0
-        ? buyFiat / nearestSell.rate
-        : nearestSell.amount; // fallback si no hay fiat en la compra
+        ? buyFiat / sellRate
+        : sellAmountSource; // fallback si no hay fiat en la compra
 
     const sellRole = inferMakerTakerRole({
-        explicitRole: nearestSell.role,
-        fee: nearestSell.fee,
-        amount: nearestSell.amount,
+        explicitRole: sellRoleSource,
+        fee: sellFeeSource,
+        amount: sellAmountSource,
     });
     const makerFeeRate = Number(state.kpis?.config?.verificationPercent || 0) / 100;
-    const sellFee = nearestSell.fee > 0 ? nearestSell.fee : 0.06; // flat TAKER fallback
+    const sellFee = sellFeeSource > 0 ? sellFeeSource : 0.06; // flat TAKER fallback
 
     // Fórmula a (TAKER):  VES/rate + fee
     // Fórmula b (MAKER):  (VES/rate) / (1 − makerFeeRate)
