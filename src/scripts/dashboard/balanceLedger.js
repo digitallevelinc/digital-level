@@ -1142,6 +1142,16 @@ const computeTxSpread = (tx = {}) => {
 
     const nearestSell = getNearestSellForBuy(tx);
 
+    // El rol de la COMPRA (si es explícito: MAKER o TAKER) tiene prioridad absoluta
+    // sobre el rol inferido de la venta emparejada. Esto evita que una compra marcada
+    // como MAKER reciba penalización de TAKER solo porque la venta asociada tiene un
+    // rol no estándar (p.ej. LARGE) o una fee que no cuadra con el porcentaje MAKER.
+    const buyRole = inferMakerTakerRole({
+        explicitRole: tx?.advertisementRole,
+        fee: toFiniteNumber(tx?.fee),
+        amount: Math.abs(Number(tx?.amount || 0)),
+    });
+
     // Si no hay una venta pairable en la página actual (p.ej. la página 1 tiene compras
     // cuyas ventas correspondientes están en la página 2), usamos la tasa de referencia
     // global del KPI para estimar igualmente el spread en vez de devolver 0.
@@ -1169,17 +1179,23 @@ const computeTxSpread = (tx = {}) => {
         ? buyFiat / sellRate
         : sellAmountSource; // fallback si no hay fiat en la compra
 
-    const sellRole = inferMakerTakerRole({
-        explicitRole: sellRoleSource,
-        fee: sellFeeSource,
-        amount: sellAmountSource,
-    });
+    // Prioridad del rol para la fórmula de venta:
+    // 1. El rol explícito del BUY (MAKER/TAKER) — fuente más confiable.
+    // 2. El rol inferido del SELL emparejado.
+    const effectiveSellRole = (buyRole === 'MAKER' || buyRole === 'TAKER')
+        ? buyRole
+        : inferMakerTakerRole({
+            explicitRole: sellRoleSource,
+            fee: sellFeeSource,
+            amount: sellAmountSource,
+        });
+
     const makerFeeRate = Number(state.kpis?.config?.verificationPercent || 0) / 100;
     const sellFee = sellFeeSource > 0 ? sellFeeSource : 0.06; // flat TAKER fallback
 
     // Fórmula a (TAKER):  VES/rate + fee
     // Fórmula b (MAKER):  (VES/rate) / (1 − makerFeeRate)
-    const sellUsdtOut = sellRole === 'MAKER' && makerFeeRate > 0
+    const sellUsdtOut = effectiveSellRole === 'MAKER' && makerFeeRate > 0
         ? sellGross / (1 - makerFeeRate)
         : sellGross + sellFee;
 
