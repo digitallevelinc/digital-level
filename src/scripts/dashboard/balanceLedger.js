@@ -1234,10 +1234,10 @@ const computeTxSpread = (tx = {}, rateOverride = 0) => {
     const sellFee = 0.06;
 
     // Fórmula a (TAKER):  VES/rate + fee
-    // Fórmula b (MAKER):  (VES/rate) / (1 − makerFeeRate)
-    const sellUsdtOut = effectiveSellRole === 'MAKER' && makerFeeRate > 0
-        ? sellGross / (1 - makerFeeRate)
-        : sellGross + sellFee;
+    // Fórmula b (MAKER):  VES/rate  (sin ajuste de comisión)
+    const sellUsdtOut = effectiveSellRole === 'TAKER'
+        ? sellGross + sellFee
+        : sellGross;
 
     // Spread = monto neto compra − costo total venta
     return buyUsdtIn - sellUsdtOut;
