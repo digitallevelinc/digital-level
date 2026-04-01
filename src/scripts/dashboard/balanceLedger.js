@@ -145,10 +145,18 @@ const getSignedAmount = (tx = {}) => {
 
     switch (type) {
         case 'P2P_BUY':
-        case 'PAY_RECEIVED':
         case 'DEPOSIT':
         case 'DIVIDEND':
             delta += amount;
+            break;
+        case 'PAY_RECEIVED':
+            if (amount <= PROMISE_ACTIVATION_MAX_USDT) {
+                // Activación de promesa (micro-monto): usar el USDT prometido real, no el $0.01.
+                const promMeta = getPromiseMeta(tx);
+                delta += promMeta?.promiseUsdt > 0 ? promMeta.promiseUsdt : amount;
+            } else {
+                delta += amount;
+            }
             break;
         case 'P2P_SELL':
         case 'PAY_SENT':
@@ -286,9 +294,11 @@ const getCategoryChipClass = (category) => {
     }
 };
 
-const getRowToneClass = (category) => {
+const getRowToneClass = (category, txType = '') => {
     switch (category) {
         case 'P2P':
+            if (txType === 'P2P_SELL') return 'ledger-row-p2p-sell';
+            if (txType === 'P2P_BUY') return 'ledger-row-p2p-buy';
             return 'ledger-row-p2p';
         case 'PAY':
             return 'ledger-row-pay';
@@ -1321,7 +1331,7 @@ const renderRow = (tx, rowBalance, cycleData = undefined) => {
     const signedAmount = getSignedAmount(tx);
     const amountTone = signedAmount < 0 ? 'ledger-amount-negative' : 'ledger-amount-positive';
     const balanceTone = rowBalance < 0 ? 'ledger-balance-negative' : 'ledger-balance-neutral';
-    const rowTone = getRowToneClass(category);
+    const rowTone = getRowToneClass(category, normalizeTxType(tx));
     const typePillTone = getCategoryChipClass(category);
     const topRaw = buildDescriptionTop(tx);
     const top = escapeHtml(topRaw);
@@ -1356,12 +1366,38 @@ const renderRow = (tx, rowBalance, cycleData = undefined) => {
             tone: spreadTone
         });
     }
-    const balanceMetric = renderMetricCard({
-        label: 'Balance',
-        value: `${rowBalance < 0 ? '-' : ''}${formatUsd(Math.abs(rowBalance))}`,
-        sub: rowBalance < 0 ? 'Balance comprometido' : 'Balance disponible',
-        tone: rowBalance < 0 ? 'ledger-metric-negative' : 'ledger-metric-balance'
-    });
+    const promiseMetaForBalance = getPromiseMeta(tx);
+    const hasPromiseTooltip = promiseMetaForBalance && promiseMetaForBalance.promiseUsdt > 0;
+    let balanceMetric;
+    if (hasPromiseTooltip) {
+        const senderName = escapeHtml(tx?.counterpartyName || tx?.internalCounterpartyAlias || '--');
+        const receiverName = escapeHtml(tx?.internalCounterpartyAlias || tx?.notes || '--');
+        const tooltipLines = [
+            `Balance total: ${rowBalance < 0 ? '-' : ''}${formatUsd(Math.abs(rowBalance))}`,
+            `Promesa: ${formatUsd(promiseMetaForBalance.promiseUsdt)} USDT`,
+            `Enviado por: ${tx?.counterpartyName || '--'}`,
+            promiseMetaForBalance.isReceiver ? `Recibido por: ${tx?.internalCounterpartyAlias || 'este operador'}` : '',
+        ].filter(Boolean).join('\n');
+        balanceMetric = `
+    <div class="ledger-metric-card ${rowBalance < 0 ? 'ledger-metric-negative' : 'ledger-metric-balance'} ledger-metric-has-tooltip">
+        <span class="ledger-metric-label">Balance</span>
+        <span class="ledger-metric-value">${escapeHtml(`${rowBalance < 0 ? '-' : ''}${formatUsd(Math.abs(rowBalance))}`)}</span>
+        <span class="ledger-metric-sub">${escapeHtml(rowBalance < 0 ? 'Balance comprometido' : 'Balance disponible')}</span>
+        <div class="ledger-balance-tooltip">
+            <div class="ledger-balance-tooltip-row"><span>Balance total</span><span>${escapeHtml(`${rowBalance < 0 ? '-' : ''}${formatUsd(Math.abs(rowBalance))}`)}</span></div>
+            <div class="ledger-balance-tooltip-row"><span>Promesa</span><span>${escapeHtml(formatUsd(promiseMetaForBalance.promiseUsdt))} USDT</span></div>
+            <div class="ledger-balance-tooltip-row"><span>Enviado por</span><span>${senderName}</span></div>
+            ${promiseMetaForBalance.isReceiver ? `<div class="ledger-balance-tooltip-row"><span>Recibido por</span><span>${receiverName}</span></div>` : ''}
+        </div>
+    </div>`;
+    } else {
+        balanceMetric = renderMetricCard({
+            label: 'Balance',
+            value: `${rowBalance < 0 ? '-' : ''}${formatUsd(Math.abs(rowBalance))}`,
+            sub: rowBalance < 0 ? 'Balance comprometido' : 'Balance disponible',
+            tone: rowBalance < 0 ? 'ledger-metric-negative' : 'ledger-metric-balance'
+        });
+    }
 
     // COBERTURA column: para ventas con ciclo muestra progreso de recuperación de VES;
     // para el resto muestra la promesa normal.

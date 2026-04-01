@@ -415,6 +415,14 @@ import CardHelp from './CardHelp.astro';
         background: #f3ba2f;
     }
 
+    .ledger-row-p2p-sell::before {
+        background: #ef4444;
+    }
+
+    .ledger-row-p2p-buy::before {
+        background: #22c55e;
+    }
+
     .ledger-row-pay::before {
         background: #38bdf8;
     }
@@ -429,6 +437,47 @@ import CardHelp from './CardHelp.astro';
 
     .ledger-row-neutral::before {
         background: rgba(255, 255, 255, 0.28);
+    }
+
+    .ledger-metric-has-tooltip {
+        position: relative;
+        cursor: default;
+    }
+
+    .ledger-balance-tooltip {
+        display: none;
+        position: absolute;
+        bottom: calc(100% + 8px);
+        left: 50%;
+        transform: translateX(-50%);
+        z-index: 100;
+        background: #0f1923;
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        border-radius: 0.75rem;
+        padding: 0.65rem 0.85rem;
+        min-width: 220px;
+        box-shadow: 0 12px 32px rgba(0, 0, 0, 0.4);
+        pointer-events: none;
+    }
+
+    .ledger-metric-has-tooltip:hover .ledger-balance-tooltip {
+        display: flex;
+        flex-direction: column;
+        gap: 0.4rem;
+    }
+
+    .ledger-balance-tooltip-row {
+        display: flex;
+        justify-content: space-between;
+        gap: 1rem;
+        font-size: 0.72rem;
+        color: rgba(255, 255, 255, 0.6);
+        white-space: nowrap;
+    }
+
+    .ledger-balance-tooltip-row span:last-child {
+        color: rgba(255, 255, 255, 0.92);
+        font-weight: 600;
     }
 
     @media (min-width: 1024px) {
