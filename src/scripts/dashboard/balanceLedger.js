@@ -1325,12 +1325,45 @@ const computeCycleSpreads = (transfers) => {
     return result;
 };
 
+const updateCoverageBadge = (transfers = []) => {
+    const badge = document.getElementById('balance-ledger-coverage-badge');
+    const label = document.getElementById('balance-ledger-coverage-label');
+    const tooltip = document.getElementById('balance-ledger-coverage-tooltip');
+    if (!badge || !label || !tooltip) return;
+
+    const active = [];
+    for (const tx of transfers) {
+        const meta = getPromiseMeta(tx);
+        if (!meta || meta.pendingUsdt <= 0.009) continue;
+        const pct = meta.promiseUsdt > 0
+            ? Math.min(100, ((meta.promiseUsdt - meta.pendingUsdt) / meta.promiseUsdt) * 100)
+            : 0;
+        const name = tx?.counterpartyName || tx?.internalCounterpartyAlias || 'Sin nombre';
+        active.push({ name, pendingUsdt: meta.pendingUsdt, promiseUsdt: meta.promiseUsdt, pct });
+    }
+
+    if (active.length === 0) {
+        badge.style.display = 'none';
+        return;
+    }
+
+    badge.style.display = '';
+    label.textContent = `${active.length} cobertura${active.length !== 1 ? 's' : ''} activa${active.length !== 1 ? 's' : ''}`;
+    tooltip.innerHTML = active.map(({ name, pendingUsdt, pct }) => `
+        <div class="ledger-coverage-tooltip-item">
+            <span class="ledger-coverage-tooltip-name">${escapeHtml(name)}</span>
+            <div class="ledger-coverage-tooltip-meta">
+                <span>Falta ${formatUsd(pendingUsdt)} USDT</span>
+                <span>${Math.round(pct)}% completado</span>
+            </div>
+        </div>`).join('');
+};
+
 const renderRow = (tx, rowBalance, cycleData = undefined) => {
     const isSettlement = isSettlementTransfer(tx);
     const category = isSettlement ? 'LIQUID' : getCategory(tx.type);
     const signedAmount = getSignedAmount(tx);
     const amountTone = signedAmount < 0 ? 'ledger-amount-negative' : 'ledger-amount-positive';
-    const balanceTone = rowBalance < 0 ? 'ledger-balance-negative' : 'ledger-balance-neutral';
     const rowTone = getRowToneClass(category, normalizeTxType(tx));
     const typePillTone = getCategoryChipClass(category);
     const topRaw = buildDescriptionTop(tx);
@@ -1372,12 +1405,6 @@ const renderRow = (tx, rowBalance, cycleData = undefined) => {
     if (hasPromiseTooltip) {
         const senderName = escapeHtml(tx?.counterpartyName || tx?.internalCounterpartyAlias || '--');
         const receiverName = escapeHtml(tx?.internalCounterpartyAlias || tx?.notes || '--');
-        const tooltipLines = [
-            `Balance total: ${rowBalance < 0 ? '-' : ''}${formatUsd(Math.abs(rowBalance))}`,
-            `Promesa: ${formatUsd(promiseMetaForBalance.promiseUsdt)} USDT`,
-            `Enviado por: ${tx?.counterpartyName || '--'}`,
-            promiseMetaForBalance.isReceiver ? `Recibido por: ${tx?.internalCounterpartyAlias || 'este operador'}` : '',
-        ].filter(Boolean).join('\n');
         balanceMetric = `
     <div class="ledger-metric-card ${rowBalance < 0 ? 'ledger-metric-negative' : 'ledger-metric-balance'} ledger-metric-has-tooltip">
         <span class="ledger-metric-label">Balance</span>
@@ -1565,6 +1592,9 @@ const renderTransfers = (transfers = [], options = {}) => {
     }
 
     body.innerHTML = filteredRows.map(({ tx, balance }) => renderRow(tx, balance, cycleSpreads.get(tx))).join('');
+
+    // Actualizar badge de coberturas activas
+    updateCoverageBadge(state.currentTransfers);
 
     // Wire dispersor toggle buttons
     body.querySelectorAll('[data-dispersor-toggle]').forEach((btn) => {

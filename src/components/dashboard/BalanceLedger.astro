@@ -31,9 +31,10 @@ import CardHelp from './CardHelp.astro';
             </div>
             <div class="ledger-head-pills">
                 <span id="balance-ledger-results" class="ledger-pill ledger-pill-primary">0 Resultados</span>
-                <span class="ledger-pill ledger-pill-live">
-                    <span class="ledger-pulse"></span>
-                    Ledger Live
+                <span id="balance-ledger-coverage-badge" class="ledger-pill ledger-pill-coverage" style="display:none">
+                    <span class="ledger-pulse ledger-pulse-warning"></span>
+                    <span id="balance-ledger-coverage-label">0 coberturas</span>
+                    <div class="ledger-coverage-tooltip" id="balance-ledger-coverage-tooltip"></div>
                 </span>
             </div>
         </div>
@@ -223,6 +224,14 @@ import CardHelp from './CardHelp.astro';
         color: #bbf7d0;
     }
 
+    .ledger-pill-coverage {
+        position: relative;
+        border: 1px solid rgba(251, 191, 36, 0.3);
+        background: rgba(120, 80, 0, 0.28);
+        color: #fde68a;
+        cursor: default;
+    }
+
     .ledger-pulse {
         width: 8px;
         height: 8px;
@@ -230,6 +239,66 @@ import CardHelp from './CardHelp.astro';
         background: #34d399;
         box-shadow: 0 0 0 0 rgba(52, 211, 153, 0.45);
         animation: ledger-pulse 2s infinite;
+    }
+
+    .ledger-pulse-warning {
+        background: #fbbf24;
+        box-shadow: 0 0 0 0 rgba(251, 191, 36, 0.45);
+    }
+
+    .ledger-coverage-tooltip {
+        display: none;
+        position: absolute;
+        top: calc(100% + 8px);
+        right: 0;
+        z-index: 200;
+        background: #0f1923;
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        border-radius: 0.75rem;
+        padding: 0.65rem 0.85rem;
+        min-width: 240px;
+        box-shadow: 0 12px 32px rgba(0, 0, 0, 0.4);
+        pointer-events: none;
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+
+    .ledger-pill-coverage:hover .ledger-coverage-tooltip {
+        display: flex;
+    }
+
+    .ledger-coverage-tooltip-item {
+        display: flex;
+        flex-direction: column;
+        gap: 0.2rem;
+        padding-bottom: 0.4rem;
+        border-bottom: 1px solid rgba(255,255,255,0.06);
+    }
+
+    .ledger-coverage-tooltip-item:last-child {
+        border-bottom: none;
+        padding-bottom: 0;
+    }
+
+    .ledger-coverage-tooltip-name {
+        font-size: 0.73rem;
+        font-weight: 600;
+        color: rgba(255, 255, 255, 0.88);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .ledger-coverage-tooltip-meta {
+        display: flex;
+        justify-content: space-between;
+        font-size: 0.68rem;
+        color: rgba(255, 255, 255, 0.5);
+    }
+
+    .ledger-coverage-tooltip-meta span:last-child {
+        color: #fbbf24;
+        font-weight: 600;
     }
 
     .ledger-toolbar {
