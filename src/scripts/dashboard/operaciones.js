@@ -15,9 +15,12 @@ export function updateOperacionesUI(kpis = {}) {
     const ops = kpis.operations || {};
     const wallets = kpis.wallets || {};
 
-    // 1. TOTAL GENERAL (Suma de todas las ventas y compras registradas)
-    // El servidor ya proporciona totalOperations para mayor precisión.
-    const totalOps = ops.totalOperations ?? (Number(ops.buys?.count || 0) + Number(ops.sells?.count || 0));
+    // 1. TOTAL GENERAL (Suma de P2P + PAY + RED + SWITCH)
+    const p2pTotal = Number(ops.buys?.count || 0) + Number(ops.sells?.count || 0);
+    const payTotal = Number(wallets.pay?.payReceivedCount || 0) + Number(wallets.pay?.paySentCount || 0);
+    const redTotal = Number(wallets.red?.countIn || 0) + Number(wallets.red?.countOut || 0);
+    const switchTotal = Number(wallets.switch?.countIn || 0) + Number(wallets.switch?.countOut || 0);
+    const totalOps = ops.totalOperations ?? (p2pTotal + payTotal + redTotal + switchTotal);
     inject('ops-total-count', totalOps.toLocaleString());
 
     // 2. P2P: Ventas / Compras 
