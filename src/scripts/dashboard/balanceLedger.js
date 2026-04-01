@@ -497,9 +497,18 @@ const buildDescriptionMeta = (tx, topLine = '') => {
     return parts;
 };
 
+const getTxUsdtVolume = (tx) => {
+    const meta = getPromiseMeta(tx);
+    if (meta && meta.promiseUsdt > 0) return meta.promiseUsdt;
+    return Math.abs(Number(tx?.amount || 0));
+};
+
 const getTxRate = (tx) => {
     const directRate = Number(tx?.exchangeRate || 0);
     if (directRate > 0) return directRate;
+
+    const meta = getPromiseMeta(tx);
+    if (meta && meta.exchangeRate > 0) return meta.exchangeRate;
 
     const amount = Math.abs(Number(tx?.amount || 0));
     const fiatAmount = Math.abs(Number(tx?.fiatAmount || 0));
@@ -511,6 +520,9 @@ const getTxRate = (tx) => {
 const resolveFiatAmount = (tx) => {
     const fiatAmount = Math.abs(Number(tx?.fiatAmount || 0));
     if (fiatAmount > 0) return fiatAmount;
+
+    const meta = getPromiseMeta(tx);
+    if (meta && meta.promisedFiat > 0) return meta.promisedFiat;
 
     const amount = Math.abs(Number(tx?.amount || 0));
     if (amount <= 0) return 0;
@@ -935,7 +947,7 @@ const getPageAvgRate = (typesToMatch) => {
         const rate = getTxRate(tx);
         if (rate <= 0) continue;
 
-        const amount = Math.abs(Number(tx?.amount || 0));
+        const amount = getTxUsdtVolume(tx);
         if (amount <= 0) continue;
 
         weightedSum += rate * amount;
@@ -964,7 +976,7 @@ const getPageAvgRateForBank = (typesToMatch, txToMatch) => {
         const rate = getTxRate(tx);
         if (rate <= 0) continue;
 
-        const amount = Math.abs(Number(tx?.amount || 0));
+        const amount = getTxUsdtVolume(tx);
         if (amount <= 0) continue;
 
         weightedSum += rate * amount;
@@ -1050,7 +1062,7 @@ const getNearestSellForBuy = (buyTx) => {
 
         if (score < bestScore) {
             bestScore = score;
-            const amount = Math.abs(Number(tx?.amount || 0));
+            const amount = getTxUsdtVolume(tx);
             best = { rate, fee: effectiveFee, role: role || '', amount };
         }
     }
@@ -1095,7 +1107,7 @@ const getNearestSellRoleForBuy = (buyTx) => {
             best = {
                 role: role || '',
                 fee: fee > 0 && (!feeCurrency || feeCurrency === 'USDT') ? fee : 0,
-                amount: Math.abs(Number(tx?.amount || 0)),
+                amount: getTxUsdtVolume(tx),
             };
         }
     }
@@ -1314,7 +1326,7 @@ const computeCycleSpreads = (transfers) => {
                 let totalUsdt = 0;
                 for (const sell of cycleSells) {
                     totalFiat += resolveFiatAmount(sell);
-                    totalUsdt += Math.abs(Number(sell?.amount || 0));
+                    totalUsdt += getTxUsdtVolume(sell);
                 }
                 if (totalUsdt > 0) cycleRateOverride = totalFiat / totalUsdt;
             }
