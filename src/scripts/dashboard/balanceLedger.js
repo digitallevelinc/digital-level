@@ -1303,8 +1303,19 @@ const computeCycleSpreads = (transfers) => {
         const type = normalizeTxType(tx);
 
         if (isLedgerSellTarget(tx)) {
-            // Una venta agrega VES al pool de recuperación (se acumulan)
-            const sellFiat = resolveFiatAmount(tx);
+            // Una venta agrega VES al pool de recuperación (se acumulan).
+            // Para PAY_SENT promesa: usar el fiat prometido (rate × usdt), no el
+            // fiat real de la micro-activación ($0.01 × rate = 6.63 VES), que es
+            // incorrecto para el seguimiento del ciclo (promesa real = 66.300 VES).
+            const sellType = normalizeTxType(tx);
+            const sellFiat = (() => {
+                if (sellType === 'PAY_SENT') {
+                    const r = getTxRate(tx);
+                    const u = getTxUsdtVolume(tx);
+                    if (r > 0 && u > 0) return r * u;
+                }
+                return resolveFiatAmount(tx);
+            })();
             if (sellFiat > 0) {
                 pendingSellFiat += sellFiat;
                 totalSellFiat += sellFiat;
@@ -1328,6 +1339,18 @@ const computeCycleSpreads = (transfers) => {
                 let totalFiat = 0;
                 let totalUsdt = 0;
                 for (const sell of cycleSells) {
+                    // Para PAY_SENT promesa: usar rate × usdt en vez de resolveFiatAmount
+                    // (que devolvería el fiat micro de $0.01, no el prometido).
+                    const sType = normalizeTxType(sell);
+                    if (sType === 'PAY_SENT') {
+                        const r = getTxRate(sell);
+                        const u = getTxUsdtVolume(sell);
+                        if (r > 0 && u > 0) {
+                            totalFiat += r * u;
+                            totalUsdt += u;
+                            continue;
+                        }
+                    }
                     totalFiat += resolveFiatAmount(sell);
                     totalUsdt += getTxUsdtVolume(sell);
                 }
