@@ -612,6 +612,16 @@ const renderMetricCard = ({ label, value, sub = '', tone = '' }) => `
 const renderPromiseColumnMeta = (tx) => {
     const promiseMeta = getPromiseMeta(tx);
     if (!promiseMeta) {
+        // Liquidaciones: mostrar "Promesa pagada" con el monto de la tx.
+        if (isSettlementTransfer(tx)) {
+            const paidUsdt = Math.abs(toFiniteNumber(tx?.amount));
+            return renderMetricCard({
+                label: 'Promesa pagada',
+                value: paidUsdt > 0 ? formatPromiseUsdt(paidUsdt) : '--',
+                sub: 'Liquidación registrada',
+                tone: 'ledger-metric-promise'
+            });
+        }
         return renderMetricCard({
             label: 'Promesa',
             value: '--',
