@@ -1292,18 +1292,6 @@ const computeCycleSpreads = (transfers) => {
                 totalSellFiat += sellFiat;
                 cycleSells.push(tx);
             }
-        } else if (type === 'PAY_SENT') {
-            // PAY_SENT con promesa actúa como "venta virtual": el operador entrega bolívares
-            // a través de la promesa, lo que equivale a una venta que abre o contribuye al ciclo.
-            const promiseMeta = getPromiseMeta(tx);
-            const settlementFiat = promiseMeta?.promisedFiat > 0
-                ? promiseMeta.promisedFiat
-                : resolveFiatAmount(tx);
-            if (settlementFiat > 0) {
-                pendingSellFiat += settlementFiat;
-                totalSellFiat += settlementFiat;
-                cycleSells.push(tx);
-            }
         } else if (type === 'P2P_BUY' && pendingSellFiat > 0) {
             // Una compra consume VES del pool y aporta su spread
             const buyFiat = resolveFiatAmount(tx);
@@ -1319,27 +1307,10 @@ const computeCycleSpreads = (transfers) => {
                 let totalFiat = 0;
                 let totalUsdt = 0;
                 for (const sell of cycleSells) {
-                    const sellType = String(sell?.type || '').toUpperCase();
-                    const sellPromiseMeta = sellType === 'PAY_SENT' ? getPromiseMeta(sell) : null;
-                    // Para PAY_SENT usamos el USDT prometido real (no el micro-monto de activación)
-                    const sellUsdt = sellPromiseMeta?.promiseUsdt > 0
-                        ? sellPromiseMeta.promiseUsdt
-                        : Math.abs(Number(sell?.amount || 0));
-                    const sellFiat = sellPromiseMeta?.promisedFiat > 0
-                        ? sellPromiseMeta.promisedFiat
-                        : resolveFiatAmount(sell);
-                    totalFiat += sellFiat;
-                    totalUsdt += sellUsdt;
+                    totalFiat += resolveFiatAmount(sell);
+                    totalUsdt += Math.abs(Number(sell?.amount || 0));
                 }
                 if (totalUsdt > 0) cycleRateOverride = totalFiat / totalUsdt;
-            } else if (cycleSells.length === 1) {
-                // Con una sola venta en el ciclo: si es PAY_SENT, extraer la tasa real de la promesa
-                const onlySell = cycleSells[0];
-                const onlySellType = String(onlySell?.type || '').toUpperCase();
-                if (onlySellType === 'PAY_SENT') {
-                    const meta = getPromiseMeta(onlySell);
-                    if (meta?.exchangeRate > 0) cycleRateOverride = meta.exchangeRate;
-                }
             }
             // Guardar el override en el resultado para que renderRow lo use en el SPREAD del BUY
             if (cycleRateOverride > 0) {
