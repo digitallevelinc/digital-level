@@ -1320,8 +1320,11 @@ const computeCycleSpreads = (transfers) => {
             // Con múltiples ventas abiertas usamos la tasa promedio ponderada por volumen
             // (totalVES / totalUSDT) para evitar que el spread se calcule solo con
             // la venta más cercana e ignore las demás ventas del ciclo.
+            // AHORA: Aplica incluso para 1 sola venta, para forzar matemáticamente
+            // el enlace e impedir que 'getNearestSellForBuy' halle otra venta antigua
+            // de páginas previas con una distancia de tiempo menor.
             let cycleRateOverride = 0;
-            if (cycleSells.length > 1) {
+            if (cycleSells.length >= 1) {
                 let totalFiat = 0;
                 let totalUsdt = 0;
                 for (const sell of cycleSells) {
