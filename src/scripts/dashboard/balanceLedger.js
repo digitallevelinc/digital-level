@@ -429,6 +429,13 @@ const getPromiseMeta = (tx = {}) => {
     };
 };
 
+const isLedgerSellTarget = (tx) => {
+    const type = normalizeTxType(tx);
+    if (type === 'P2P_SELL') return true;
+    if (type === 'PAY_SENT' && getPromiseMeta(tx)?.promiseUsdt > 0) return true;
+    return false;
+};
+
 const getFiatLabel = (tx = {}) => {
     const fiatCurrency = String(tx?.fiatCurrency || '').trim().toUpperCase();
     if (fiatCurrency) return fiatCurrency;
@@ -975,8 +982,7 @@ const getAvgTakerSellFeeForBank = (txToMatch) => {
     let count = 0;
 
     for (const tx of state.currentTransfers) {
-        const type = normalizeTxType(tx);
-        if (type !== 'P2P_SELL') continue;
+        if (!isLedgerSellTarget(tx)) continue;
 
         const role = String(tx?.advertisementRole || '').toUpperCase();
         if (role && role !== 'TAKER') continue;
@@ -1016,7 +1022,7 @@ const getNearestSellForBuy = (buyTx) => {
 
     for (const tx of searchPool) {
         if (tx === buyTx) continue;
-        if (normalizeTxType(tx) !== 'P2P_SELL') continue;
+        if (!isLedgerSellTarget(tx)) continue;
 
         const role = String(tx?.advertisementRole || '').toUpperCase();
 
@@ -1070,7 +1076,7 @@ const getNearestSellRoleForBuy = (buyTx) => {
 
     for (const tx of searchPool) {
         if (tx === buyTx) continue;
-        if (normalizeTxType(tx) !== 'P2P_SELL') continue;
+        if (!isLedgerSellTarget(tx)) continue;
 
         const sellTs = new Date(tx?.timestamp || 0).getTime();
         if (!Number.isFinite(sellTs) || sellTs <= 0) continue;
@@ -1163,8 +1169,8 @@ const getFallbackSpreadPercent = () => {
 
 const computeTxSpread = (tx = {}, rateOverride = 0) => {
     const type = normalizeTxType(tx);
-    if (type !== 'P2P_SELL' && type !== 'P2P_BUY') return 0;
-    if (type === 'P2P_SELL') return 0;
+    if (isLedgerSellTarget(tx)) return 0; // Ventas y promesas no muestran spread individual
+    if (type !== 'P2P_BUY') return 0;
 
     // Monto neto recibido en la compra (getSignedAmount ya descuenta el fee)
     const buyUsdtIn = getSignedAmount(tx);
@@ -1284,7 +1290,7 @@ const computeCycleSpreads = (transfers) => {
         const tx = transfers[i];
         const type = normalizeTxType(tx);
 
-        if (type === 'P2P_SELL') {
+        if (isLedgerSellTarget(tx)) {
             // Una venta agrega VES al pool de recuperación (se acumulan)
             const sellFiat = resolveFiatAmount(tx);
             if (sellFiat > 0) {
@@ -1390,7 +1396,7 @@ const renderRow = (tx, rowBalance, cycleData = undefined) => {
         return `<span class="ledger-meta-chip">${escapeHtml(line)}</span>`;
     }).join('');
 
-    const isCycleSell = normalizeTxType(tx) === 'P2P_SELL' && cycleData != null;
+    const isCycleSell = isLedgerSellTarget(tx) && cycleData != null;
     const isCycleBuyOverride = normalizeTxType(tx) === 'P2P_BUY' && cycleData?.rateOverride > 0;
 
     let spreadMetric;
