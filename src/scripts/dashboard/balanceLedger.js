@@ -782,19 +782,19 @@ const matchesSearch = (tx, searchTerm) => {
 
 const buildRowsWithBalance = (transfers = []) => {
     let rows = Array.isArray(transfers) ? [...transfers] : [];
-    
+
     if (state.page === 1) {
         const dispersor = state.kpis?.judge?.dispersor || state.kpis?.dispersor;
         const pendingUsdt = Number(dispersor?.pendingUsdt || 0);
         const promisedUsdt = Number(dispersor?.promisedUsdt || 0);
         const activePromises = Number(dispersor?.activePromises || 0);
-        
+
         if (promisedUsdt > 0 || activePromises > 0) {
             const pendingFiat = Number(dispersor?.pendingFiat || 0);
             const recoveredUsdt = Number(dispersor?.recoveredUsdtLocal || 0);
             const recoveredFiat = Number(dispersor?.recoveredFiatLocal || 0);
             const promisedFiat = Number(dispersor?.promisedFiat || 0);
-            
+
             const syntheticTx = {
                 id: 'synthetic-dispersor',
                 timestamp: Date.now(),
@@ -1755,7 +1755,7 @@ const prefetchSellContextPages = async (fromPage) => {
     for (const tx of allScoped) {
         const cycleEntry = allCycleSpreads.get(tx);
         const rateOverride = (cycleEntry?.rateOverride ?? 0);
-        totalSpread += computeTxSpread(tx, rateOverride);
+        totalSpread += truncateTowardZero(computeTxSpread(tx, rateOverride), 2);
     }
     totalSpread = truncateTowardZero(totalSpread, 2);
 
