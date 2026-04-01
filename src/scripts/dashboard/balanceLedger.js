@@ -1266,7 +1266,10 @@ const computeTxSpread = (tx = {}, rateOverride = 0) => {
 // Los P2P_BUY posteriores van "consumiendo" esos VES.
 // El ciclo se CIERRA cuando la suma de VES gastados en compras >= VES recibidos de la venta.
 // Ventas consecutivas se acumulan (stack) en un solo pool.
+// Si el gap entre ventas consecutivas supera CYCLE_MAX_SELL_GAP_MS, se fuerza cierre del ciclo
+// para evitar que ventas históricas de páginas prefetcheadas contaminen ciclos recientes.
 // Returns Map<sellTx, { sum, complete, totalSellFiat, recoveredFiat, recoveredPct }>.
+const CYCLE_MAX_SELL_GAP_MS = 6 * 60 * 60 * 1000; // 6 horas
 const computeCycleSpreads = (transfers) => {
     const result = new Map();
 
@@ -1276,6 +1279,7 @@ const computeCycleSpreads = (transfers) => {
     let recoveredFiat = 0;     // VES recuperados via compras
     let cycleSpread = 0;       // Spread acumulado de las compras del ciclo
     let cycleSells = [];       // Transacciones P2P_SELL que forman este ciclo
+    let lastSellTs = 0;        // Timestamp de la última venta del ciclo (para detectar gaps)
 
     const closeCycle = (complete) => {
         const pct = totalSellFiat > 0
@@ -1295,6 +1299,7 @@ const computeCycleSpreads = (transfers) => {
         recoveredFiat = 0;
         cycleSpread = 0;
         cycleSells = [];
+        lastSellTs = 0;
     };
 
     // Recorrer de más antiguo a más reciente (el array viene newest-first)
@@ -1308,6 +1313,18 @@ const computeCycleSpreads = (transfers) => {
             // fiat real de la micro-activación ($0.01 × rate = 6.63 VES), que es
             // incorrecto para el seguimiento del ciclo (promesa real = 66.300 VES).
             const sellType = normalizeTxType(tx);
+            const sellTs = new Date(tx?.timestamp || 0).getTime();
+
+            // Si hay un ciclo abierto pero el gap con la última venta es demasiado grande
+            // (ej. páginas históricas traídas por el prefetch), cerramos el ciclo anterior
+            // antes de iniciar uno nuevo. Esto evita que ventas de días distintos compartan pool.
+            if (cycleSells.length > 0 && lastSellTs > 0 && sellTs > 0) {
+                const gap = Math.abs(sellTs - lastSellTs);
+                if (gap > CYCLE_MAX_SELL_GAP_MS) {
+                    closeCycle(false);
+                }
+            }
+
             const sellFiat = (() => {
                 if (sellType === 'PAY_SENT') {
                     const r = getTxRate(tx);
@@ -1320,6 +1337,7 @@ const computeCycleSpreads = (transfers) => {
                 pendingSellFiat += sellFiat;
                 totalSellFiat += sellFiat;
                 cycleSells.push(tx);
+                if (sellTs > 0) lastSellTs = sellTs;
             }
         } else if (type === 'P2P_BUY' && pendingSellFiat > 0) {
             // Una compra consume VES del pool y aporta su spread
