@@ -1325,6 +1325,14 @@ const computeCycleSpreads = (transfers) => {
                 }
             }
 
+            // Un PAY_SENT promesa es una obligación independiente: su tasa es específica
+            // del deal acordado y no debe promediar con ventas P2P_SELL previas abiertas.
+            // Si hay ventas P2P en el ciclo activo, las cerramos antes de que el PAY inicie
+            // su propio ciclo, evitando así que el cycleRateOverride quede contaminado.
+            if (sellType === 'PAY_SENT' && cycleSells.some(s => normalizeTxType(s) !== 'PAY_SENT')) {
+                closeCycle(false);
+            }
+
             const sellFiat = (() => {
                 if (sellType === 'PAY_SENT') {
                     const r = getTxRate(tx);
