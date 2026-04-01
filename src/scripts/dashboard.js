@@ -484,11 +484,10 @@ async function fetchDashboardKpis(API_BASE, token, range = {}, signal, options =
 }
 
 function syncCriticalProfitFromBanks(kpis = {}, metrics = {}, bankData = []) {
-    // Spread realizado (ciclos cerrados) por banco
-    const closedSpreadSum = bankData.reduce((sum, bank) => sum + Number(bank?.profit || 0), 0);
-    // Profit parcial de ciclos abiertos (recompras ya hechas en el ciclo actual)
+    // Suma de spreads por ciclo cerrado (judge) + spreads parciales de ciclos abiertos
+    const judgeClosedProfit = Number(kpis.judge?.completedCycles?.totalProfit || 0);
     const openCycleSum = bankData.reduce((sum, bank) => sum + Number(bank?.currentCycleProfitUSDT || 0), 0);
-    const bankProfitSum = closedSpreadSum + openCycleSum;
+    const bankProfitSum = judgeClosedProfit + openCycleSum;
 
     if (!kpis.critical) kpis.critical = {};
 

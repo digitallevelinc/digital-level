@@ -1562,7 +1562,8 @@ const renderTransfers = (transfers = [], options = {}) => {
     const cachedTransfers = Array.from(state.transfersCache.values()).sort((a, b) => b.timestamp - a.timestamp);
     const cachedScopedTransfers = cachedTransfers.filter((tx) => isLedgerChannelAllowed(tx));
     const cycleSpreads = computeCycleSpreads(cachedScopedTransfers);
-    
+
+
     const filteredRows = rowsWithBalance.filter(({ tx }) => matchesSearch(tx, state.searchTerm));
 
     if (count) {
