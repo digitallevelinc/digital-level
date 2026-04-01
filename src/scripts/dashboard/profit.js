@@ -27,7 +27,6 @@ export function updateProfitUI(kpis = {}, bankInsights = []) {
     const realBinance = parseFloat(realBinanceSource || 0);
     inject('real-binance-balance', fUSDT(realBinance));
 
-    inject('audit-total-profit-display', fUSDT(totalProfitUSDT));
     inject('audit-total-volume', fUSDT(parseFloat(operations.totalVolumeUSDT || 0)));
     inject('audit-total-fees', fUSDT(parseFloat(operations.totalFeesPaid || 0)));
 
