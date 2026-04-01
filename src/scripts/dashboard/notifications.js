@@ -20,13 +20,13 @@ function formatTimestamp(value) {
 }
 
 const NOTIF_TYPE_STYLE = {
-    promise_created:      { icon: '🤝', color: '#F3BA2F',  label: 'Promesa' },
-    rebuy_shortfall:      { icon: '⚠️', color: '#f87171',  label: 'Recompra' },
-    cycle_incomplete:     { icon: '⏳', color: '#fb923c',  label: 'Ciclo' },
-    ves_holding_prolonged:{ icon: '💰', color: '#fbbf24',  label: 'VES Retenido' },
-    anomalous_transfer:   { icon: '🚨', color: '#ef4444',  label: 'Anomalia' },
-    bank_overuse:         { icon: '🏦', color: '#f97316',  label: 'Banco' },
-    admin_note:           { icon: '📝', color: '#60a5fa',  label: 'Nota Admin' },
+    promise_created: { icon: '🤝', color: '#F3BA2F', label: 'Promesa' },
+    rebuy_shortfall: { icon: '⚠️', color: '#f87171', label: 'Recompra' },
+    cycle_incomplete: { icon: '⏳', color: '#fb923c', label: 'Ciclo' },
+    ves_holding_prolonged: { icon: '💰', color: '#fbbf24', label: 'VES Retenido' },
+    anomalous_transfer: { icon: '🚨', color: '#ef4444', label: 'Anomalia' },
+    bank_overuse: { icon: '🏦', color: '#f97316', label: 'Banco' },
+    admin_note: { icon: '📝', color: '#60a5fa', label: 'Nota Admin' },
 };
 
 const INTERNAL_ACTIVATION_STYLE = { icon: '👥', color: '#60a5fa', label: 'Interna' };
@@ -97,8 +97,14 @@ export function initDashboardNotifications({ apiBase, token }) {
     const list = document.getElementById('dashboard-notifications-list');
     const markReadBtn = document.getElementById('dashboard-notifications-mark-read');
     const sendNoteBtn = document.getElementById('dashboard-notifications-send-note');
+    const tabUnread = document.getElementById('dashboard-notifications-tab-unread');
+    const tabRead = document.getElementById('dashboard-notifications-tab-read');
 
     if (!root || !toggle || !panel || !badge || !list || !token) return;
+
+    let currentTab = 'unread';
+    let cachedItems = [];
+    let cachedUnreadCount = 0;
 
     const headers = {
         Authorization: `Bearer ${token}`,
@@ -112,16 +118,31 @@ export function initDashboardNotifications({ apiBase, token }) {
     };
 
     const render = (items = [], unreadCount = 0) => {
+        cachedItems = items;
+        cachedUnreadCount = unreadCount;
+
         const unread = Number(unreadCount || 0);
         badge.textContent = unread > 99 ? '99+' : String(unread);
         badge.classList.toggle('hidden', unread <= 0);
 
-        if (!Array.isArray(items) || items.length === 0) {
-            list.innerHTML = '<div class="px-4 py-5 text-center text-sm font-bold text-white/50">Sin notificaciones por ahora.</div>';
+        if (tabUnread && tabRead) {
+            if (currentTab === 'unread') {
+                tabUnread.className = 'pb-2 text-[11px] font-black uppercase tracking-[0.14em] text-[#F3BA2F] border-b-[2px] border-[#F3BA2F] transition-colors relative';
+                tabRead.className = 'pb-2 text-[11px] font-black uppercase tracking-[0.14em] text-white/40 border-b-[2px] border-transparent transition-colors hover:text-white/70 relative';
+            } else {
+                tabRead.className = 'pb-2 text-[11px] font-black uppercase tracking-[0.14em] text-[#F3BA2F] border-b-[2px] border-[#F3BA2F] transition-colors relative';
+                tabUnread.className = 'pb-2 text-[11px] font-black uppercase tracking-[0.14em] text-white/40 border-b-[2px] border-transparent transition-colors hover:text-white/70 relative';
+            }
+        }
+
+        const filteredItems = items.filter(item => currentTab === 'unread' ? !item.readAt : !!item.readAt);
+
+        if (!Array.isArray(filteredItems) || filteredItems.length === 0) {
+            list.innerHTML = `<div class="px-4 py-5 text-center text-sm font-bold text-white/50">Sin notificaciones ${currentTab === 'unread' ? 'no leidas' : 'leidas'}.</div>`;
             return;
         }
 
-        list.innerHTML = items.map((item) => {
+        list.innerHTML = filteredItems.map((item) => {
             const unreadClass = item?.readAt ? 'border-white/8 bg-white/[0.03]' : 'border-[#F3BA2F]/25 bg-[#F3BA2F]/[0.06]';
             const presentation = getNotificationPresentation(item);
             const isAdminNote = item?.type === 'admin_note';
@@ -159,7 +180,7 @@ export function initDashboardNotifications({ apiBase, token }) {
     };
 
     const fetchNotifications = async () => {
-        const res = await fetch(`${String(apiBase || '').replace(/\/+$/, '')}/api/notifications?limit=12&t=${Date.now()}`, {
+        const res = await fetch(`${String(apiBase || '').replace(/\/+$/, '')}/api/notifications?limit=50&t=${Date.now()}`, {
             headers,
             cache: 'no-store'
         });
@@ -206,6 +227,22 @@ export function initDashboardNotifications({ apiBase, token }) {
         const ok = await sendOperatorReply(apiBase, token, msg.trim());
         sendNoteBtn.textContent = ok ? 'Enviada!' : 'Error';
         setTimeout(() => { sendNoteBtn.textContent = 'Enviar nota'; sendNoteBtn.disabled = false; }, 2000);
+    });
+
+    tabUnread?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (currentTab !== 'unread') {
+            currentTab = 'unread';
+            render(cachedItems, cachedUnreadCount);
+        }
+    });
+
+    tabRead?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (currentTab !== 'read') {
+            currentTab = 'read';
+            render(cachedItems, cachedUnreadCount);
+        }
     });
 
     document.addEventListener('click', (event) => {

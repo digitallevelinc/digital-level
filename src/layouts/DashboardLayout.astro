@@ -48,7 +48,7 @@ import SidebarMonitor from '../components/dashboard/SidebarMonitor.astro';
                             id="dashboard-notifications-panel"
                             class="hidden fixed inset-x-3 top-[5.4rem] z-[1200] max-h-[calc(100dvh-6.4rem)] overflow-hidden rounded-[1.35rem] border border-white/10 bg-[#11161c]/95 shadow-[0_24px_60px_rgba(0,0,0,0.55)] backdrop-blur-xl md:absolute md:inset-x-auto md:right-0 md:top-[calc(100%+0.75rem)] md:w-[min(420px,calc(100vw-1.5rem))] md:max-h-none"
                         >
-                            <div class="flex flex-col gap-3 border-b border-white/10 px-4 py-4 sm:flex-row sm:items-center sm:justify-between">
+                            <div class="flex flex-col gap-3 px-4 pt-4 sm:flex-row sm:items-center sm:justify-between">
                                 <div>
                                     <p class="text-[10px] font-black uppercase tracking-[0.2em] text-[#F3BA2F]">Inbox</p>
                                     <p class="mt-1 text-sm font-black uppercase tracking-[0.14em] text-white">Alertas</p>
@@ -57,6 +57,10 @@ import SidebarMonitor from '../components/dashboard/SidebarMonitor.astro';
                                     <button id="dashboard-notifications-send-note" type="button" class="w-full rounded-full border border-blue-500/20 bg-blue-500/10 px-3 py-2 text-[10px] font-black uppercase tracking-[0.14em] text-blue-400 transition-colors hover:border-blue-400/40 hover:text-blue-300">Enviar nota</button>
                                     <button id="dashboard-notifications-mark-read" type="button" class="w-full rounded-full border border-white/10 bg-white/[0.04] px-3 py-2 text-[10px] font-black uppercase tracking-[0.14em] text-white/70 transition-colors hover:border-[#F3BA2F]/40 hover:text-[#F3BA2F]">Marcar todo</button>
                                 </div>
+                            </div>
+                            <div class="px-4 mt-2 flex gap-4 border-b border-white/10 pt-2">
+                                <button id="dashboard-notifications-tab-unread" class="pb-2 text-[11px] font-black uppercase tracking-[0.14em] text-[#F3BA2F] border-b-[2px] border-[#F3BA2F] transition-colors relative">No Leidos</button>
+                                <button id="dashboard-notifications-tab-read" class="pb-2 text-[11px] font-black uppercase tracking-[0.14em] text-white/40 border-b-[2px] border-transparent transition-colors hover:text-white/70 relative">Leidos</button>
                             </div>
                             <div id="dashboard-notifications-list" class="max-h-[calc(100dvh-12rem)] space-y-3 overflow-x-hidden overflow-y-auto overscroll-contain p-3 [scrollbar-gutter:stable] md:max-h-[360px]" style="-webkit-overflow-scrolling: touch; touch-action: pan-y;">
                                 <div class="px-4 py-5 text-center text-sm font-bold text-white/50">Sin notificaciones por ahora.</div>

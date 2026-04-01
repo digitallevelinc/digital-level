@@ -1349,7 +1349,8 @@ const updateCoverageBadge = (transfers = []) => {
             ? Math.min(100, ((meta.promiseUsdt - meta.pendingUsdt) / meta.promiseUsdt) * 100)
             : 0;
         const name = tx?.counterpartyName || tx?.internalCounterpartyAlias || 'Sin nombre';
-        active.push({ name, pendingUsdt: meta.pendingUsdt, promiseUsdt: meta.promiseUsdt, pct });
+        const fiatLabel = getFiatLabel(tx);
+        active.push({ name, pendingFiat: meta.pendingFiat, actualFiat: meta.actualFiat, pct, fiatLabel });
     }
 
     if (active.length === 0) {
@@ -1359,12 +1360,13 @@ const updateCoverageBadge = (transfers = []) => {
 
     badge.style.display = '';
     label.textContent = `${active.length} cobertura${active.length !== 1 ? 's' : ''} activa${active.length !== 1 ? 's' : ''}`;
-    tooltip.innerHTML = active.map(({ name, pendingUsdt, pct }) => `
+    tooltip.innerHTML = active.map(({ name, pendingFiat, actualFiat, pct, fiatLabel }) => `
         <div class="ledger-coverage-tooltip-item">
             <span class="ledger-coverage-tooltip-name">${escapeHtml(name)}</span>
-            <div class="ledger-coverage-tooltip-meta">
-                <span>Falta ${formatUsd(pendingUsdt)} USDT</span>
-                <span>${Math.round(pct)}% completado</span>
+            <div class="ledger-coverage-tooltip-meta mt-1 space-y-[2px]">
+                <div class="flex justify-between w-full"><span>Llevas</span> <span>${formatNumber(actualFiat, 2)} ${escapeHtml(fiatLabel)}</span></div>
+                <div class="flex justify-between w-full"><span>Falta</span> <span>${formatNumber(pendingFiat, 2)} ${escapeHtml(fiatLabel)}</span></div>
+                <div class="flex justify-between w-full"><span>Progreso</span> <span>${Math.round(pct)}% completado</span></div>
             </div>
         </div>`).join('');
 };
