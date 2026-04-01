@@ -1709,24 +1709,15 @@ const fetchTransfersPage = async (page = 1, options = {}) => {
     }
 };
 
-// Silently fetches subsequent pages into the cache to provide P2P_SELL context for
-// spread calculation on the current page. Fetches one page at a time until a P2P_SELL
-// is found (then stops — no need to go further for the cycle reference rate).
-// Skips pages already prefetched. Re-renders current view once a sell is discovered.
+// Silently fetches ALL remaining pages into the cache.
+// This ensures spread calculation and profit sum cover the full dataset.
 const prefetchSellContextPages = async (fromPage) => {
     if (!state.apiBase || !state.token) return;
 
     let needsRerender = false;
 
     for (let p = fromPage + 1; p <= state.totalPages; p++) {
-        if (state.prefetchedPages.has(p)) {
-            // Page already cached — check if it had sells and keep scanning if not.
-            const pageHadSell = Array.from(state.transfersCache.values()).some(
-                (tx) => normalizeTxType(tx) === 'P2P_SELL'
-            );
-            if (pageHadSell) break; // Sell already in cache — no need to keep going.
-            continue;
-        }
+        if (state.prefetchedPages.has(p)) continue;
         state.prefetchedPages.add(p);
 
         try {
@@ -1739,28 +1730,47 @@ const prefetchSellContextPages = async (fromPage) => {
             const payload = await res.json();
             const transfers = Array.isArray(payload?.transfers) ? payload.transfers : [];
 
-            let foundSell = false;
             transfers.forEach((tx) => {
                 const key = tx.id || tx.txHash || tx.orderNumber || tx.binanceRawId || `${tx.timestamp}_${tx.amount}`;
                 if (key && !state.transfersCache.has(key)) {
                     state.transfersCache.set(key, tx);
-                    if (normalizeTxType(tx) === 'P2P_SELL') foundSell = true;
+                    needsRerender = true;
                 }
             });
-
-            if (foundSell) {
-                needsRerender = true;
-                break; // Found a sell — the spread calculation now has what it needs.
-            }
         } catch {
             // Silent failure — prefetch is best-effort and never blocks the UI.
         }
     }
 
-    // Re-render the current page with the enriched cache (no scroll reset).
     if (needsRerender && state.currentTransfers.length > 0) {
         renderTransfers(state.currentTransfers, { resetScroll: false });
     }
+
+    // Compute total spread sum from ALL cached transactions and push it to the profit displays.
+    // This is the canonical "Profit Operativo": the literal sum of every SPREAD shown in the ledger.
+    const allCached = Array.from(state.transfersCache.values()).sort((a, b) => b.timestamp - a.timestamp);
+    const allScoped = allCached.filter(isLedgerChannelAllowed);
+    const allCycleSpreads = computeCycleSpreads(allScoped);
+    let totalSpread = 0;
+    for (const tx of allScoped) {
+        const cycleEntry = allCycleSpreads.get(tx);
+        const rateOverride = (cycleEntry?.rateOverride ?? 0);
+        totalSpread += computeTxSpread(tx, rateOverride);
+    }
+    totalSpread = truncateTowardZero(totalSpread, 2);
+
+    const profitText = formatUsd(Math.abs(totalSpread));
+    const profitColor = totalSpread >= 0 ? '#10b981' : '#ef4444';
+    const injectLedgerProfit = (id) => {
+        const container = document.getElementById(id);
+        if (!container) return;
+        const el = container.querySelector('h3') || container.querySelector('.text-white') || container.querySelector('span') || container;
+        if (!el) return;
+        if (el.textContent !== profitText) el.textContent = profitText;
+        el.style.color = profitColor;
+    };
+    injectLedgerProfit('kpi-profit');
+    injectLedgerProfit('audit-total-profit-display');
 };
 
 const bindEventsOnce = () => {
