@@ -42,6 +42,15 @@ const formatNumber = (value, decimals = 2, locale = 'es-VE') => Number(value || 
 });
 
 const formatUsd = (value) => `$${formatNumber(value, 2, 'en-US')}`;
+const formatCoveragePercent = (pct, complete = false) => {
+    const safePct = Math.max(0, Number(pct || 0));
+    if (complete) return '100%';
+
+    const cappedPct = Math.min(safePct, 99.9);
+    if (cappedPct >= 99) return `${cappedPct.toFixed(1)}%`;
+    if (cappedPct >= 10) return `${Math.round(cappedPct)}%`;
+    return `${cappedPct.toFixed(1)}%`;
+};
 const truncateTowardZero = (value, decimals = 2) => {
     const factor = 10 ** decimals;
     return Math.trunc(Number(value || 0) * factor) / factor;
@@ -1474,24 +1483,52 @@ const updateCoverageBadge = (transfers = [], cycleSpreads = new Map()) => {
     label.textContent = `${active.length} cobertura${active.length !== 1 ? 's' : ''} activa${active.length !== 1 ? 's' : ''}`;
     tooltip.innerHTML = active.map((entry) => {
         if (entry.kind === 'cycle') {
+            const complete = entry.remainingFiat <= 0.009;
+            const progressText = formatCoveragePercent(entry.pct, complete);
             return `
         <div class="ledger-coverage-tooltip-item">
-            <span class="ledger-coverage-tooltip-name">${escapeHtml(entry.name)}</span>
-            <div class="ledger-coverage-tooltip-meta mt-1 space-y-[2px]">
-                <div class="flex justify-between w-full gap-2"><span>Llevas</span> <span class="text-right">${formatNumber(entry.recoveredFiat, 2)} ${escapeHtml(entry.fiatLabel)}</span></div>
-                <div class="flex justify-between w-full gap-2"><span>Falta</span> <span class="text-right">${formatNumber(entry.remainingFiat, 2)} ${escapeHtml(entry.fiatLabel)}</span></div>
-                <div class="flex justify-between w-full"><span>Progreso</span> <span>${Math.round(entry.pct)}% completado</span></div>
+            <div class="ledger-coverage-tooltip-head">
+                <span class="ledger-coverage-tooltip-name">${escapeHtml(entry.name)}</span>
+                <span class="ledger-coverage-tooltip-state ${complete ? 'is-complete' : 'is-active'}">${complete ? 'Completado' : 'En progreso'}</span>
+            </div>
+            <div class="ledger-coverage-tooltip-stats">
+                <div class="ledger-coverage-stat">
+                    <span class="ledger-coverage-stat-label">Llevas</span>
+                    <span class="ledger-coverage-stat-value">${formatNumber(entry.recoveredFiat, 2)} ${escapeHtml(entry.fiatLabel)}</span>
+                </div>
+                <div class="ledger-coverage-stat">
+                    <span class="ledger-coverage-stat-label">Falta</span>
+                    <span class="ledger-coverage-stat-value ${complete ? 'is-complete' : ''}">${complete ? `0,00 ${escapeHtml(entry.fiatLabel)}` : `${formatNumber(entry.remainingFiat, 2)} ${escapeHtml(entry.fiatLabel)}`}</span>
+                </div>
+                <div class="ledger-coverage-stat ledger-coverage-stat-progress">
+                    <span class="ledger-coverage-stat-label">Progreso</span>
+                    <span class="ledger-coverage-stat-value">${progressText}</span>
+                </div>
             </div>
         </div>`;
         }
 
+        const complete = entry.pendingUsdt <= 0.009;
+        const progressText = formatCoveragePercent(entry.pct, complete);
         return `
         <div class="ledger-coverage-tooltip-item">
-            <span class="ledger-coverage-tooltip-name">${escapeHtml(entry.name)}</span>
-            <div class="ledger-coverage-tooltip-meta mt-1 space-y-[2px]">
-                <div class="flex justify-between w-full gap-2"><span>Llevas</span> <span class="text-right">${formatPromiseUsdt(entry.actualUsdt)}<br/>${formatNumber(entry.actualFiat, 2)} ${escapeHtml(entry.fiatLabel)}</span></div>
-                <div class="flex justify-between w-full gap-2"><span>Falta</span> <span class="text-right">${formatPromiseUsdt(entry.pendingUsdt)}<br/>${formatNumber(entry.pendingFiat, 2)} ${escapeHtml(entry.fiatLabel)}</span></div>
-                <div class="flex justify-between w-full"><span>Progreso</span> <span>${Math.round(entry.pct)}% completado</span></div>
+            <div class="ledger-coverage-tooltip-head">
+                <span class="ledger-coverage-tooltip-name">${escapeHtml(entry.name)}</span>
+                <span class="ledger-coverage-tooltip-state ${complete ? 'is-complete' : 'is-active'}">${complete ? 'Completado' : 'En progreso'}</span>
+            </div>
+            <div class="ledger-coverage-tooltip-stats">
+                <div class="ledger-coverage-stat">
+                    <span class="ledger-coverage-stat-label">Llevas</span>
+                    <span class="ledger-coverage-stat-value">${formatPromiseUsdt(entry.actualUsdt)}<small>${formatNumber(entry.actualFiat, 2)} ${escapeHtml(entry.fiatLabel)}</small></span>
+                </div>
+                <div class="ledger-coverage-stat">
+                    <span class="ledger-coverage-stat-label">Falta</span>
+                    <span class="ledger-coverage-stat-value ${complete ? 'is-complete' : ''}">${complete ? '0.00 USDT' : formatPromiseUsdt(entry.pendingUsdt)}<small>${complete ? `0,00 ${escapeHtml(entry.fiatLabel)}` : `${formatNumber(entry.pendingFiat, 2)} ${escapeHtml(entry.fiatLabel)}`}</small></span>
+                </div>
+                <div class="ledger-coverage-stat ledger-coverage-stat-progress">
+                    <span class="ledger-coverage-stat-label">Progreso</span>
+                    <span class="ledger-coverage-stat-value">${progressText}</span>
+                </div>
             </div>
         </div>`;
     }).join('');
@@ -1572,7 +1609,7 @@ const renderRow = (tx, rowBalance, cycleData = undefined) => {
         const remaining = Math.max(0, totalSellFiat - recoveredFiat);
         promiseMetric = renderMetricCard({
             label: 'Cobertura',
-            value: `${Math.round(recoveredPct)}%`,
+            value: formatCoveragePercent(recoveredPct, complete),
             sub: complete
                 ? `${formatNumber(totalSellFiat, 0)} VES cubierto`
                 : `Faltan ${formatNumber(remaining, 0)} VES`,
