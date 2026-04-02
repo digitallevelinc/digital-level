@@ -875,31 +875,25 @@ export function updateSidebarMonitor(kpis = {}, bankInsights = []) {
     inject('side-teorico', fUSDT(teorico));
     inject('side-binance', fUSDT(binance));
     inject('side-profit-total', fUSDT(profit));
-    // Use judge completedCycles.totalProfit as the canonical SPREAD figure.
-    // bankSummary.spreadProfitUsdt is a volume-based heuristic (min buy/sell × rate diff)
-    // that can under-report or go negative for banks with buy/sell imbalances in the range.
-    const judgeTotalProfit = Number(completedCycles.totalProfit ?? critical.profitTotalUSDT ?? profit ?? 0);
-    const judgeSpreadPercent = bankSummary.spreadBaseUsdt > 0
-        ? (judgeTotalProfit / bankSummary.spreadBaseUsdt) * 100
-        : bankSummary.spreadPercent;
-    inject('side-spread-value', formatSignedUsdt(judgeTotalProfit));
-    inject('side-spread-meta', `${formatPlain(judgeSpreadPercent)}%`);
+    const spreadProfit = bankSummary.spreadProfitUsdt;
+    inject('side-spread-value', formatSignedUsdt(spreadProfit));
+    inject('side-spread-meta', `${formatPlain(bankSummary.spreadPercent)}%`);
     const criticalCyclesCount = Number(
         critical.cycleEquivalentCount
         ?? critical.completedCycles
         ?? 0
     );
     const judgeCyclesCount = Number(completedCycles.count || 0);
-    const cycleCountToDisplay = judgeCyclesCount > 0 ? judgeCyclesCount : criticalCyclesCount;
+    const cycleCountToDisplay = criticalCyclesCount > 0 ? criticalCyclesCount : judgeCyclesCount;
     const avgProfitPerCycle = cycleCountToDisplay > 0
-        ? judgeTotalProfit / cycleCountToDisplay
+        ? spreadProfit / cycleCountToDisplay
         : 0;
     inject('side-cycle-avg', formatPlain(avgProfitPerCycle));
     inject('side-cycle-count', formatPlain(cycleCountToDisplay, 0));
 
     const spreadEl = document.getElementById('side-spread-value');
     if (spreadEl) {
-        spreadEl.className = `text-[1.2rem] mt-2 font-mono font-black tracking-tight ${judgeTotalProfit >= 0 ? 'text-emerald-400' : 'text-rose-400'}`;
+        spreadEl.className = `text-[1.2rem] mt-2 font-mono font-black tracking-tight ${spreadProfit >= 0 ? 'text-emerald-400' : 'text-rose-400'}`;
     }
 
     const alias = audit.operatorAlias || kpis.operatorAlias || 'N/A';
@@ -973,12 +967,7 @@ export function updateSidebarMonitor(kpis = {}, bankInsights = []) {
         const completedByJudge = Number(judgeBank.completedCycles || 0);
         const completedByInsight = Number(bank.completedCycles || 0);
         const cyclesCompleted = Math.max(completedByJudge, completedByInsight, 0);
-        // Use judge totalProfitUSDT (cycle-by-cycle) when available — avoids negative
-        // values from the volume-based heuristic in bank.profit.
-        const judgeBankProfit = judgeBank.totalProfitUSDT;
-        const bankProfit = judgeBankProfit != null
-            ? Number(judgeBankProfit)
-            : Number(bank.profit || 0);
+        const bankProfit = Number(bank.profit || 0);
         const rateLabel = buildBankRateLabel(bank, bankSummary.referenceSellRate);
         const vesControl = buildBankVesLimitLabel(bank, kpis.config || {}, vesControlSummaryByBank);
         const bankCeiling = Number(vesControl.limit || 0);
