@@ -1420,7 +1420,15 @@ const updateCoverageBadge = (transfers = []) => {
             : 0;
         const name = tx?.counterpartyName || tx?.internalCounterpartyAlias || 'Sin nombre';
         const fiatLabel = getFiatLabel(tx);
-        active.push({ name, pendingFiat: meta.pendingFiat, actualFiat: meta.actualFiat, pct, fiatLabel });
+        active.push({
+            name,
+            pendingFiat: meta.pendingFiat,
+            actualFiat: meta.actualFiat,
+            pendingUsdt: meta.pendingUsdt,
+            actualUsdt: meta.actualUsdt,
+            pct,
+            fiatLabel
+        });
     }
 
     if (active.length === 0) {
@@ -1430,12 +1438,14 @@ const updateCoverageBadge = (transfers = []) => {
 
     badge.style.display = '';
     label.textContent = `${active.length} cobertura${active.length !== 1 ? 's' : ''} activa${active.length !== 1 ? 's' : ''}`;
-    tooltip.innerHTML = active.map(({ name, pendingFiat, actualFiat, pct, fiatLabel }) => `
+    tooltip.innerHTML = active.map(({
+        name, pendingFiat, actualFiat, pendingUsdt, actualUsdt, pct, fiatLabel
+    }) => `
         <div class="ledger-coverage-tooltip-item">
             <span class="ledger-coverage-tooltip-name">${escapeHtml(name)}</span>
             <div class="ledger-coverage-tooltip-meta mt-1 space-y-[2px]">
-                <div class="flex justify-between w-full"><span>Llevas</span> <span>${formatNumber(actualFiat, 2)} ${escapeHtml(fiatLabel)}</span></div>
-                <div class="flex justify-between w-full"><span>Falta</span> <span>${formatNumber(pendingFiat, 2)} ${escapeHtml(fiatLabel)}</span></div>
+                <div class="flex justify-between w-full gap-2"><span>Llevas</span> <span class="text-right">${formatPromiseUsdt(actualUsdt)}<br/>${formatNumber(actualFiat, 2)} ${escapeHtml(fiatLabel)}</span></div>
+                <div class="flex justify-between w-full gap-2"><span>Falta</span> <span class="text-right">${formatPromiseUsdt(pendingUsdt)}<br/>${formatNumber(pendingFiat, 2)} ${escapeHtml(fiatLabel)}</span></div>
                 <div class="flex justify-between w-full"><span>Progreso</span> <span>${Math.round(pct)}% completado</span></div>
             </div>
         </div>`).join('');
