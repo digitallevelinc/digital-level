@@ -50,6 +50,21 @@ const toFiniteNumber = (value) => {
     const n = Number(value);
     return Number.isFinite(n) ? n : 0;
 };
+const getTransferKey = (tx = {}) => String(
+    tx?.id
+    || tx?.txHash
+    || tx?.orderNumber
+    || tx?.binanceRawId
+    || `${tx?.timestamp ?? ''}_${tx?.amount ?? ''}_${tx?.type ?? ''}`
+);
+const getTxTimestampMs = (tx = {}) => {
+    const raw = tx?.timestamp;
+    const direct = Number(raw);
+    if (Number.isFinite(direct) && direct > 0) return direct;
+
+    const parsed = new Date(raw || 0).getTime();
+    return Number.isFinite(parsed) ? parsed : 0;
+};
 const normalizeTextToken = (value) => String(value ?? '')
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
@@ -1286,7 +1301,7 @@ const computeCycleSpreads = (transfers) => {
             ? Math.min(100, (recoveredFiat / totalSellFiat) * 100)
             : 0;
         for (const sellTx of cycleSells) {
-            result.set(sellTx, {
+            result.set(getTransferKey(sellTx), {
                 sum: cycleSpread,
                 complete,
                 totalSellFiat,
@@ -1313,7 +1328,7 @@ const computeCycleSpreads = (transfers) => {
             // fiat real de la micro-activación ($0.01 × rate = 6.63 VES), que es
             // incorrecto para el seguimiento del ciclo (promesa real = 66.300 VES).
             const sellType = normalizeTxType(tx);
-            const sellTs = new Date(tx?.timestamp || 0).getTime();
+            const sellTs = getTxTimestampMs(tx);
 
             // Si hay un ciclo abierto pero el gap con la última venta es demasiado grande
             // (ej. páginas históricas traídas por el prefetch), cerramos el ciclo anterior
@@ -1384,7 +1399,7 @@ const computeCycleSpreads = (transfers) => {
             }
             // Guardar el override en el resultado para que renderRow lo use en el SPREAD del BUY
             if (cycleRateOverride > 0) {
-                result.set(tx, { rateOverride: cycleRateOverride });
+                result.set(getTransferKey(tx), { rateOverride: cycleRateOverride });
             }
             cycleSpread += computeTxSpread(tx, cycleRateOverride);
 
@@ -1405,31 +1420,50 @@ const computeCycleSpreads = (transfers) => {
     return result;
 };
 
-const updateCoverageBadge = (transfers = []) => {
+const updateCoverageBadge = (transfers = [], cycleSpreads = new Map()) => {
     const badge = document.getElementById('balance-ledger-coverage-badge');
     const label = document.getElementById('balance-ledger-coverage-label');
     const tooltip = document.getElementById('balance-ledger-coverage-tooltip');
     if (!badge || !label || !tooltip) return;
 
-    const active = [];
+    const activeByKey = new Map();
     for (const tx of transfers) {
+        const key = getTransferKey(tx);
+        const cycleData = cycleSpreads.get(key);
+        if (isLedgerSellTarget(tx) && cycleData && !cycleData.complete) {
+            const totalSellFiat = Number(cycleData.totalSellFiat || 0);
+            const recoveredFiat = Number(cycleData.recoveredFiat || 0);
+            const remainingFiat = Math.max(0, totalSellFiat - recoveredFiat);
+            if (remainingFiat > 0.009) {
+                activeByKey.set(key, {
+                    kind: 'cycle',
+                    name: tx?.counterpartyName || tx?.internalCounterpartyAlias || 'Sin nombre',
+                    recoveredFiat,
+                    remainingFiat,
+                    pct: Number(cycleData.recoveredPct || 0),
+                    fiatLabel: getFiatLabel(tx),
+                });
+                continue;
+            }
+        }
+
         const meta = getPromiseMeta(tx);
         if (!meta || meta.pendingUsdt <= 0.009) continue;
         const pct = meta.promiseUsdt > 0
             ? Math.min(100, ((meta.promiseUsdt - meta.pendingUsdt) / meta.promiseUsdt) * 100)
             : 0;
-        const name = tx?.counterpartyName || tx?.internalCounterpartyAlias || 'Sin nombre';
-        const fiatLabel = getFiatLabel(tx);
-        active.push({
-            name,
+        activeByKey.set(key, {
+            kind: 'promise',
+            name: tx?.counterpartyName || tx?.internalCounterpartyAlias || 'Sin nombre',
             pendingFiat: meta.pendingFiat,
             actualFiat: meta.actualFiat,
             pendingUsdt: meta.pendingUsdt,
             actualUsdt: meta.actualUsdt,
             pct,
-            fiatLabel
+            fiatLabel: getFiatLabel(tx),
         });
     }
+    const active = Array.from(activeByKey.values());
 
     if (active.length === 0) {
         badge.style.display = 'none';
@@ -1438,17 +1472,29 @@ const updateCoverageBadge = (transfers = []) => {
 
     badge.style.display = '';
     label.textContent = `${active.length} cobertura${active.length !== 1 ? 's' : ''} activa${active.length !== 1 ? 's' : ''}`;
-    tooltip.innerHTML = active.map(({
-        name, pendingFiat, actualFiat, pendingUsdt, actualUsdt, pct, fiatLabel
-    }) => `
+    tooltip.innerHTML = active.map((entry) => {
+        if (entry.kind === 'cycle') {
+            return `
         <div class="ledger-coverage-tooltip-item">
-            <span class="ledger-coverage-tooltip-name">${escapeHtml(name)}</span>
+            <span class="ledger-coverage-tooltip-name">${escapeHtml(entry.name)}</span>
             <div class="ledger-coverage-tooltip-meta mt-1 space-y-[2px]">
-                <div class="flex justify-between w-full gap-2"><span>Llevas</span> <span class="text-right">${formatPromiseUsdt(actualUsdt)}<br/>${formatNumber(actualFiat, 2)} ${escapeHtml(fiatLabel)}</span></div>
-                <div class="flex justify-between w-full gap-2"><span>Falta</span> <span class="text-right">${formatPromiseUsdt(pendingUsdt)}<br/>${formatNumber(pendingFiat, 2)} ${escapeHtml(fiatLabel)}</span></div>
-                <div class="flex justify-between w-full"><span>Progreso</span> <span>${Math.round(pct)}% completado</span></div>
+                <div class="flex justify-between w-full gap-2"><span>Llevas</span> <span class="text-right">${formatNumber(entry.recoveredFiat, 2)} ${escapeHtml(entry.fiatLabel)}</span></div>
+                <div class="flex justify-between w-full gap-2"><span>Falta</span> <span class="text-right">${formatNumber(entry.remainingFiat, 2)} ${escapeHtml(entry.fiatLabel)}</span></div>
+                <div class="flex justify-between w-full"><span>Progreso</span> <span>${Math.round(entry.pct)}% completado</span></div>
             </div>
-        </div>`).join('');
+        </div>`;
+        }
+
+        return `
+        <div class="ledger-coverage-tooltip-item">
+            <span class="ledger-coverage-tooltip-name">${escapeHtml(entry.name)}</span>
+            <div class="ledger-coverage-tooltip-meta mt-1 space-y-[2px]">
+                <div class="flex justify-between w-full gap-2"><span>Llevas</span> <span class="text-right">${formatPromiseUsdt(entry.actualUsdt)}<br/>${formatNumber(entry.actualFiat, 2)} ${escapeHtml(entry.fiatLabel)}</span></div>
+                <div class="flex justify-between w-full gap-2"><span>Falta</span> <span class="text-right">${formatPromiseUsdt(entry.pendingUsdt)}<br/>${formatNumber(entry.pendingFiat, 2)} ${escapeHtml(entry.fiatLabel)}</span></div>
+                <div class="flex justify-between w-full"><span>Progreso</span> <span>${Math.round(entry.pct)}% completado</span></div>
+            </div>
+        </div>`;
+    }).join('');
 };
 
 const renderRow = (tx, rowBalance, cycleData = undefined) => {
@@ -1634,10 +1680,8 @@ const renderTransfers = (transfers = [], options = {}) => {
 
     // Llenar el caché global con las transacciones recién cargadas
     allTransfers.forEach((tx) => {
-        const key = tx.id || tx.txHash || tx.orderNumber || tx.binanceRawId || `${tx.timestamp}_${tx.amount}`;
-        if (key && !state.transfersCache.has(key)) {
-            state.transfersCache.set(key, tx);
-        }
+        const key = getTransferKey(tx);
+        if (key) state.transfersCache.set(key, tx);
     });
 
     const scopedTransfers = allTransfers.filter((tx) => isLedgerChannelAllowed(tx));
@@ -1651,7 +1695,7 @@ const renderTransfers = (transfers = [], options = {}) => {
     const rowsWithBalance = buildRowsWithBalance(scopedTransfers);
 
     // Los ciclos se calculan sobre TODO el caché (para que compras de págs previas sumen al spread)
-    const cachedTransfers = Array.from(state.transfersCache.values()).sort((a, b) => b.timestamp - a.timestamp);
+    const cachedTransfers = Array.from(state.transfersCache.values()).sort((a, b) => getTxTimestampMs(b) - getTxTimestampMs(a));
     const cachedScopedTransfers = cachedTransfers.filter((tx) => isLedgerChannelAllowed(tx));
     const cycleSpreads = computeCycleSpreads(cachedScopedTransfers);
 
@@ -1684,10 +1728,10 @@ const renderTransfers = (transfers = [], options = {}) => {
         return;
     }
 
-    body.innerHTML = filteredRows.map(({ tx, balance }) => renderRow(tx, balance, cycleSpreads.get(tx))).join('');
+    body.innerHTML = filteredRows.map(({ tx, balance }) => renderRow(tx, balance, cycleSpreads.get(getTransferKey(tx)))).join('');
 
     // Actualizar badge de coberturas activas
-    updateCoverageBadge(state.currentTransfers);
+    updateCoverageBadge(cachedScopedTransfers, cycleSpreads);
 
     // Wire dispersor toggle buttons
     body.querySelectorAll('[data-dispersor-toggle]').forEach((btn) => {
@@ -1823,11 +1867,11 @@ const prefetchSellContextPages = async (fromPage) => {
             const transfers = Array.isArray(payload?.transfers) ? payload.transfers : [];
 
             transfers.forEach((tx) => {
-                const key = tx.id || tx.txHash || tx.orderNumber || tx.binanceRawId || `${tx.timestamp}_${tx.amount}`;
-                if (key && !state.transfersCache.has(key)) {
-                    state.transfersCache.set(key, tx);
-                    needsRerender = true;
-                }
+                const key = getTransferKey(tx);
+                if (!key) return;
+                const hasExisting = state.transfersCache.has(key);
+                state.transfersCache.set(key, tx);
+                if (!hasExisting) needsRerender = true;
             });
         } catch {
             // Silent failure — prefetch is best-effort and never blocks the UI.
@@ -1840,12 +1884,12 @@ const prefetchSellContextPages = async (fromPage) => {
 
     // Compute total spread sum from ALL cached transactions and push it to the profit displays.
     // This is the canonical "Profit Operativo": the literal sum of every SPREAD shown in the ledger.
-    const allCached = Array.from(state.transfersCache.values()).sort((a, b) => b.timestamp - a.timestamp);
+    const allCached = Array.from(state.transfersCache.values()).sort((a, b) => getTxTimestampMs(b) - getTxTimestampMs(a));
     const allScoped = allCached.filter(isLedgerChannelAllowed);
     const allCycleSpreads = computeCycleSpreads(allScoped);
     let totalSpread = 0;
     for (const tx of allScoped) {
-        const cycleEntry = allCycleSpreads.get(tx);
+        const cycleEntry = allCycleSpreads.get(getTransferKey(tx));
         const rateOverride = (cycleEntry?.rateOverride ?? 0);
         totalSpread += truncateTowardZero(computeTxSpread(tx, rateOverride), 2);
     }
