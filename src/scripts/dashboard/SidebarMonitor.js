@@ -883,7 +883,11 @@ export function updateSidebarMonitor(kpis = {}, bankInsights = []) {
     );
     const judgeCyclesCount = Number(completedCycles.count || 0);
     const cycleCountToDisplay = criticalCyclesCount > 0 ? criticalCyclesCount : judgeCyclesCount;
-    const realizedProfitForAverage = Number(critical.profitTotalUSDT ?? profit ?? 0);
+    // Use spreadProfitUsdt (same source as SPREAD field) so PROM/CICLO = SPREAD / CICLOS.
+    // critical.profitTotalUSDT can be corrupted by promise settlements with bad amounts.
+    const realizedProfitForAverage = bankSummary.spreadProfitUsdt !== 0
+        ? bankSummary.spreadProfitUsdt
+        : Number(critical.profitTotalUSDT ?? profit ?? 0);
     const avgProfitPerCycle = cycleCountToDisplay > 0
         ? realizedProfitForAverage / cycleCountToDisplay
         : 0;
@@ -957,7 +961,7 @@ export function updateSidebarMonitor(kpis = {}, bankInsights = []) {
     const vesControlSummaryByBank = buildVesControlSummaryByBank(kpis, normalizedBankInsights);
     const latestCycleByBank = buildLatestCycleByBank(kpis, normalizedBankInsights);
     const bankCards = normalizedBankInsights.map((bank) => {
-        const ops = Number(bank.monthlyTransactionCount ?? bank.transactionCount ?? bank.totalOps ?? ((bank.countSell || 0) + (bank.countBuy || 0)));
+        const ops = Number(bank.transactionCount || bank.totalOps || ((bank.countSell || 0) + (bank.countBuy || 0)) || bank.monthlyTransactionCount || 0);
         const pagoMovil = buildPagoMovilLabel(bank, kpis.config || {});
         const promiseLabel = buildPromiseLabel(bank, promiseSummaryByBank);
         const bankKey = normalizeBankLimitKey(bank);
