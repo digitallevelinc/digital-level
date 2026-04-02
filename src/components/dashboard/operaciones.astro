@@ -14,7 +14,7 @@ import CardHelp from './CardHelp.astro';
             <CardHelp
                 title="Volumen de Operaciones"
                 description="Resume cuantas transacciones movio el operador en el rango activo."
-                calculation="Total de operaciones = compras P2P + ventas P2P. Los bloques PAY, RED y SWITCH muestran su conteo propio de entradas y salidas."
+                calculation="Total de operaciones = P2P + PAY + RED + SWITCH dentro del rango activo. Los bloques inferiores muestran el desglose por entradas y salidas de cada modulo."
                 notes={[
                     "Los conteos se actualizan al cambiar el filtro de fechas.",
                     "Sirve para validar carga operativa y consistencia entre modulos."

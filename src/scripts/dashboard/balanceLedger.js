@@ -81,6 +81,7 @@ const normalizeTextToken = (value) => String(value ?? '')
 const WRAPPED_NOTE_PATTERN = /[\(\{]\s*([^\)\}]+?)\s*[\)\}]/s;
 const PLAIN_NOTE_PATTERN = /^\s*([^()\{\}\n]+?)\s*$/s;
 const PROMISE_ACTIVATION_MAX_USDT = 1.0;
+const COVERAGE_COMPLETION_TOLERANCE_FIAT = 1.0;
 
 const normalizeTxType = (tx = {}) => {
     const rawType = String(tx?.type || '').toUpperCase().trim();
@@ -1413,7 +1414,8 @@ const computeCycleSpreads = (transfers) => {
             cycleSpread += computeTxSpread(tx, cycleRateOverride);
 
             // ¿Se recuperaron todos los VES? → ciclo cerrado
-            if (pendingSellFiat <= 0) {
+            if (pendingSellFiat <= COVERAGE_COMPLETION_TOLERANCE_FIAT) {
+                pendingSellFiat = 0;
                 closeCycle(true);
             }
         }
@@ -1443,7 +1445,7 @@ const updateCoverageBadge = (transfers = [], cycleSpreads = new Map()) => {
             const totalSellFiat = Number(cycleData.totalSellFiat || 0);
             const recoveredFiat = Number(cycleData.recoveredFiat || 0);
             const remainingFiat = Math.max(0, totalSellFiat - recoveredFiat);
-            if (remainingFiat > 0.009) {
+            if (remainingFiat > COVERAGE_COMPLETION_TOLERANCE_FIAT) {
                 activeByKey.set(key, {
                     kind: 'cycle',
                     name: tx?.counterpartyName || tx?.internalCounterpartyAlias || 'Sin nombre',
@@ -1483,7 +1485,7 @@ const updateCoverageBadge = (transfers = [], cycleSpreads = new Map()) => {
     label.textContent = `${active.length} cobertura${active.length !== 1 ? 's' : ''} activa${active.length !== 1 ? 's' : ''}`;
     tooltip.innerHTML = active.map((entry) => {
         if (entry.kind === 'cycle') {
-            const complete = entry.remainingFiat <= 0.009;
+            const complete = entry.remainingFiat <= COVERAGE_COMPLETION_TOLERANCE_FIAT;
             const progressText = formatCoveragePercent(entry.pct, complete);
             return `
         <div class="ledger-coverage-tooltip-item">
