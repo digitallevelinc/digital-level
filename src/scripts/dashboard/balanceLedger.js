@@ -428,9 +428,11 @@ const getPromiseMeta = (tx = {}) => {
     const promisedFiat = promiseUsdt * exchangeRate;
     const isReceiver = type === 'PAY_RECEIVED';
 
-    // Convencion operativa: las promesas se activan con un micro-monto (0.01 USDT).
-    // Si PAY_RECEIVED trae un monto mayor, no se considera parte del flujo de promesa.
-    if (isReceiver && txAmountUsdt > PROMISE_ACTIVATION_MAX_USDT) {
+    // Convencion operativa: las promesas se activan con un micro-monto (≤ $1 USDT).
+    // Si el monto real supera ese umbral, es un pago real, no una activación de promesa.
+    // Aplica tanto a PAY_SENT como a PAY_RECEIVED: un PAY normal ($50, $200, etc.)
+    // no debe ser tratado como promesa aunque su nota tenga formato estructurado.
+    if (txAmountUsdt > PROMISE_ACTIVATION_MAX_USDT) {
         return null;
     }
 
