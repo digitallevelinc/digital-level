@@ -1369,22 +1369,13 @@ const computeCycleSpreads = (transfers) => {
                 }
             }
 
-            // Un PAY_SENT promesa es una obligación independiente: su tasa es específica
-            // del deal acordado y no debe promediar con ventas P2P_SELL previas abiertas.
-            // Si hay ventas P2P en el ciclo activo, las cerramos antes de que el PAY inicie
-            // su propio ciclo, evitando así que el cycleRateOverride quede contaminado.
-            if (sellType === 'PAY_SENT' && openSells.some((entry) => normalizeTxType(entry.tx) !== 'PAY_SENT')) {
-                closeOpenSells(false);
-            }
+            // PAY_SENT promesas NO entran al pool de ciclos P2P.
+            // Su volumen VES (tasa × USDT prometido) es órdenes de magnitud mayor que un
+            // P2P_SELL y dominaría el rateOverride ponderado → spreads incorrectos.
+            // Las promesas PAY tienen su propio seguimiento en la columna PROMESA.
+            if (sellType === 'PAY_SENT') continue;
 
-            const sellFiat = (() => {
-                if (sellType === 'PAY_SENT') {
-                    const r = getTxRate(tx);
-                    const u = getTxUsdtVolume(tx);
-                    if (r > 0 && u > 0) return r * u;
-                }
-                return resolveFiatAmount(tx);
-            })();
+            const sellFiat = resolveFiatAmount(tx);
             if (sellFiat > 0) {
                 const key = getTransferKey(tx);
                 openSells.push({
