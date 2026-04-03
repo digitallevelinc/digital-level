@@ -155,6 +155,19 @@ function buildBankRateLabel(bank, fallbackRate = 0) {
     return `Venta prom. ${formatPlain(averageSellRate)} | Techo ${formatPlain(ceilingRate)}`;
 }
 
+function resolveSidebarBankProfit(bank = {}, judgeBank = {}) {
+    const spreadProfit = toNumber(bank.spreadProfitUsdt);
+    if (Math.abs(spreadProfit) > 0.0001) return spreadProfit;
+
+    const bankProfit = toNumber(bank.profit);
+    if (Math.abs(bankProfit) > 0.0001) return bankProfit;
+
+    const judgeProfit = toNumber(judgeBank.totalProfitUSDT);
+    if (Math.abs(judgeProfit) > 0.0001) return judgeProfit;
+
+    return spreadProfit;
+}
+
 function buildPagoMovilLabel(bank, config = {}) {
     const limits = config?.bankPagoMovilLimitsVes && typeof config.bankPagoMovilLimitsVes === 'object'
         ? config.bankPagoMovilLimitsVes
@@ -969,8 +982,9 @@ export function updateSidebarMonitor(kpis = {}, bankInsights = []) {
         const cyclesCompleted = Math.max(completedByJudge, completedByInsight, 0);
         // spreadProfitUsdt is injected by balanceLedger.js after computing ledger spreads
         // (exact sum of SPREAD column per bank, respects date range and open cycles).
-        // Falls back to bank.profit (judge-based) if ledger hasn't computed yet.
-        const bankProfit = Number(bank.spreadProfitUsdt ?? bank.profit ?? 0);
+        // If the ledger has not injected a non-zero value yet, fall back to the
+        // bank profit already provided by the KPI payload.
+        const bankProfit = resolveSidebarBankProfit(bank, judgeBank);
         const rateLabel = buildBankRateLabel(bank, bankSummary.referenceSellRate);
         const vesControl = buildBankVesLimitLabel(bank, kpis.config || {}, vesControlSummaryByBank);
         const bankCeiling = Number(vesControl.limit || 0);
