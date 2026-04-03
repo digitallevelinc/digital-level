@@ -1471,9 +1471,16 @@ const updateCoverageBadge = (transfers = [], cycleSpreads = new Map()) => {
 
     if (verdictBySaleId !== null) {
         // Judge data available: iterate over open verdicts directly.
-        // Filtered to the current date range so prefetched pages from other days don't bleed in.
+        // Filtered to the current date range so sells from other days don't bleed in.
         const rangeFrom = sanitizeDateValue(state.range?.from);
         const rangeTo = sanitizeDateValue(state.range?.to);
+        // When no explicit range is set, default to today so yesterday's open cycles
+        // don't appear in today's badge with a confusingly "future" sale time.
+        const todayDateStr = new Intl.DateTimeFormat('en-CA', {
+            timeZone: CARACAS_TZ, year: 'numeric', month: '2-digit', day: '2-digit',
+        }).format(new Date());
+        const effectiveFrom = rangeFrom || todayDateStr;
+        const effectiveTo = rangeTo || todayDateStr;
 
         for (const verdict of verdictBySaleId.values()) {
             const totalSellFiat = Number(verdict.fiatReceived || 0);
@@ -1481,14 +1488,12 @@ const updateCoverageBadge = (transfers = [], cycleSpreads = new Map()) => {
             if (remainingFiat <= COVERAGE_COMPLETION_TOLERANCE_FIAT) continue;
 
             // Restrict to current viewing range
-            if (rangeFrom || rangeTo) {
-                const verdictDateStr = verdict.createdAt
-                    ? new Date(verdict.createdAt).toLocaleDateString('en-CA', { timeZone: CARACAS_TZ })
-                    : null;
-                if (verdictDateStr) {
-                    if (rangeFrom && verdictDateStr < rangeFrom) continue;
-                    if (rangeTo && verdictDateStr > rangeTo) continue;
-                }
+            const verdictDateStr = verdict.createdAt
+                ? new Date(verdict.createdAt).toLocaleDateString('en-CA', { timeZone: CARACAS_TZ })
+                : null;
+            if (verdictDateStr) {
+                if (verdictDateStr < effectiveFrom) continue;
+                if (verdictDateStr > effectiveTo) continue;
             }
 
             const recoveredFiat = Math.max(0, totalSellFiat - remainingFiat);
