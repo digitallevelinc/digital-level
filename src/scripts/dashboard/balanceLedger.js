@@ -1467,15 +1467,6 @@ const updateCoverageBadge = (transfers = [], cycleSpreads = new Map()) => {
           )
         : null;
 
-    // Set of open promise IDs for PAY_SENT entries
-    const openPromiseIds = judgeActiveVerdicts
-        ? new Set(
-            judgeActiveVerdicts
-                .map((v) => String(v?.saleTransferId || v?.saleId || ''))
-                .filter(Boolean)
-          )
-        : null; // null = no judge data, fall back to note-only detection
-
     const activeByKey = new Map();
     for (const tx of transfers) {
         const key = getTransferKey(tx);
@@ -1526,30 +1517,6 @@ const updateCoverageBadge = (transfers = [], cycleSpreads = new Map()) => {
             continue;
         }
 
-        // PAY_SENT promises — separate path, skip if not an active promise
-        if (!isLedgerSellTarget(tx)) continue;
-
-        const meta = getPromiseMeta(tx);
-        if (!meta || meta.pendingUsdt <= 0.009) continue;
-
-        // If judge feed is available, skip promises the judge considers closed.
-        if (openPromiseIds !== null) {
-            const txId = String(tx?.id || '');
-            if (txId && !openPromiseIds.has(txId)) continue;
-        }
-        const pct = meta.promiseUsdt > 0
-            ? Math.min(100, ((meta.promiseUsdt - meta.pendingUsdt) / meta.promiseUsdt) * 100)
-            : 0;
-        activeByKey.set(key, {
-            kind: 'promise',
-            name: tx?.counterpartyName || tx?.internalCounterpartyAlias || 'Sin nombre',
-            pendingFiat: meta.pendingFiat,
-            actualFiat: meta.actualFiat,
-            pendingUsdt: meta.pendingUsdt,
-            actualUsdt: meta.actualUsdt,
-            pct,
-            fiatLabel: getFiatLabel(tx),
-        });
     }
     const active = Array.from(activeByKey.values());
 
