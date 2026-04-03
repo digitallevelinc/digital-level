@@ -77,7 +77,7 @@ function getBankMonitorSummary(kpis = {}, bankInsights = []) {
         (bank) => resolveBankAverageSellRate(bank) > 0
     );
     const spreadBanks = banks.filter(
-        (bank) => Number(bank.spreadSellUsdt || 0) > 0 || Number(bank.spreadProfitUsdt || 0) !== 0
+        (bank) => bank?.ledgerSpreadReady === true
     );
 
     const firstLevel = banks.find((bank) => String(bank.verificationLevel || '').trim())?.verificationLevel
@@ -92,7 +92,7 @@ function getBankMonitorSummary(kpis = {}, bankInsights = []) {
         : 'Sin nivel';
 
     const spreadProfitUsdt = spreadBanks.reduce(
-        (sum, bank) => sum + Number(bank.spreadProfitUsdt || 0),
+        (sum, bank) => sum + getLedgerSpreadProfit(bank),
         0
     );
     const spreadBaseUsdt = spreadBanks.reduce(
@@ -155,17 +155,9 @@ function buildBankRateLabel(bank, fallbackRate = 0) {
     return `Venta prom. ${formatPlain(averageSellRate)} | Techo ${formatPlain(ceilingRate)}`;
 }
 
-function resolveSidebarBankProfit(bank = {}, judgeBank = {}) {
-    const spreadProfit = toNumber(bank.spreadProfitUsdt);
-    if (Math.abs(spreadProfit) > 0.0001) return spreadProfit;
-
-    const bankProfit = toNumber(bank.profit);
-    if (Math.abs(bankProfit) > 0.0001) return bankProfit;
-
-    const judgeProfit = toNumber(judgeBank.totalProfitUSDT);
-    if (Math.abs(judgeProfit) > 0.0001) return judgeProfit;
-
-    return spreadProfit;
+function getLedgerSpreadProfit(bank = {}) {
+    if (bank?.ledgerSpreadReady !== true) return 0;
+    return toNumber(bank.spreadProfitUsdt);
 }
 
 function buildPagoMovilLabel(bank, config = {}) {
@@ -307,6 +299,7 @@ function mergeBankInsightsByAlias(bankInsights = []) {
             bank: displayName || current.bank || entry.bank || '',
             bankName: displayName || current.bankName || entry.bankName || '',
             isFavorite: Boolean(current.isFavorite || entry.isFavorite),
+            ledgerSpreadReady: Boolean(current.ledgerSpreadReady || entry.ledgerSpreadReady),
             fiatBalance: toNumber(current.fiatBalance) + toNumber(entry.fiatBalance),
             usdtBalance: toNumber(current.usdtBalance) + toNumber(entry.usdtBalance),
             profit: toNumber(current.profit) + toNumber(entry.profit),
@@ -980,11 +973,10 @@ export function updateSidebarMonitor(kpis = {}, bankInsights = []) {
         const completedByJudge = Number(judgeBank.completedCycles || 0);
         const completedByInsight = Number(bank.completedCycles || 0);
         const cyclesCompleted = Math.max(completedByJudge, completedByInsight, 0);
-        // spreadProfitUsdt is injected by balanceLedger.js after computing ledger spreads
-        // (exact sum of SPREAD column per bank, respects date range and open cycles).
-        // If the ledger has not injected a non-zero value yet, fall back to the
-        // bank profit already provided by the KPI payload.
-        const bankProfit = resolveSidebarBankProfit(bank, judgeBank);
+        // PROFIT NETO del monitor lateral debe salir del ledger del Balance General,
+        // no del profit agregado del backend/judge. balanceLedger.js inyecta ese
+        // valor por banco cuando termina de recalcular los spreads del rango actual.
+        const bankProfit = getLedgerSpreadProfit(bank);
         const rateLabel = buildBankRateLabel(bank, bankSummary.referenceSellRate);
         const vesControl = buildBankVesLimitLabel(bank, kpis.config || {}, vesControlSummaryByBank);
         const bankCeiling = Number(vesControl.limit || 0);

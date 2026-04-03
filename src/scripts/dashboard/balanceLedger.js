@@ -2045,14 +2045,32 @@ const prefetchSellContextPages = async (fromPage) => {
     }
     totalSpread = truncateTowardZero(totalSpread, 2);
 
-    // Inject per-bank ledger spread into bankData and notify the sidebar
-    if (state.bankData.length > 0 && ledgerSpreadByBank.size > 0) {
+    // Inject per-bank ledger spread into bankData and notify the sidebar.
+    // Important: if bankData contains duplicate aliases that normalize to the
+    // same key (e.g. BANK/Fintech variants), assign the ledger spread only once.
+    if (state.bankData.length > 0) {
+        const injectedKeys = new Set();
         state.bankData = state.bankData.map((bank) => {
             const key = normalizeBankKey(bank?.bank || bank?.bankName || '');
-            if (!key) return bank;
-            const ledgerSpread = ledgerSpreadByBank.get(key);
-            if (ledgerSpread === undefined) return bank;
-            return { ...bank, spreadProfitUsdt: truncateTowardZero(ledgerSpread, 2) };
+            if (!key) {
+                return { ...bank, ledgerSpreadReady: true };
+            }
+
+            if (injectedKeys.has(key)) {
+                return {
+                    ...bank,
+                    spreadProfitUsdt: 0,
+                    ledgerSpreadReady: true,
+                };
+            }
+
+            injectedKeys.add(key);
+            const ledgerSpread = truncateTowardZero(ledgerSpreadByBank.get(key) || 0, 2);
+            return {
+                ...bank,
+                spreadProfitUsdt: ledgerSpread,
+                ledgerSpreadReady: true,
+            };
         });
         // Re-render sidebar with updated per-bank ledger spreads
         if (typeof state.onBankDataUpdate === 'function') {
