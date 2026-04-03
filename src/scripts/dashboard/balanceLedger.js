@@ -1795,6 +1795,28 @@ const renderTransfers = (transfers = [], options = {}) => {
     const cachedScopedTransfers = cachedTransfers.filter((tx) => isLedgerChannelAllowed(tx));
     const cycleSpreads = computeCycleSpreads(cachedScopedTransfers);
 
+    // Cross-day cycle fix: inject rateOverride for P2P_BUY entries that the judge has
+    // already linked to an open cycle whose sell happened on the previous day.
+    // computeCycleSpreads can't see that sell (different date → different cache page),
+    // so without this fix those buys calculate their spread against no sell → negative.
+    {
+        const judgeVerdicts = Array.isArray(state.kpis?.judge?.openVerdicts)
+            ? state.kpis.judge.openVerdicts : [];
+        for (const verdict of judgeVerdicts) {
+            const saleRate = Number(verdict.saleRate || 0);
+            if (saleRate <= 0) continue;
+            for (const purchaseId of (verdict.linkedPurchases || [])) {
+                const key = String(purchaseId || '');
+                if (!key) continue;
+                // Only inject if computeCycleSpreads didn't already set a rateOverride
+                // (same-day buys are handled correctly by computeCycleSpreads)
+                const existing = cycleSpreads.get(key);
+                if (!existing || !(existing.rateOverride > 0)) {
+                    cycleSpreads.set(key, { ...(existing || {}), rateOverride: saleRate });
+                }
+            }
+        }
+    }
 
     const filteredRows = rowsWithBalance.filter(({ tx }) => matchesSearch(tx, state.searchTerm));
 
