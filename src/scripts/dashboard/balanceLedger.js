@@ -1468,55 +1468,63 @@ const updateCoverageBadge = (transfers = [], cycleSpreads = new Map()) => {
         : null;
 
     const activeByKey = new Map();
-    for (const tx of transfers) {
-        const key = getTransferKey(tx);
-        const cycleData = cycleSpreads.get(key);
-        const txType = normalizeTxType(tx);
 
-        // P2P_SELL cycles — use judge as authoritative source when available
-        if (txType === 'P2P_SELL') {
-            const txId = String(tx?.id || '');
+    if (verdictBySaleId !== null) {
+        // Judge data available: iterate over open verdicts directly.
+        // Filtered to the current date range so prefetched pages from other days don't bleed in.
+        const rangeFrom = sanitizeDateValue(state.range?.from);
+        const rangeTo = sanitizeDateValue(state.range?.to);
 
-            if (verdictBySaleId !== null) {
-                // Judge data available: only show cycles the judge considers open.
-                const verdict = txId ? verdictBySaleId.get(txId) : undefined;
-                if (!verdict) continue; // closed/settled — skip
+        for (const verdict of verdictBySaleId.values()) {
+            const totalSellFiat = Number(verdict.fiatReceived || 0);
+            const remainingFiat = Number(verdict.remainingFiat || 0);
+            if (remainingFiat <= COVERAGE_COMPLETION_TOLERANCE_FIAT) continue;
 
-                const totalSellFiat = Number(verdict.fiatReceived || 0);
-                const remainingFiat = Number(verdict.remainingFiat || 0);
-                const recoveredFiat = Math.max(0, totalSellFiat - remainingFiat);
-                if (remainingFiat > COVERAGE_COMPLETION_TOLERANCE_FIAT) {
-                    activeByKey.set(key, {
-                        kind: 'cycle',
-                        name: verdict.counterpartyName || tx?.counterpartyName || tx?.internalCounterpartyAlias || 'Sin nombre',
-                        recoveredFiat,
-                        remainingFiat,
-                        pct: totalSellFiat > 0 ? Math.min(100, (recoveredFiat / totalSellFiat) * 100) : 0,
-                        fiatLabel: getFiatLabel(tx),
-                    });
-                }
-                continue;
-            }
-
-            // Fallback: no judge data — use frontend cycle computation
-            if (cycleData && !cycleData.complete) {
-                const totalSellFiat = Number(cycleData.totalSellFiat || 0);
-                const recoveredFiat = Number(cycleData.recoveredFiat || 0);
-                const remainingFiat = Math.max(0, totalSellFiat - recoveredFiat);
-                if (remainingFiat > COVERAGE_COMPLETION_TOLERANCE_FIAT) {
-                    activeByKey.set(key, {
-                        kind: 'cycle',
-                        name: tx?.counterpartyName || tx?.internalCounterpartyAlias || 'Sin nombre',
-                        recoveredFiat,
-                        remainingFiat,
-                        pct: Number(cycleData.recoveredPct || 0),
-                        fiatLabel: getFiatLabel(tx),
-                    });
+            // Restrict to current viewing range
+            if (rangeFrom || rangeTo) {
+                const verdictDateStr = verdict.createdAt
+                    ? new Date(verdict.createdAt).toLocaleDateString('en-CA', { timeZone: CARACAS_TZ })
+                    : null;
+                if (verdictDateStr) {
+                    if (rangeFrom && verdictDateStr < rangeFrom) continue;
+                    if (rangeTo && verdictDateStr > rangeTo) continue;
                 }
             }
-            continue;
+
+            const recoveredFiat = Math.max(0, totalSellFiat - remainingFiat);
+            const key = String(verdict.saleTransferId || verdict.saleId || '');
+            if (!key) continue;
+
+            activeByKey.set(key, {
+                kind: 'cycle',
+                name: verdict.counterpartyName || 'Sin nombre',
+                recoveredFiat,
+                remainingFiat,
+                pct: totalSellFiat > 0 ? Math.min(100, (recoveredFiat / totalSellFiat) * 100) : 0,
+                fiatLabel: 'VES',
+            });
         }
-
+    } else {
+        // Fallback: no judge data — scan transfer cache for open P2P_SELL cycles
+        for (const tx of transfers) {
+            if (normalizeTxType(tx) !== 'P2P_SELL') continue;
+            const key = getTransferKey(tx);
+            const cycleData = cycleSpreads.get(key);
+            if (!cycleData || cycleData.complete) continue;
+            const totalSellFiat = Number(cycleData.totalSellFiat || 0);
+            const recoveredFiat = Number(cycleData.recoveredFiat || 0);
+            const remainingFiat = Math.max(0, totalSellFiat - recoveredFiat);
+            if (remainingFiat > COVERAGE_COMPLETION_TOLERANCE_FIAT) {
+                activeByKey.set(key, {
+                    kind: 'cycle',
+                    name: tx?.counterpartyName || tx?.internalCounterpartyAlias || 'Sin nombre',
+                    recoveredFiat,
+                    remainingFiat,
+                    pct: Number(cycleData.recoveredPct || 0),
+                    fiatLabel: getFiatLabel(tx),
+                });
+            }
+        }
     }
     const active = Array.from(activeByKey.values());
 
