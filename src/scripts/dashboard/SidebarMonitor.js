@@ -967,7 +967,9 @@ export function updateSidebarMonitor(kpis = {}, bankInsights = []) {
         const completedByJudge = Number(judgeBank.completedCycles || 0);
         const completedByInsight = Number(bank.completedCycles || 0);
         const cyclesCompleted = Math.max(completedByJudge, completedByInsight, 0);
-        const bankProfit = Number(bank.profit || 0);
+        // Use ledger spread profit (respects date range) instead of judge profit
+        // (which can include closed cycles from outside the selected range).
+        const bankProfit = Number(bank.spreadProfitUsdt ?? bank.profit ?? 0);
         const rateLabel = buildBankRateLabel(bank, bankSummary.referenceSellRate);
         const vesControl = buildBankVesLimitLabel(bank, kpis.config || {}, vesControlSummaryByBank);
         const bankCeiling = Number(vesControl.limit || 0);
