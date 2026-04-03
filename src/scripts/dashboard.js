@@ -816,7 +816,10 @@ export async function updateDashboard(API_BASE, token, alias, range = {}, opts =
             token,
             range: mainRange,
             onAuthError: handleExpiredSession,
-            bankData
+            bankData,
+            onBankDataUpdate: (updatedBankData) => {
+                updateSidebarMonitor(kpis, updatedBankData);
+            },
         });
         void refreshActiveAds(API_BASE, token, {
             signal: dashboardAbortController?.signal,

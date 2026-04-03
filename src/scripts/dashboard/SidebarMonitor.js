@@ -967,8 +967,9 @@ export function updateSidebarMonitor(kpis = {}, bankInsights = []) {
         const completedByJudge = Number(judgeBank.completedCycles || 0);
         const completedByInsight = Number(bank.completedCycles || 0);
         const cyclesCompleted = Math.max(completedByJudge, completedByInsight, 0);
-        // Use ledger spread profit (respects date range) instead of judge profit
-        // (which can include closed cycles from outside the selected range).
+        // spreadProfitUsdt is injected by balanceLedger.js after computing ledger spreads
+        // (exact sum of SPREAD column per bank, respects date range and open cycles).
+        // Falls back to bank.profit (judge-based) if ledger hasn't computed yet.
         const bankProfit = Number(bank.spreadProfitUsdt ?? bank.profit ?? 0);
         const rateLabel = buildBankRateLabel(bank, bankSummary.referenceSellRate);
         const vesControl = buildBankVesLimitLabel(bank, kpis.config || {}, vesControlSummaryByBank);

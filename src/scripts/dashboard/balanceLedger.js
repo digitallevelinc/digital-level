@@ -27,6 +27,7 @@ const state = {
     prefetchedPages: new Set(),
     bankData: [],
     closingBalance: null,
+    onBankDataUpdate: null,
 };
 
 const escapeHtml = (value) => String(value ?? '')
@@ -2027,14 +2028,37 @@ const prefetchSellContextPages = async (fromPage) => {
     const _effectiveTo = _rangeTo || _todayStr;
 
     let totalSpread = 0;
+    const ledgerSpreadByBank = new Map(); // bankKey → spread sum
     for (const tx of allScoped) {
         const txDateStr = new Date(getTxTimestampMs(tx)).toLocaleDateString('en-CA', { timeZone: CARACAS_TZ });
         if (txDateStr < _effectiveFrom || txDateStr > _effectiveTo) continue;
         const cycleEntry = allCycleSpreads.get(getTransferKey(tx));
         const rateOverride = (cycleEntry?.rateOverride ?? 0);
-        totalSpread += truncateTowardZero(computeTxSpread(tx, rateOverride), 2);
+        const txSpread = truncateTowardZero(computeTxSpread(tx, rateOverride), 2);
+        if (txSpread !== 0) {
+            const bankKey = normalizeBankKey(tx?.paymentMethod || tx?.bankName || tx?.bank || '');
+            if (bankKey) {
+                ledgerSpreadByBank.set(bankKey, (ledgerSpreadByBank.get(bankKey) || 0) + txSpread);
+            }
+        }
+        totalSpread += txSpread;
     }
     totalSpread = truncateTowardZero(totalSpread, 2);
+
+    // Inject per-bank ledger spread into bankData and notify the sidebar
+    if (state.bankData.length > 0 && ledgerSpreadByBank.size > 0) {
+        state.bankData = state.bankData.map((bank) => {
+            const key = normalizeBankKey(bank?.bank || bank?.bankName || '');
+            if (!key) return bank;
+            const ledgerSpread = ledgerSpreadByBank.get(key);
+            if (ledgerSpread === undefined) return bank;
+            return { ...bank, spreadProfitUsdt: truncateTowardZero(ledgerSpread, 2) };
+        });
+        // Re-render sidebar with updated per-bank ledger spreads
+        if (typeof state.onBankDataUpdate === 'function') {
+            state.onBankDataUpdate(state.bankData);
+        }
+    }
 
     const profitText = formatUsd(Math.abs(totalSpread));
     const profitColor = totalSpread >= 0 ? '#10b981' : '#ef4444';
@@ -2111,6 +2135,7 @@ export const updateBalanceLedgerUI = (kpis = {}, context = {}) => {
     state.range = nextRange;
     state.syncKey = nextSyncKey;
     state.onAuthError = typeof context?.onAuthError === 'function' ? context.onAuthError : null;
+    state.onBankDataUpdate = typeof context?.onBankDataUpdate === 'function' ? context.onBankDataUpdate : null;
     state.bankData = Array.isArray(context?.bankData) ? context.bankData : [];
 
     const { searchInput } = getElements();
