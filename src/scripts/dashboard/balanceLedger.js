@@ -1286,45 +1286,62 @@ const computeTxSpread = (tx = {}, rateOverride = 0) => {
     return buyUsdtIn - sellUsdtOut;
 };
 
-// Ciclo basado en recuperación de bolívares:
-// Un ciclo INICIA en cada P2P_SELL (vendes USDT, recibes VES).
-// Los P2P_BUY posteriores van "consumiendo" esos VES.
-// El ciclo se CIERRA cuando la suma de VES gastados en compras >= VES recibidos de la venta.
-// Ventas consecutivas se acumulan (stack) en un solo pool.
-// Si el gap entre ventas consecutivas supera CYCLE_MAX_SELL_GAP_MS, se fuerza cierre del ciclo
-// para evitar que ventas históricas de páginas prefetcheadas contaminen ciclos recientes.
-// Returns Map<sellTx, { sum, complete, totalSellFiat, recoveredFiat, recoveredPct }>.
+// Cobertura basada en recuperación de bolívares:
+// Cada P2P_SELL / PAY_SENT prometido conserva su propio avance de cobertura.
+// Los P2P_BUY posteriores consumen los VES pendientes en orden cronológico (FIFO).
+// Si hay varias ventas abiertas a la vez, el BUY puede seguir usando una referencia
+// ponderada combinada para su spread, pero sin sobrescribir el progreso individual
+// de cada venta. Esto evita que varias coberturas terminen mostrando el mismo valor.
+// Si el gap entre ventas consecutivas supera CYCLE_MAX_SELL_GAP_MS, se cierran como
+// incompletas para evitar que páginas históricas prefetcheadas contaminen ventas recientes.
+// Returns Map<txKey, { complete, totalSellFiat, recoveredFiat, recoveredPct, rateOverride? }>.
 const CYCLE_MAX_SELL_GAP_MS = 6 * 60 * 60 * 1000; // 6 horas
 const computeCycleSpreads = (transfers) => {
     const result = new Map();
+    let openSells = [];
+    let lastSellTs = 0;
 
-    // Estado del ciclo abierto
-    let pendingSellFiat = 0;   // VES que faltan por recuperar
-    let totalSellFiat = 0;     // VES totales de todas las ventas del ciclo
-    let recoveredFiat = 0;     // VES recuperados via compras
-    let cycleSpread = 0;       // Spread acumulado de las compras del ciclo
-    let cycleSells = [];       // Transacciones P2P_SELL que forman este ciclo
-    let lastSellTs = 0;        // Timestamp de la última venta del ciclo (para detectar gaps)
-
-    const closeCycle = (complete) => {
+    const upsertSellCoverage = (entry, forceComplete = null) => {
+        const totalSellFiat = Number(entry?.totalSellFiat || 0);
+        const recoveredFiat = Math.min(totalSellFiat, Math.max(0, Number(entry?.recoveredFiat || 0)));
+        const remainingFiat = Math.max(0, totalSellFiat - recoveredFiat);
+        const complete = forceComplete ?? (remainingFiat <= COVERAGE_COMPLETION_TOLERANCE_FIAT);
         const pct = totalSellFiat > 0
             ? Math.min(100, (recoveredFiat / totalSellFiat) * 100)
             : 0;
-        for (const sellTx of cycleSells) {
-            result.set(getTransferKey(sellTx), {
-                sum: cycleSpread,
-                complete,
-                totalSellFiat,
-                recoveredFiat,
-                recoveredPct: pct,
-            });
+
+        result.set(entry.key, {
+            complete,
+            totalSellFiat,
+            recoveredFiat,
+            recoveredPct: pct,
+        });
+    };
+
+    const closeOpenSells = (forceComplete = false) => {
+        for (const entry of openSells) {
+            upsertSellCoverage(entry, forceComplete ? true : null);
         }
-        pendingSellFiat = 0;
-        totalSellFiat = 0;
-        recoveredFiat = 0;
-        cycleSpread = 0;
-        cycleSells = [];
+        openSells = [];
         lastSellTs = 0;
+    };
+
+    const getRemainingWeightedSellRate = () => {
+        let totalFiat = 0;
+        let totalUsdt = 0;
+
+        for (const entry of openSells) {
+            const remainingFiat = Math.max(0, Number(entry?.remainingFiat || 0));
+            if (remainingFiat <= COVERAGE_COMPLETION_TOLERANCE_FIAT) continue;
+
+            const rate = getTxRate(entry.tx);
+            if (!(rate > 0)) continue;
+
+            totalFiat += remainingFiat;
+            totalUsdt += remainingFiat / rate;
+        }
+
+        return totalUsdt > 0 ? totalFiat / totalUsdt : 0;
     };
 
     // Recorrer de más antiguo a más reciente (el array viene newest-first)
@@ -1343,10 +1360,10 @@ const computeCycleSpreads = (transfers) => {
             // Si hay un ciclo abierto pero el gap con la última venta es demasiado grande
             // (ej. páginas históricas traídas por el prefetch), cerramos el ciclo anterior
             // antes de iniciar uno nuevo. Esto evita que ventas de días distintos compartan pool.
-            if (cycleSells.length > 0 && lastSellTs > 0 && sellTs > 0) {
+            if (openSells.length > 0 && lastSellTs > 0 && sellTs > 0) {
                 const gap = Math.abs(sellTs - lastSellTs);
                 if (gap > CYCLE_MAX_SELL_GAP_MS) {
-                    closeCycle(false);
+                    closeOpenSells(false);
                 }
             }
 
@@ -1354,8 +1371,8 @@ const computeCycleSpreads = (transfers) => {
             // del deal acordado y no debe promediar con ventas P2P_SELL previas abiertas.
             // Si hay ventas P2P en el ciclo activo, las cerramos antes de que el PAY inicie
             // su propio ciclo, evitando así que el cycleRateOverride quede contaminado.
-            if (sellType === 'PAY_SENT' && cycleSells.some(s => normalizeTxType(s) !== 'PAY_SENT')) {
-                closeCycle(false);
+            if (sellType === 'PAY_SENT' && openSells.some((entry) => normalizeTxType(entry.tx) !== 'PAY_SENT')) {
+                closeOpenSells(false);
             }
 
             const sellFiat = (() => {
@@ -1367,56 +1384,45 @@ const computeCycleSpreads = (transfers) => {
                 return resolveFiatAmount(tx);
             })();
             if (sellFiat > 0) {
-                pendingSellFiat += sellFiat;
-                totalSellFiat += sellFiat;
-                cycleSells.push(tx);
+                const key = getTransferKey(tx);
+                openSells.push({
+                    key,
+                    tx,
+                    totalSellFiat: sellFiat,
+                    recoveredFiat: 0,
+                    remainingFiat: sellFiat,
+                });
+                upsertSellCoverage(openSells[openSells.length - 1], false);
                 if (sellTs > 0) lastSellTs = sellTs;
             }
-        } else if (type === 'P2P_BUY' && pendingSellFiat > 0) {
+        } else if (type === 'P2P_BUY' && openSells.length > 0) {
             // Una compra consume VES del pool y aporta su spread
             const buyFiat = resolveFiatAmount(tx);
-            if (buyFiat > 0) {
-                recoveredFiat += buyFiat;
-                pendingSellFiat = Math.max(0, pendingSellFiat - buyFiat);
-            }
-            // Con múltiples ventas abiertas usamos la tasa promedio ponderada por volumen
-            // (totalVES / totalUSDT) para evitar que el spread se calcule solo con
-            // la venta más cercana e ignore las demás ventas del ciclo.
-            // AHORA: Aplica incluso para 1 sola venta, para forzar matemáticamente
-            // el enlace e impedir que 'getNearestSellForBuy' halle otra venta antigua
-            // de páginas previas con una distancia de tiempo menor.
-            let cycleRateOverride = 0;
-            if (cycleSells.length >= 1) {
-                let totalFiat = 0;
-                let totalUsdt = 0;
-                for (const sell of cycleSells) {
-                    // Para PAY_SENT promesa: usar rate × usdt en vez de resolveFiatAmount
-                    // (que devolvería el fiat micro de $0.01, no el prometido).
-                    const sType = normalizeTxType(sell);
-                    if (sType === 'PAY_SENT') {
-                        const r = getTxRate(sell);
-                        const u = getTxUsdtVolume(sell);
-                        if (r > 0 && u > 0) {
-                            totalFiat += r * u;
-                            totalUsdt += u;
-                            continue;
-                        }
-                    }
-                    totalFiat += resolveFiatAmount(sell);
-                    totalUsdt += getTxUsdtVolume(sell);
-                }
-                if (totalUsdt > 0) cycleRateOverride = totalFiat / totalUsdt;
-            }
+            const cycleRateOverride = getRemainingWeightedSellRate();
             // Guardar el override en el resultado para que renderRow lo use en el SPREAD del BUY
             if (cycleRateOverride > 0) {
                 result.set(getTransferKey(tx), { rateOverride: cycleRateOverride });
             }
-            cycleSpread += computeTxSpread(tx, cycleRateOverride);
+
+            if (buyFiat > 0) {
+                let remainingBuyFiat = buyFiat;
+                for (const entry of openSells) {
+                    if (remainingBuyFiat <= COVERAGE_COMPLETION_TOLERANCE_FIAT) break;
+                    if (entry.remainingFiat <= COVERAGE_COMPLETION_TOLERANCE_FIAT) continue;
+
+                    const consumedFiat = Math.min(entry.remainingFiat, remainingBuyFiat);
+                    entry.recoveredFiat += consumedFiat;
+                    entry.remainingFiat = Math.max(0, entry.remainingFiat - consumedFiat);
+                    remainingBuyFiat = Math.max(0, remainingBuyFiat - consumedFiat);
+                    upsertSellCoverage(entry);
+                }
+
+                openSells = openSells.filter((entry) => entry.remainingFiat > COVERAGE_COMPLETION_TOLERANCE_FIAT);
+            }
 
             // ¿Se recuperaron todos los VES? → ciclo cerrado
-            if (pendingSellFiat <= COVERAGE_COMPLETION_TOLERANCE_FIAT) {
-                pendingSellFiat = 0;
-                closeCycle(true);
+            if (openSells.length === 0) {
+                lastSellTs = 0;
             }
         }
         // Compras sin ciclo abierto se ignoran para acumulación de ciclo
@@ -1424,8 +1430,8 @@ const computeCycleSpreads = (transfers) => {
     }
 
     // Ciclo abierto restante (ventas sin recuperación completa en esta página)
-    if (cycleSells.length > 0) {
-        closeCycle(false);
+    if (openSells.length > 0) {
+        closeOpenSells(false);
     }
 
     return result;
