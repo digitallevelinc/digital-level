@@ -2000,13 +2000,43 @@ const prefetchSellContextPages = async (fromPage) => {
         renderTransfers(state.currentTransfers, { resetScroll: false });
     }
 
-    // Compute total spread sum from ALL cached transactions and push it to the profit displays.
-    // This is the canonical "Profit Operativo": the literal sum of every SPREAD shown in the ledger.
+    // Compute total spread sum scoped to the current date range.
+    // allScoped (full history) is needed so computeCycleSpreads can detect cross-day cycle rates,
+    // but we only SUM spreads for transactions within the selected range.
     const allCached = Array.from(state.transfersCache.values()).sort((a, b) => getTxTimestampMs(b) - getTxTimestampMs(a));
     const allScoped = allCached.filter(isLedgerChannelAllowed);
     const allCycleSpreads = computeCycleSpreads(allScoped);
+
+    // Inject judge rateOverrides for cross-day buys (same logic as in renderTransfers)
+    {
+        const judgeVerdicts = Array.isArray(state.kpis?.judge?.openVerdicts) ? state.kpis.judge.openVerdicts : [];
+        for (const verdict of judgeVerdicts) {
+            const saleRate = Number(verdict.saleRate || 0);
+            if (saleRate <= 0) continue;
+            for (const purchaseId of (verdict.linkedPurchases || [])) {
+                const key = String(purchaseId || '');
+                if (!key) continue;
+                const existing = allCycleSpreads.get(key);
+                if (!existing || !(existing.rateOverride > 0)) {
+                    allCycleSpreads.set(key, { ...(existing || {}), rateOverride: saleRate });
+                }
+            }
+        }
+    }
+
+    // Restrict profit sum to the current viewing range (default: today in VE time)
+    const _rangeFrom = sanitizeDateValue(state.range?.from);
+    const _rangeTo = sanitizeDateValue(state.range?.to);
+    const _todayStr = new Intl.DateTimeFormat('en-CA', {
+        timeZone: CARACAS_TZ, year: 'numeric', month: '2-digit', day: '2-digit',
+    }).format(new Date());
+    const _effectiveFrom = _rangeFrom || _todayStr;
+    const _effectiveTo = _rangeTo || _todayStr;
+
     let totalSpread = 0;
     for (const tx of allScoped) {
+        const txDateStr = new Date(getTxTimestampMs(tx)).toLocaleDateString('en-CA', { timeZone: CARACAS_TZ });
+        if (txDateStr < _effectiveFrom || txDateStr > _effectiveTo) continue;
         const cycleEntry = allCycleSpreads.get(getTransferKey(tx));
         const rateOverride = (cycleEntry?.rateOverride ?? 0);
         totalSpread += truncateTowardZero(computeTxSpread(tx, rateOverride), 2);
