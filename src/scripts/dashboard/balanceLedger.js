@@ -20,6 +20,9 @@ const state = {
     abortController: null,
     onAuthError: null,
     searchTerm: '',
+    searchPending: false,
+    searchResultCount: 0,
+    searchSeq: 0,
     typeFilter: 'ALL',
     currentTransfers: [],
     transfersCache: new Map(),
@@ -29,6 +32,8 @@ const state = {
     closingBalance: null,
     onBankDataUpdate: null,
 };
+
+let searchDebounceTimer = null;
 
 const escapeHtml = (value) => String(value ?? '')
     .replace(/&/g, '&amp;')
@@ -762,12 +767,41 @@ const buildTransfersUrl = (apiBase, range = {}, page = 1, limit = 12, includeCha
     return `${String(apiBase || '').replace(/\/+$/, '')}/api/transfers?${params.toString()}`;
 };
 
+const hasActiveSearch = () => Boolean(String(state.searchTerm || '').trim());
+
+const areAllPagesCached = () => {
+    if (state.totalPages <= 0) return false;
+    for (let page = 1; page <= state.totalPages; page += 1) {
+        if (!state.prefetchedPages.has(page)) return false;
+    }
+    return true;
+};
+
 const updatePaginationUI = () => {
     const { results, pageIndicator, prevBtn, nextBtn } = getElements();
-    if (results) results.textContent = `${state.total} Resultados`;
-    if (pageIndicator) pageIndicator.textContent = `Pagina ${state.totalPages ? state.page : 0} / ${state.totalPages}`;
-    if (prevBtn) prevBtn.disabled = state.page <= 1 || state.totalPages === 0;
-    if (nextBtn) nextBtn.disabled = state.page >= state.totalPages || state.totalPages === 0;
+    const searchActive = hasActiveSearch();
+
+    if (results) {
+        if (searchActive && state.searchPending) {
+            results.textContent = 'Buscando...';
+        } else {
+            const resultsValue = searchActive ? state.searchResultCount : state.total;
+            results.textContent = `${resultsValue} Resultados`;
+        }
+    }
+
+    if (pageIndicator) {
+        if (searchActive && state.searchPending) {
+            pageIndicator.textContent = 'Buscando en todo el rango';
+        } else if (searchActive) {
+            pageIndicator.textContent = 'Busqueda global';
+        } else {
+            pageIndicator.textContent = `Pagina ${state.totalPages ? state.page : 0} / ${state.totalPages}`;
+        }
+    }
+
+    if (prevBtn) prevBtn.disabled = searchActive || state.page <= 1 || state.totalPages === 0;
+    if (nextBtn) nextBtn.disabled = searchActive || state.page >= state.totalPages || state.totalPages === 0;
 };
 
 const updateTypeFilterUI = () => {
@@ -837,6 +871,10 @@ const matchesSearch = (tx, searchTerm) => {
     return haystack.includes(needle);
 };
 
+const getCachedScopedTransfers = () => Array.from(state.transfersCache.values())
+    .sort((a, b) => getTxTimestampMs(b) - getTxTimestampMs(a))
+    .filter((tx) => isLedgerChannelAllowed(tx));
+
 const buildRowsWithBalance = (transfers = []) => {
     let rows = Array.isArray(transfers) ? [...transfers] : [];
 
@@ -886,6 +924,23 @@ const buildRowsWithBalance = (transfers = []) => {
     const anchorBalance = getLedgerAnchorBalance(state.kpis);
     const knownNetBefore = getKnownNetBeforePage(state.page);
     let runningBalance = anchorBalance - Number(knownNetBefore || 0);
+
+    return rows.map((tx) => {
+        const row = {
+            tx,
+            balance: runningBalance,
+        };
+        runningBalance -= getSignedAmount(tx);
+        return row;
+    });
+};
+
+const buildRowsWithRangeBalance = (transfers = []) => {
+    const rows = Array.isArray(transfers)
+        ? [...transfers].sort((a, b) => getTxTimestampMs(b) - getTxTimestampMs(a))
+        : [];
+
+    let runningBalance = getLedgerAnchorBalance(state.kpis);
 
     return rows.map((tx) => {
         const row = {
@@ -1767,6 +1822,7 @@ const renderTransfers = (transfers = [], options = {}) => {
     const savedScrollTop = scroll && !resetScroll ? scroll.scrollTop : 0;
 
     const allTransfers = Array.isArray(transfers) ? transfers : [];
+    const searchActive = hasActiveSearch();
 
     // Llenar el caché global con las transacciones recién cargadas
     allTransfers.forEach((tx) => {
@@ -1785,8 +1841,7 @@ const renderTransfers = (transfers = [], options = {}) => {
     const rowsWithBalance = buildRowsWithBalance(scopedTransfers);
 
     // Los ciclos se calculan sobre TODO el caché (para que compras de págs previas sumen al spread)
-    const cachedTransfers = Array.from(state.transfersCache.values()).sort((a, b) => getTxTimestampMs(b) - getTxTimestampMs(a));
-    const cachedScopedTransfers = cachedTransfers.filter((tx) => isLedgerChannelAllowed(tx));
+    const cachedScopedTransfers = getCachedScopedTransfers();
     const cycleSpreads = computeCycleSpreads(cachedScopedTransfers);
 
     // Cross-day cycle fix: inject rateOverride for P2P_BUY entries that the judge has
@@ -1812,18 +1867,26 @@ const renderTransfers = (transfers = [], options = {}) => {
         }
     }
 
-    const filteredRows = rowsWithBalance.filter(({ tx }) => matchesSearch(tx, state.searchTerm));
+    const searchableRows = searchActive
+        ? buildRowsWithRangeBalance(cachedScopedTransfers)
+        : rowsWithBalance;
+    const filteredRows = searchableRows.filter(({ tx }) => matchesSearch(tx, state.searchTerm));
+    state.searchResultCount = filteredRows.length;
 
     if (count) {
         const filterLabel = state.typeFilter === 'ALL' ? '' : ` | ${state.typeFilter}`;
-        const suffix = state.searchTerm ? ` | ${filteredRows.length} visibles` : '';
-        count.textContent = `Mostrando ${scopedTransfers.length} movimiento${scopedTransfers.length === 1 ? '' : 's'} de ${state.total}${filterLabel}${suffix}`;
+        if (searchActive) {
+            const statusLabel = state.searchPending ? 'Buscando' : 'Mostrando';
+            count.textContent = `${statusLabel} ${filteredRows.length} coincidencia${filteredRows.length === 1 ? '' : 's'} en ${state.total} movimiento${state.total === 1 ? '' : 's'}${filterLabel}`;
+        } else {
+            count.textContent = `Mostrando ${scopedTransfers.length} movimiento${scopedTransfers.length === 1 ? '' : 's'} de ${state.total}${filterLabel}`;
+        }
     }
 
     if (filteredRows.length === 0) {
         body.innerHTML = `
             <div class="px-4 py-10 text-center text-[14px] font-medium text-white md:px-6">
-                No hay coincidencias en esta pagina.
+                ${searchActive ? 'No hay coincidencias en el rango seleccionado.' : 'No hay coincidencias en esta pagina.'}
             </div>
         `;
         updatePaginationUI();
@@ -1932,6 +1995,7 @@ const fetchTransfersPage = async (page = 1, options = {}) => {
         state.total = Number(pagination.total || 0);
         state.totalPages = Number(pagination.totalPages || 0);
         state.page = Number(pagination.page || page);
+        state.prefetchedPages.add(state.page);
         const payloadClosingBalance = Number(payload?.closingBalance);
         state.closingBalance = Number.isFinite(payloadClosingBalance) ? payloadClosingBalance : null;
         state.loadedOnce = true;
@@ -1943,7 +2007,7 @@ const fetchTransfersPage = async (page = 1, options = {}) => {
 
         // Silently prefetch subsequent pages to populate sell context for spread calculation.
         // This ensures page 1 buys can find their matching sells even on first visit.
-        void prefetchSellContextPages(state.page);
+        void prefetchSellContextPages();
     } catch (error) {
         if (error?.name === 'AbortError') return;
         console.warn('No fue posible cargar el historial de balance:', error);
@@ -1959,14 +2023,13 @@ const fetchTransfersPage = async (page = 1, options = {}) => {
 
 // Silently fetches ALL remaining pages into the cache.
 // This ensures spread calculation and profit sum cover the full dataset.
-const prefetchSellContextPages = async (fromPage) => {
+const prefetchSellContextPages = async () => {
     if (!state.apiBase || !state.token) return;
 
     let needsRerender = false;
 
-    for (let p = fromPage + 1; p <= state.totalPages; p++) {
+    for (let p = 1; p <= state.totalPages; p++) {
         if (state.prefetchedPages.has(p)) continue;
-        state.prefetchedPages.add(p);
 
         try {
             const res = await fetch(
@@ -1977,6 +2040,7 @@ const prefetchSellContextPages = async (fromPage) => {
 
             const payload = await res.json();
             const transfers = Array.isArray(payload?.transfers) ? payload.transfers : [];
+            state.prefetchedPages.add(p);
 
             transfers.forEach((tx) => {
                 const key = getTransferKey(tx);
@@ -2099,18 +2163,42 @@ const bindEventsOnce = () => {
     const { prevBtn, nextBtn, searchInput, typeFilters } = getElements();
 
     prevBtn?.addEventListener('click', () => {
+        if (hasActiveSearch()) return;
         if (state.page <= 1) return;
         void fetchTransfersPage(state.page - 1);
     });
 
     nextBtn?.addEventListener('click', () => {
+        if (hasActiveSearch()) return;
         if (state.page >= state.totalPages) return;
         void fetchTransfersPage(state.page + 1);
     });
 
     searchInput?.addEventListener('input', (event) => {
         state.searchTerm = String(event?.target?.value || '').trim();
-        renderTransfers(state.currentTransfers);
+        state.searchSeq += 1;
+        if (searchDebounceTimer) {
+            clearTimeout(searchDebounceTimer);
+            searchDebounceTimer = null;
+        }
+
+        const searchActive = hasActiveSearch();
+        state.searchPending = searchActive && !areAllPagesCached();
+        renderTransfers(state.currentTransfers, { resetScroll: true });
+
+        if (!searchActive || !state.searchPending) {
+            state.searchPending = false;
+            updatePaginationUI();
+            return;
+        }
+
+        const currentSearchSeq = state.searchSeq;
+        searchDebounceTimer = setTimeout(async () => {
+            await prefetchSellContextPages();
+            if (currentSearchSeq !== state.searchSeq) return;
+            state.searchPending = !areAllPagesCached();
+            renderTransfers(state.currentTransfers, { resetScroll: false });
+        }, 180);
     });
 
     typeFilters.forEach((button) => {
@@ -2120,12 +2208,18 @@ const bindEventsOnce = () => {
                 return;
             }
             state.typeFilter = nextType;
+            if (searchDebounceTimer) {
+                clearTimeout(searchDebounceTimer);
+                searchDebounceTimer = null;
+            }
             state.pageNetByPage.clear();
             state.transfersCache.clear();
             state.prefetchedPages.clear();
             state.closingBalance = null;
             state.total = 0;
             state.totalPages = 0;
+            state.searchPending = false;
+            state.searchResultCount = 0;
             updateTypeFilterUI();
             updatePaginationUI();
             renderPlaceholder('Filtrando movimientos...');
@@ -2163,6 +2257,10 @@ export const updateBalanceLedgerUI = (kpis = {}, context = {}) => {
     updateTypeFilterUI();
 
     if (!state.loadedOnce) {
+        if (searchDebounceTimer) {
+            clearTimeout(searchDebounceTimer);
+            searchDebounceTimer = null;
+        }
         state.pageNetByPage.clear();
         state.transfersCache.clear();
         state.prefetchedPages.clear();
@@ -2170,6 +2268,8 @@ export const updateBalanceLedgerUI = (kpis = {}, context = {}) => {
         state.needsRefresh = true;
         state.total = 0;
         state.totalPages = 0;
+        state.searchPending = false;
+        state.searchResultCount = 0;
         updatePaginationUI();
         renderPlaceholder('Cargando historial...');
         void fetchTransfersPage(1);
@@ -2177,6 +2277,10 @@ export const updateBalanceLedgerUI = (kpis = {}, context = {}) => {
     }
 
     if (rangeChanged || apiChanged || tokenChanged) {
+        if (searchDebounceTimer) {
+            clearTimeout(searchDebounceTimer);
+            searchDebounceTimer = null;
+        }
         state.pageNetByPage.clear();
         state.transfersCache.clear();
         state.prefetchedPages.clear();
@@ -2184,6 +2288,8 @@ export const updateBalanceLedgerUI = (kpis = {}, context = {}) => {
         state.needsRefresh = true;
         state.total = 0;
         state.totalPages = 0;
+        state.searchPending = false;
+        state.searchResultCount = 0;
         updatePaginationUI();
         renderPlaceholder('Actualizando historial...');
         void fetchTransfersPage(1);
