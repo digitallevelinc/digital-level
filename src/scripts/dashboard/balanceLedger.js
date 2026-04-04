@@ -1305,6 +1305,44 @@ const buildSpreadSellSnapshot = (tx = {}, options = {}) => {
     };
 };
 
+const buildJudgeSellContextFromVerdict = (verdict = {}, existing = {}) => {
+    const saleRate = Number(verdict?.saleRate || 0);
+    if (!(saleRate > 0)) return existing || null;
+
+    const saleTransferKey = String(verdict?.saleTransferId || verdict?.saleId || '').trim();
+    const saleTx = saleTransferKey ? state.transfersCache.get(saleTransferKey) : null;
+    const explicitRole = String(verdict?.advertisementRole || '').trim().toUpperCase();
+    const resolvedRole = explicitRole === 'MAKER' || explicitRole === 'TAKER'
+        ? explicitRole
+        : getTxDisplayRole(saleTx || {});
+    const saleFee = toFiniteNumber(saleTx?.fee);
+    const saleFeeCurrency = String(saleTx?.feeCurrency || '').toUpperCase();
+
+    return {
+        ...(existing || {}),
+        rateOverride: saleRate,
+        sellContextOverride: {
+            rate: saleRate,
+            role: resolvedRole || '',
+            fee: saleFee > 0 && (!saleFeeCurrency || saleFeeCurrency === 'USDT') ? saleFee : 0,
+            amount: Number(verdict?.saleAmount || 0) > 0
+                ? Number(verdict.saleAmount)
+                : getTxUsdtVolume(saleTx || {}),
+            isPromise: Boolean(Number(verdict?.expectedRebuyUsdt || 0) > 0),
+            forceSellRole: resolvedRole === 'MAKER' || resolvedRole === 'TAKER',
+        },
+        ...(saleTx
+            ? {
+                spreadReference: {
+                    mode: 'single',
+                    rate: saleRate,
+                    sells: [buildSpreadSellSnapshot(saleTx)],
+                },
+            }
+            : {}),
+    };
+};
+
 
 const getFallbackSellReferenceRate = () => {
     const directCandidates = [
@@ -2177,16 +2215,13 @@ const renderTransfers = (transfers = [], options = {}) => {
         const judgeVerdicts = Array.isArray(state.kpis?.judge?.openVerdicts)
             ? state.kpis.judge.openVerdicts : [];
         for (const verdict of judgeVerdicts) {
-            const saleRate = Number(verdict.saleRate || 0);
-            if (saleRate <= 0) continue;
             for (const purchaseId of (verdict.linkedPurchases || [])) {
                 const key = String(purchaseId || '');
                 if (!key) continue;
-                // Only inject if computeCycleSpreads didn't already set a rateOverride
-                // (same-day buys are handled correctly by computeCycleSpreads)
                 const existing = cycleSpreads.get(key);
-                if (!existing || !(existing.rateOverride > 0)) {
-                    cycleSpreads.set(key, { ...(existing || {}), rateOverride: saleRate });
+                const exactSellContext = buildJudgeSellContextFromVerdict(verdict, existing);
+                if (exactSellContext) {
+                    cycleSpreads.set(key, exactSellContext);
                 }
             }
         }
@@ -2407,14 +2442,13 @@ const prefetchSellContextPages = async () => {
     {
         const judgeVerdicts = Array.isArray(state.kpis?.judge?.openVerdicts) ? state.kpis.judge.openVerdicts : [];
         for (const verdict of judgeVerdicts) {
-            const saleRate = Number(verdict.saleRate || 0);
-            if (saleRate <= 0) continue;
             for (const purchaseId of (verdict.linkedPurchases || [])) {
                 const key = String(purchaseId || '');
                 if (!key) continue;
                 const existing = allCycleSpreads.get(key);
-                if (!existing || !(existing.rateOverride > 0)) {
-                    allCycleSpreads.set(key, { ...(existing || {}), rateOverride: saleRate });
+                const exactSellContext = buildJudgeSellContextFromVerdict(verdict, existing);
+                if (exactSellContext) {
+                    allCycleSpreads.set(key, exactSellContext);
                 }
             }
         }
