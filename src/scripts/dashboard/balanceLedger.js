@@ -1272,7 +1272,12 @@ const inferMakerTakerRole = ({ explicitRole = '', fee = 0, amount = 0 } = {}) =>
     return makerFeeRate > 0 ? 'MAKER' : '';
 };
 
-const buildSpreadSellSnapshot = (tx = {}, remainingFiat = 0) => {
+const buildSpreadSellSnapshot = (tx = {}, options = {}) => {
+    const settings = typeof options === 'number'
+        ? { remainingFiat: options }
+        : (options || {});
+    const remainingFiat = Number(settings.remainingFiat || 0);
+    const consumedFiat = Number(settings.consumedFiat || 0);
     const counterparty = String(buildDescriptionTop(tx) || 'Venta sin detalle').trim();
     const paymentMethod = String(tx?.paymentMethod || tx?.bankName || tx?.bank || '').trim().toUpperCase();
     const orderNumber = String(tx?.orderNumber || '').trim();
@@ -1294,6 +1299,7 @@ const buildSpreadSellSnapshot = (tx = {}, remainingFiat = 0) => {
         rate,
         fiatAmount,
         remainingFiat: remainingFiat > 0 ? remainingFiat : fiatAmount,
+        consumedFiat: consumedFiat > 0 ? consumedFiat : 0,
         usdtAmount,
         role,
     };
@@ -1342,7 +1348,7 @@ const getFallbackSpreadPercent = () => {
     return 0;
 };
 
-const computeTxSpread = (tx = {}, rateOverride = 0) => {
+const computeTxSpread = (tx = {}, override = 0) => {
     const type = normalizeTxType(tx);
     if (isLedgerSellTarget(tx)) return 0; // Ventas y promesas no muestran spread individual
     if (type !== 'P2P_BUY') return 0;
@@ -1352,19 +1358,25 @@ const computeTxSpread = (tx = {}, rateOverride = 0) => {
     if (buyUsdtIn <= 0) return 0;
 
     const nearestSell = getNearestSellForBuy(tx);
+    const hasStructuredOverride = override && typeof override === 'object';
+    const overrideContext = hasStructuredOverride ? override : null;
+    const overrideRate = hasStructuredOverride
+        ? Number(overrideContext?.rate || overrideContext?.rateOverride || 0)
+        : Number(override || 0);
 
     // Si no hay una venta pairable en la página actual (p.ej. la página 1 tiene compras
     // cuyas ventas correspondientes están en la página 2), usamos la tasa de referencia
     // global del KPI para estimar igualmente el spread en vez de devolver 0.
-    let sellRate, sellRoleSource, sellFeeSource, sellAmountSource, sellIsPromise = false;
-    if (rateOverride > 0) {
-        // Ciclo con múltiples ventas abiertas: se usa la tasa promedio ponderada
-        // calculada por computeCycleSpreads. Para role/fee se toma la venta más cercana.
-        sellRate = rateOverride;
-        sellRoleSource = nearestSell?.role || '';
-        sellFeeSource = nearestSell?.fee || 0;
-        sellAmountSource = nearestSell?.amount || buyUsdtIn;
-        sellIsPromise = Boolean(nearestSell?.isPromise);
+    let sellRate, sellRoleSource, sellFeeSource, sellAmountSource, sellIsPromise = false, forceSellRole = false;
+    if (overrideRate > 0) {
+        // Cuando el ciclo ya resolvió qué venta(s) consumió este BUY, respetamos
+        // esa referencia exacta. Si fue una sola venta, también heredamos su rol.
+        sellRate = overrideRate;
+        sellRoleSource = overrideContext?.role || nearestSell?.role || '';
+        sellFeeSource = Number(overrideContext?.fee || 0) || nearestSell?.fee || 0;
+        sellAmountSource = Number(overrideContext?.amount || 0) || nearestSell?.amount || buyUsdtIn;
+        sellIsPromise = Boolean(overrideContext?.isPromise ?? nearestSell?.isPromise);
+        forceSellRole = Boolean(overrideContext?.forceSellRole);
     } else if (nearestSell && nearestSell.rate > 0) {
         sellRate = nearestSell.rate;
         sellRoleSource = nearestSell.role;
@@ -1390,9 +1402,9 @@ const computeTxSpread = (tx = {}, rateOverride = 0) => {
         ? buyFiat / sellRate
         : sellAmountSource; // fallback si no hay fiat en la compra
 
-    // Solo las promesas deben forzar la fórmula con el rol de la VENTA.
-    // Para ventas normales mantenemos el comportamiento previo y usamos
-    // el rol del BUY como referencia principal.
+    // Las promesas y los BUYs ya enlazados a una venta consumida específica
+    // deben usar el rol de la VENTA. Fuera de eso mantenemos el comportamiento
+    // previo y usamos el rol del BUY como referencia principal.
     const buyRole = inferMakerTakerRole({
         explicitRole: tx?.advertisementRole,
         fee: toFiniteNumber(tx?.fee),
@@ -1403,7 +1415,7 @@ const computeTxSpread = (tx = {}, rateOverride = 0) => {
         fee: sellFeeSource,
         amount: sellAmountSource,
     });
-    const effectiveSellRole = sellIsPromise
+    const effectiveSellRole = (sellIsPromise || forceSellRole)
         ? inferredSellRole
         : (buyRole === 'MAKER' || buyRole === 'TAKER' ? buyRole : inferredSellRole);
 
@@ -1463,24 +1475,6 @@ const computeCycleSpreads = (transfers) => {
         lastSellTs = 0;
     };
 
-    const getRemainingWeightedSellRate = () => {
-        let totalFiat = 0;
-        let totalUsdt = 0;
-
-        for (const entry of openSells) {
-            const remainingFiat = Math.max(0, Number(entry?.remainingFiat || 0));
-            if (remainingFiat <= COVERAGE_COMPLETION_TOLERANCE_FIAT) continue;
-
-            const rate = getTxRate(entry.tx);
-            if (!(rate > 0)) continue;
-
-            totalFiat += remainingFiat;
-            totalUsdt += remainingFiat / rate;
-        }
-
-        return totalUsdt > 0 ? totalFiat / totalUsdt : 0;
-    };
-
     // Recorrer de más antiguo a más reciente (el array viene newest-first)
     for (let i = transfers.length - 1; i >= 0; i--) {
         const tx = transfers[i];
@@ -1526,26 +1520,9 @@ const computeCycleSpreads = (transfers) => {
         } else if (type === 'P2P_BUY' && openSells.length > 0) {
             // Una compra consume VES del pool y aporta su spread
             const buyFiat = resolveFiatAmount(tx);
-            const cycleRateOverride = getRemainingWeightedSellRate();
-            const spreadReferenceSells = openSells
-                .filter((entry) => entry.remainingFiat > COVERAGE_COMPLETION_TOLERANCE_FIAT)
-                .map((entry) => buildSpreadSellSnapshot(entry.tx, entry.remainingFiat));
-            // Guardar el override en el resultado para que renderRow lo use en el SPREAD del BUY
-            if (cycleRateOverride > 0) {
-                const buyKey = getTransferKey(tx);
-                const existing = result.get(buyKey) || {};
-                result.set(buyKey, {
-                    ...existing,
-                    rateOverride: cycleRateOverride,
-                    spreadReference: spreadReferenceSells.length > 0
-                        ? {
-                            mode: spreadReferenceSells.length > 1 ? 'cycle' : 'single',
-                            rate: cycleRateOverride,
-                            sells: spreadReferenceSells,
-                        }
-                        : existing.spreadReference,
-                });
-            }
+            const consumedSpreadEntries = [];
+            let consumedTotalFiat = 0;
+            let consumedTotalUsdt = 0;
 
             if (buyFiat > 0) {
                 let remainingBuyFiat = buyFiat;
@@ -1554,6 +1531,15 @@ const computeCycleSpreads = (transfers) => {
                     if (entry.remainingFiat <= COVERAGE_COMPLETION_TOLERANCE_FIAT) continue;
 
                     const consumedFiat = Math.min(entry.remainingFiat, remainingBuyFiat);
+                    const sellRate = getTxRate(entry.tx);
+                    if (consumedFiat > COVERAGE_COMPLETION_TOLERANCE_FIAT && sellRate > 0) {
+                        consumedTotalFiat += consumedFiat;
+                        consumedTotalUsdt += consumedFiat / sellRate;
+                        consumedSpreadEntries.push({
+                            tx: entry.tx,
+                            snapshot: buildSpreadSellSnapshot(entry.tx, { consumedFiat }),
+                        });
+                    }
                     entry.recoveredFiat += consumedFiat;
                     entry.remainingFiat = Math.max(0, entry.remainingFiat - consumedFiat);
                     remainingBuyFiat = Math.max(0, remainingBuyFiat - consumedFiat);
@@ -1561,6 +1547,43 @@ const computeCycleSpreads = (transfers) => {
                 }
 
                 openSells = openSells.filter((entry) => entry.remainingFiat > COVERAGE_COMPLETION_TOLERANCE_FIAT);
+            }
+
+            const cycleRateOverride = consumedTotalUsdt > 0
+                ? consumedTotalFiat / consumedTotalUsdt
+                : 0;
+            if (cycleRateOverride > 0) {
+                const buyKey = getTransferKey(tx);
+                const existing = result.get(buyKey) || {};
+                const singleConsumedSell = consumedSpreadEntries.length === 1
+                    ? consumedSpreadEntries[0]?.tx
+                    : null;
+                const singleConsumedFee = toFiniteNumber(singleConsumedSell?.fee);
+                const singleConsumedFeeCurrency = String(singleConsumedSell?.feeCurrency || '').toUpperCase();
+
+                result.set(buyKey, {
+                    ...existing,
+                    rateOverride: cycleRateOverride,
+                    sellContextOverride: singleConsumedSell
+                        ? {
+                            rate: cycleRateOverride,
+                            role: getTxDisplayRole(singleConsumedSell),
+                            fee: singleConsumedFee > 0 && (!singleConsumedFeeCurrency || singleConsumedFeeCurrency === 'USDT')
+                                ? singleConsumedFee
+                                : 0,
+                            amount: getTxUsdtVolume(singleConsumedSell),
+                            isPromise: Boolean(getPromiseMeta(singleConsumedSell)?.promiseUsdt > 0),
+                            forceSellRole: true,
+                        }
+                        : existing.sellContextOverride,
+                    spreadReference: consumedSpreadEntries.length > 0
+                        ? {
+                            mode: consumedSpreadEntries.length > 1 ? 'cycle' : 'single',
+                            rate: cycleRateOverride,
+                            sells: consumedSpreadEntries.map((entry) => entry.snapshot),
+                        }
+                        : existing.spreadReference,
+                });
             }
 
             // ¿Se recuperaron todos los VES? → ciclo cerrado
@@ -1621,7 +1644,9 @@ const renderSpreadReferenceTrigger = (tx = {}, cycleData = undefined) => {
         const secondaryParts = [];
         if (sell.usdtAmount > 0) secondaryParts.push(`${formatNumber(sell.usdtAmount, 2, 'en-US')} USDT`);
         if (sell.fiatAmount > 0) secondaryParts.push(`${formatNumber(sell.fiatAmount, 2)} VES`);
-        if (isCycle && sell.remainingFiat > 0 && Math.abs(sell.remainingFiat - sell.fiatAmount) > COVERAGE_COMPLETION_TOLERANCE_FIAT) {
+        if (isCycle && sell.consumedFiat > 0) {
+            secondaryParts.push(`Usado ${formatNumber(sell.consumedFiat, 2)} VES`);
+        } else if (isCycle && sell.remainingFiat > 0 && Math.abs(sell.remainingFiat - sell.fiatAmount) > COVERAGE_COMPLETION_TOLERANCE_FIAT) {
             secondaryParts.push(`Pendiente ${formatNumber(sell.remainingFiat, 2)} VES`);
         }
 
@@ -1956,7 +1981,7 @@ const renderRow = (tx, rowBalance, cycleData = undefined) => {
     let spreadMetric;
     {
         const spreadValRaw = isCycleBuyOverride
-            ? computeTxSpread(tx, cycleData.rateOverride)
+            ? computeTxSpread(tx, cycleData?.sellContextOverride || cycleData.rateOverride)
             : computeTxSpread(tx);
         const spreadVal = truncateTowardZero(spreadValRaw, 2);
         const spreadTone = spreadVal > 0
@@ -2410,8 +2435,8 @@ const prefetchSellContextPages = async () => {
         const txDateStr = new Date(getTxTimestampMs(tx)).toLocaleDateString('en-CA', { timeZone: CARACAS_TZ });
         if (txDateStr < _effectiveFrom || txDateStr > _effectiveTo) continue;
         const cycleEntry = allCycleSpreads.get(getTransferKey(tx));
-        const rateOverride = (cycleEntry?.rateOverride ?? 0);
-        const txSpread = truncateTowardZero(computeTxSpread(tx, rateOverride), 2);
+        const spreadContext = cycleEntry?.sellContextOverride || (cycleEntry?.rateOverride ?? 0);
+        const txSpread = truncateTowardZero(computeTxSpread(tx, spreadContext), 2);
         if (txSpread !== 0) {
             const bankKey = normalizeBankKey(tx?.paymentMethod || tx?.bankName || tx?.bank || '');
             if (bankKey) {
