@@ -1388,16 +1388,15 @@ const computeTxSpread = (tx = {}, rateOverride = 0) => {
         ? buyFiat / sellRate
         : sellAmountSource; // fallback si no hay fiat en la compra
 
-    // Prioridad del rol para la fórmula de venta:
-    // 1. El rol explícito del BUY (MAKER/TAKER) — fuente más confiable.
-    // 2. El rol inferido del SELL emparejado.
-    const effectiveSellRole = (buyRole === 'MAKER' || buyRole === 'TAKER')
-        ? buyRole
-        : inferMakerTakerRole({
-            explicitRole: sellRoleSource,
-            fee: sellFeeSource,
-            amount: sellAmountSource,
-        });
+    // El rol de la VENTA determina si se aplica fee en la fórmula de costo de venta.
+    // El rol del BUY ya fue contabilizado por getSignedAmount (que descuenta el fee real de compra).
+    // Usar el rol del BUY aquí era incorrecto: una compra MAKER con venta TAKER
+    // omitía el fee de venta y sobreestimaba el spread.
+    const effectiveSellRole = inferMakerTakerRole({
+        explicitRole: sellRoleSource,
+        fee: sellFeeSource,
+        amount: sellAmountSource,
+    });
 
     const makerFeeRate = Number(state.kpis?.config?.verificationPercent || 0) / 100;
     // sellFee solo aplica en la rama TAKER (fórmula a). La rama MAKER usa makerFeeRate,
