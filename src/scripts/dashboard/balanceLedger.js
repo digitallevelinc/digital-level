@@ -653,11 +653,12 @@ const renderReceiversDetail = (receivers = []) => {
     </div>`;
 };
 
-const renderMetricCard = ({ label, value, sub = '', tone = '' }) => `
+const renderMetricCard = ({ label, value, sub = '', sub2 = '', tone = '' }) => `
     <div class="ledger-metric-card ${tone}">
         <span class="ledger-metric-label">${escapeHtml(label)}</span>
         <span class="ledger-metric-value">${escapeHtml(value)}</span>
         <span class="ledger-metric-sub">${escapeHtml(sub)}</span>
+        ${sub2 ? `<span class="ledger-metric-sub ledger-metric-sub-secondary">${escapeHtml(sub2)}</span>` : ''}
     </div>
 `;
 
@@ -696,7 +697,8 @@ const renderPromiseColumnMeta = (tx) => {
         return renderMetricCard({
             label: 'Promesa total',
             value: formatPromiseUsdt(promiseMeta.promiseUsdt),
-            sub: `${localSummary} | ${pendingSummary}`,
+            sub: formatPromiseFiat(promiseMeta.promisedFiat, tx),
+            sub2: `${localSummary} | ${pendingSummary}`,
             tone: 'ledger-metric-promise'
         });
     }
@@ -711,12 +713,14 @@ const renderPromiseColumnMeta = (tx) => {
         return renderMetricCard({
             label: 'Cobertura interna',
             value: formatPromiseUsdt(promiseMeta.promiseUsdt),
-            sub: `${actorSummary} | ${coverageSummary}`,
+            sub: formatPromiseFiat(promiseMeta.promisedFiat, tx),
+            sub2: `${actorSummary} | ${coverageSummary}`,
             tone: 'ledger-metric-warning'
         });
     }
 
     const promiseLabel = promiseMeta.isReceiver ? 'Promesa recibida' : 'Promesa';
+    const promiseVes = formatPromiseFiat(promiseMeta.promisedFiat, tx);
     const pendingSummary = promiseMeta.isReceiver
         ? (promiseMeta.pendingUsdt > 0.009
             ? `Pendiente ${formatPromiseUsdt(promiseMeta.pendingUsdt)}`
@@ -726,7 +730,8 @@ const renderPromiseColumnMeta = (tx) => {
     return renderMetricCard({
         label: promiseLabel,
         value: formatPromiseUsdt(promiseMeta.promiseUsdt),
-        sub: pendingSummary,
+        sub: promiseVes,
+        sub2: promiseMeta.isReceiver ? pendingSummary : '',
         tone: promiseMeta.isReceiver ? 'ledger-metric-warning' : 'ledger-metric-promise'
     });
 };
