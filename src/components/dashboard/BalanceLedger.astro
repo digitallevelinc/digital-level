@@ -613,6 +613,136 @@ import CardHelp from './CardHelp.astro';
         gap: 0.4rem;
     }
 
+    .ledger-spread-anchor {
+        position: relative;
+        display: inline-flex;
+        align-items: center;
+    }
+
+    .ledger-spread-link {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 1.9rem;
+        height: 1.9rem;
+        border-radius: 999px;
+        border: 1px solid rgba(243, 186, 47, 0.28);
+        background: rgba(243, 186, 47, 0.1);
+        color: #f7d774;
+        transition: background 0.18s ease, border-color 0.18s ease, color 0.18s ease, transform 0.18s ease;
+    }
+
+    .ledger-spread-link:hover,
+    .ledger-spread-link:focus-visible,
+    .ledger-spread-anchor.is-open .ledger-spread-link {
+        background: rgba(243, 186, 47, 0.18);
+        border-color: rgba(243, 186, 47, 0.48);
+        color: #fde68a;
+        transform: translateY(-1px);
+        outline: none;
+    }
+
+    .ledger-spread-link svg {
+        width: 0.95rem;
+        height: 0.95rem;
+    }
+
+    .ledger-spread-tooltip {
+        display: none;
+        position: absolute;
+        top: calc(100% + 0.55rem);
+        left: 0;
+        z-index: 140;
+        width: min(24rem, calc(100vw - 3rem));
+        padding: 0.8rem 0.9rem;
+        border-radius: 0.9rem;
+        border: 1px solid rgba(243, 186, 47, 0.18);
+        background: rgba(12, 18, 28, 0.98);
+        box-shadow: 0 18px 42px rgba(0, 0, 0, 0.42);
+        backdrop-filter: blur(12px);
+    }
+
+    .ledger-spread-anchor.is-open .ledger-spread-tooltip {
+        display: grid;
+        gap: 0.65rem;
+    }
+
+    .ledger-spread-tooltip-head {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.5rem 1rem;
+    }
+
+    .ledger-spread-tooltip-title,
+    .ledger-spread-tooltip-rate {
+        font-size: 0.72rem;
+        font-weight: 800;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+    }
+
+    .ledger-spread-tooltip-title {
+        color: rgba(255, 255, 255, 0.94);
+    }
+
+    .ledger-spread-tooltip-rate {
+        color: #f7d774;
+    }
+
+    .ledger-spread-tooltip-list {
+        display: grid;
+        gap: 0.55rem;
+    }
+
+    .ledger-spread-tooltip-item {
+        display: grid;
+        gap: 0.22rem;
+        padding-top: 0.05rem;
+    }
+
+    .ledger-spread-tooltip-item + .ledger-spread-tooltip-item {
+        padding-top: 0.55rem;
+        border-top: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .ledger-spread-tooltip-item-head,
+    .ledger-spread-tooltip-stats {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: space-between;
+        gap: 0.3rem 0.8rem;
+    }
+
+    .ledger-spread-tooltip-name {
+        font-size: 0.82rem;
+        font-weight: 700;
+        color: rgba(255, 255, 255, 0.96);
+    }
+
+    .ledger-spread-tooltip-time,
+    .ledger-spread-tooltip-meta,
+    .ledger-spread-tooltip-stats,
+    .ledger-spread-tooltip-more {
+        font-size: 0.7rem;
+        color: rgba(255, 255, 255, 0.66);
+    }
+
+    .ledger-spread-tooltip-meta {
+        line-height: 1.45;
+    }
+
+    .ledger-spread-tooltip-stats span:last-child {
+        color: rgba(255, 255, 255, 0.92);
+        font-weight: 700;
+    }
+
+    .ledger-spread-tooltip-more {
+        padding-top: 0.15rem;
+        border-top: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
     .ledger-balance-tooltip-row {
         display: flex;
         justify-content: space-between;
@@ -782,9 +912,21 @@ import CardHelp from './CardHelp.astro';
         gap: 0.55rem;
     }
 
-    .ledger-mobile-kicker-text {
-        flex: 1 1 180px;
+    .ledger-mobile-kicker-block {
+        display: grid;
+        gap: 0.35rem;
         min-width: 0;
+        flex: 1 1 180px;
+    }
+
+    .ledger-mobile-kicker-text {
+        min-width: 0;
+    }
+
+    .ledger-mobile-kicker-action,
+    .ledger-date-action {
+        display: flex;
+        align-items: flex-start;
     }
 
     .ledger-mobile-kicker,
@@ -818,6 +960,12 @@ import CardHelp from './CardHelp.astro';
         display: grid;
         align-content: start;
         gap: 0.38rem;
+    }
+
+    .ledger-direction-stack {
+        display: grid;
+        gap: 0.35rem;
+        justify-items: start;
     }
 
     .ledger-date-main {
@@ -1112,6 +1260,10 @@ import CardHelp from './CardHelp.astro';
         .ledger-mobile-kicker-text {
             font-size: 0.72rem;
             line-height: 1.35;
+        }
+
+        .ledger-spread-tooltip {
+            width: min(21rem, calc(100vw - 2.4rem));
         }
 
         .ledger-mobile-meta {

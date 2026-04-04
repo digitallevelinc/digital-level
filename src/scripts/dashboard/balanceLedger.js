@@ -31,6 +31,7 @@ const state = {
     bankData: [],
     closingBalance: null,
     onBankDataUpdate: null,
+    spreadTooltipBound: false,
 };
 
 let searchDebounceTimer = null;
@@ -1151,7 +1152,16 @@ const getNearestSellForBuy = (buyTx) => {
         if (score < bestScore) {
             bestScore = score;
             const amount = getTxUsdtVolume(tx);
-            best = { rate, fee: effectiveFee, role: role || '', amount };
+            best = {
+                rate,
+                fee: effectiveFee,
+                role: role || '',
+                amount,
+                tx,
+                key: getTransferKey(tx),
+                timestampMs: sellTs,
+                fiatAmount: resolveFiatAmount(tx),
+            };
         }
     }
 
@@ -1222,6 +1232,33 @@ const inferMakerTakerRole = ({ explicitRole = '', fee = 0, amount = 0 } = {}) =>
     }
 
     return makerFeeRate > 0 ? 'MAKER' : '';
+};
+
+const buildSpreadSellSnapshot = (tx = {}, remainingFiat = 0) => {
+    const counterparty = String(buildDescriptionTop(tx) || 'Venta sin detalle').trim();
+    const paymentMethod = String(tx?.paymentMethod || tx?.bankName || tx?.bank || '').trim().toUpperCase();
+    const orderNumber = String(tx?.orderNumber || '').trim();
+    const rate = getTxRate(tx);
+    const fiatAmount = resolveFiatAmount(tx);
+    const usdtAmount = getTxUsdtVolume(tx);
+    const role = inferMakerTakerRole({
+        explicitRole: tx?.advertisementRole,
+        fee: toFiniteNumber(tx?.fee),
+        amount: Math.abs(Number(tx?.amount || 0)),
+    });
+
+    return {
+        key: getTransferKey(tx),
+        counterparty,
+        paymentMethod,
+        orderNumber,
+        timestampLabel: formatPostingDate(tx?.timestamp),
+        rate,
+        fiatAmount,
+        remainingFiat: remainingFiat > 0 ? remainingFiat : fiatAmount,
+        usdtAmount,
+        role,
+    };
 };
 
 
@@ -1357,7 +1394,7 @@ const computeTxSpread = (tx = {}, rateOverride = 0) => {
 // de cada venta. Esto evita que varias coberturas terminen mostrando el mismo valor.
 // Si el gap entre ventas consecutivas supera CYCLE_MAX_SELL_GAP_MS, se cierran como
 // incompletas para evitar que páginas históricas prefetcheadas contaminen ventas recientes.
-// Returns Map<txKey, { complete, totalSellFiat, recoveredFiat, recoveredPct, rateOverride? }>.
+// Returns Map<txKey, { complete, totalSellFiat, recoveredFiat, recoveredPct, rateOverride?, spreadReference? }>.
 const CYCLE_MAX_SELL_GAP_MS = 6 * 60 * 60 * 1000; // 6 horas
 const computeCycleSpreads = (transfers) => {
     const result = new Map();
@@ -1453,9 +1490,24 @@ const computeCycleSpreads = (transfers) => {
             // Una compra consume VES del pool y aporta su spread
             const buyFiat = resolveFiatAmount(tx);
             const cycleRateOverride = getRemainingWeightedSellRate();
+            const spreadReferenceSells = openSells
+                .filter((entry) => entry.remainingFiat > COVERAGE_COMPLETION_TOLERANCE_FIAT)
+                .map((entry) => buildSpreadSellSnapshot(entry.tx, entry.remainingFiat));
             // Guardar el override en el resultado para que renderRow lo use en el SPREAD del BUY
             if (cycleRateOverride > 0) {
-                result.set(getTransferKey(tx), { rateOverride: cycleRateOverride });
+                const buyKey = getTransferKey(tx);
+                const existing = result.get(buyKey) || {};
+                result.set(buyKey, {
+                    ...existing,
+                    rateOverride: cycleRateOverride,
+                    spreadReference: spreadReferenceSells.length > 0
+                        ? {
+                            mode: spreadReferenceSells.length > 1 ? 'cycle' : 'single',
+                            rate: cycleRateOverride,
+                            sells: spreadReferenceSells,
+                        }
+                        : existing.spreadReference,
+                });
             }
 
             if (buyFiat > 0) {
@@ -1489,6 +1541,136 @@ const computeCycleSpreads = (transfers) => {
     }
 
     return result;
+};
+
+const getSpreadReferenceMeta = (tx = {}, cycleData = undefined) => {
+    if (normalizeTxType(tx) !== 'P2P_BUY') return null;
+
+    const cycleReference = cycleData?.spreadReference;
+    if (cycleReference?.sells?.length > 0) {
+        return cycleReference;
+    }
+
+    const nearestSell = getNearestSellForBuy(tx);
+    if (nearestSell?.tx) {
+        return {
+            mode: 'single',
+            rate: nearestSell.rate,
+            sells: [buildSpreadSellSnapshot(nearestSell.tx)],
+        };
+    }
+
+    return null;
+};
+
+const renderSpreadReferenceTrigger = (tx = {}, cycleData = undefined) => {
+    const reference = getSpreadReferenceMeta(tx, cycleData);
+    if (!reference?.sells?.length) return '';
+
+    const visibleSells = reference.sells.slice(0, 3);
+    const hiddenCount = Math.max(0, reference.sells.length - visibleSells.length);
+    const isCycle = reference.mode === 'cycle' && reference.sells.length > 1;
+    const title = isCycle
+        ? `Ventas del ciclo (${reference.sells.length})`
+        : 'Venta asociada';
+    const headRate = reference.rate > 0
+        ? `${isCycle ? 'Rate ponderado' : 'Rate'} ${formatNumber(reference.rate, 2)}`
+        : 'Rate no disponible';
+    const rowsHtml = visibleSells.map((sell) => {
+        const metaParts = [];
+        if (sell.paymentMethod) metaParts.push(sell.paymentMethod);
+        if (sell.orderNumber) metaParts.push(`ORD ${sell.orderNumber}`);
+        if (sell.role) metaParts.push(sell.role);
+        const secondaryParts = [];
+        if (sell.usdtAmount > 0) secondaryParts.push(`${formatNumber(sell.usdtAmount, 2, 'en-US')} USDT`);
+        if (sell.fiatAmount > 0) secondaryParts.push(`${formatNumber(sell.fiatAmount, 2)} VES`);
+        if (isCycle && sell.remainingFiat > 0 && Math.abs(sell.remainingFiat - sell.fiatAmount) > COVERAGE_COMPLETION_TOLERANCE_FIAT) {
+            secondaryParts.push(`Pendiente ${formatNumber(sell.remainingFiat, 2)} VES`);
+        }
+
+        return `
+            <div class="ledger-spread-tooltip-item">
+                <div class="ledger-spread-tooltip-item-head">
+                    <span class="ledger-spread-tooltip-name">${escapeHtml(sell.counterparty)}</span>
+                    <span class="ledger-spread-tooltip-time">${escapeHtml(sell.timestampLabel)}</span>
+                </div>
+                ${metaParts.length ? `<div class="ledger-spread-tooltip-meta">${escapeHtml(metaParts.join(' | '))}</div>` : ''}
+                <div class="ledger-spread-tooltip-stats">
+                    <span>${escapeHtml(secondaryParts.join(' | ') || 'Sin montos visibles')}</span>
+                    <span>${escapeHtml(sell.rate > 0 ? `RATE ${formatNumber(sell.rate, 2)}` : 'RATE --')}</span>
+                </div>
+            </div>
+        `;
+    }).join('');
+
+    return `
+        <div class="ledger-spread-anchor" data-spread-anchor>
+            <button
+                type="button"
+                class="ledger-spread-link"
+                data-spread-toggle
+                aria-expanded="false"
+                aria-label="${escapeHtml(title)}"
+                title="${escapeHtml(title)}"
+            >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M3 7.5 12 3l9 4.5-9 4.5L3 7.5Z"/>
+                    <path d="M6 9.1V15.5c0 1.2 2.7 2.5 6 2.5s6-1.3 6-2.5V9.1"/>
+                    <path d="M9 13h6"/>
+                </svg>
+            </button>
+            <div class="ledger-spread-tooltip" role="tooltip">
+                <div class="ledger-spread-tooltip-head">
+                    <span class="ledger-spread-tooltip-title">${escapeHtml(title)}</span>
+                    <span class="ledger-spread-tooltip-rate">${escapeHtml(headRate)}</span>
+                </div>
+                <div class="ledger-spread-tooltip-list">
+                    ${rowsHtml}
+                </div>
+                ${hiddenCount > 0 ? `<div class="ledger-spread-tooltip-more">+${hiddenCount} venta${hiddenCount === 1 ? '' : 's'} adicional${hiddenCount === 1 ? '' : 'es'}</div>` : ''}
+            </div>
+        </div>
+    `;
+};
+
+const closeSpreadTooltips = (root = document) => {
+    root.querySelectorAll('[data-spread-anchor].is-open').forEach((anchor) => {
+        anchor.classList.remove('is-open');
+        const button = anchor.querySelector('[data-spread-toggle]');
+        if (button) button.setAttribute('aria-expanded', 'false');
+    });
+};
+
+const wireSpreadTooltips = (root) => {
+    if (!root) return;
+
+    root.querySelectorAll('[data-spread-toggle]').forEach((button) => {
+        button.addEventListener('click', (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+
+            const anchor = button.closest('[data-spread-anchor]');
+            if (!anchor) return;
+
+            const willOpen = !anchor.classList.contains('is-open');
+            closeSpreadTooltips(document);
+            if (willOpen) {
+                anchor.classList.add('is-open');
+                button.setAttribute('aria-expanded', 'true');
+            }
+        });
+    });
+
+    if (!state.spreadTooltipBound) {
+        document.addEventListener('click', (event) => {
+            if (event.target.closest('[data-spread-anchor]')) return;
+            closeSpreadTooltips(document);
+        });
+        document.addEventListener('keydown', (event) => {
+            if (event.key === 'Escape') closeSpreadTooltips(document);
+        });
+        state.spreadTooltipBound = true;
+    }
 };
 
 const updateCoverageBadge = (transfers = [], cycleSpreads = new Map()) => {
@@ -1734,6 +1916,7 @@ const renderRow = (tx, rowBalance, cycleData = undefined) => {
 
     const methodText = tx?.paymentMethod ? escapeHtml(String(tx.paymentMethod).toUpperCase()) : '';
     const directionLabel = signedAmount < 0 ? 'Salida' : 'Entrada';
+    const spreadReferenceTrigger = renderSpreadReferenceTrigger(tx, cycleData);
     const fiatText = formatFiat(tx);
     const fiatHtml = fiatText ? `<div class="ledger-mobile-sub">${escapeHtml(fiatText)}</div>` : '';
     const fiatDesktopHtml = fiatText ? `<div class="ledger-amount-sub">${escapeHtml(fiatText)}</div>` : '';
@@ -1765,7 +1948,10 @@ const renderRow = (tx, rowBalance, cycleData = undefined) => {
 
                 <div class="ledger-mobile-title">${top}</div>
                 <div class="ledger-mobile-kicker-row">
-                    <div class="ledger-mobile-kicker-text">${directionLabel}${methodText ? ` | ${methodText}` : ''}</div>
+                    <div class="ledger-mobile-kicker-block">
+                        <div class="ledger-mobile-kicker-text">${directionLabel}${methodText ? ` | ${methodText}` : ''}</div>
+                        ${spreadReferenceTrigger ? `<div class="ledger-mobile-kicker-action">${spreadReferenceTrigger}</div>` : ''}
+                    </div>
                     ${toggleBtnHtml}
                 </div>
 
@@ -1783,7 +1969,10 @@ const renderRow = (tx, rowBalance, cycleData = undefined) => {
             <div class="ledger-desktop-row">
                 <div class="ledger-date-col">
                     <div class="ledger-date-main">${escapeHtml(formatPostingDate(tx.timestamp))}</div>
-                    <div class="ledger-date-sub">${directionLabel}</div>
+                    <div class="ledger-direction-stack">
+                        <div class="ledger-date-sub">${directionLabel}</div>
+                        ${spreadReferenceTrigger ? `<div class="ledger-date-action">${spreadReferenceTrigger}</div>` : ''}
+                    </div>
                 </div>
                 <div class="ledger-description-col">
                     <div class="ledger-title-row">
@@ -1926,6 +2115,8 @@ const renderTransfers = (transfers = [], options = {}) => {
             btn.classList.toggle('dispersor-toggle-open', !isOpen);
         });
     });
+
+    wireSpreadTooltips(body);
 
     updatePaginationUI();
     if (scroll) {
