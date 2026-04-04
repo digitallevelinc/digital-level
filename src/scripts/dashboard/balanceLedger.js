@@ -494,6 +494,32 @@ const buildDescriptionTop = (tx) => {
     return tx?.notes || tx?.paymentMethod || 'Movimiento sin detalle';
 };
 
+const normalizeAdvertisementRole = (value) => {
+    const raw = String(value || '').trim().toUpperCase();
+    if (raw === 'MAKER' || raw === 'M') return 'MAKER';
+    if (raw === 'TAKER' || raw === 'T') return 'TAKER';
+    return '';
+};
+
+const getNoteAdvertisementRole = (tx = {}) => {
+    const structured = parseStructuredNote(tx?.notes);
+    if (!structured?.parts?.length) return '';
+    const trailingToken = structured.parts[structured.parts.length - 1];
+    return normalizeAdvertisementRole(trailingToken);
+};
+
+const getTxDisplayRole = (tx = {}) => {
+    const explicitRole = normalizeAdvertisementRole(tx?.advertisementRole);
+    if (explicitRole) return explicitRole;
+
+    const txType = String(tx?.type || '').toUpperCase();
+    if ((txType === 'PAY_SENT' || txType === 'PAY_RECEIVED') && getPromiseMeta(tx)) {
+        return getNoteAdvertisementRole(tx);
+    }
+
+    return '';
+};
+
 const buildDescriptionMeta = (tx, topLine = '') => {
     const parts = [];
     const rateText = formatRate(tx?.exchangeRate);
@@ -513,11 +539,14 @@ const buildDescriptionMeta = (tx, topLine = '') => {
     if (tx?.tradeType) parts.push(`TRADE ${tx.tradeType}`);
     const txType = String(tx?.type || '').toUpperCase();
     if (txType === 'P2P_BUY' || txType === 'P2P_SELL') {
-        const role = inferMakerTakerRole({
+        const role = getTxDisplayRole(tx) || inferMakerTakerRole({
             explicitRole: tx?.advertisementRole,
             fee: toFiniteNumber(tx?.fee),
             amount: Math.abs(Number(tx?.amount || 0))
         });
+        if (role) parts.push(`__ROLE__${role}`);
+    } else if ((txType === 'PAY_SENT' || txType === 'PAY_RECEIVED') && promiseMeta) {
+        const role = getTxDisplayRole(tx);
         if (role) parts.push(`__ROLE__${role}`);
     }
     if (tx?.counterpartyId && tx?.counterpartyName !== topLine) {
@@ -1673,6 +1702,21 @@ const wireSpreadTooltips = (root) => {
     }
 };
 
+const isPromiseVerdict = (verdict = {}) => {
+    const parseMode = String(verdict?.parseMode || '').trim().toUpperCase();
+    if (parseMode === 'PROMISE' || parseMode === 'GLOBAL_PROMISE') return true;
+    return Number(verdict?.expectedRebuyUsdt || 0) > 0 || Number(verdict?.expectedRebuyFiat || 0) > 0;
+};
+
+const getVerdictCoverageDateStr = (verdict = {}) => {
+    const coverageDate = verdict?.promiseActivatedAt || verdict?.createdAt;
+    if (!coverageDate) return null;
+
+    const date = new Date(coverageDate);
+    if (Number.isNaN(date.getTime())) return null;
+    return date.toLocaleDateString('en-CA', { timeZone: CARACAS_TZ });
+};
+
 const updateCoverageBadge = (transfers = [], cycleSpreads = new Map()) => {
     const badge = document.getElementById('balance-ledger-coverage-badge');
     const label = document.getElementById('balance-ledger-coverage-label');
@@ -1719,36 +1763,86 @@ const updateCoverageBadge = (transfers = [], cycleSpreads = new Map()) => {
         const effectiveTo = rangeTo || todayDateStr;
 
         for (const verdict of verdictBySaleId.values()) {
-            const totalSellFiat = Number(verdict.fiatReceived || 0);
-            const remainingFiat = Number(verdict.remainingFiat || 0);
-            if (remainingFiat <= COVERAGE_COMPLETION_TOLERANCE_FIAT) continue;
+            const isPromise = isPromiseVerdict(verdict);
+            const fallbackUsdt = Number(verdict?.saleAmount || 0);
+            const fallbackFiat = Number(verdict?.fiatReceived || 0);
+            const expectedUsdt = Number(verdict?.expectedRebuyUsdt ?? fallbackUsdt);
+            const expectedFiat = Number(verdict?.expectedRebuyFiat ?? fallbackFiat);
+            const consumedUsdt = Math.max(0, Number(verdict?.consumedRebuyUsdt || 0));
+            const consumedFiat = Math.max(0, Number(verdict?.consumedRebuyFiat || 0));
+            const boundedConsumedUsdt = Math.min(consumedUsdt, expectedUsdt);
+            const boundedConsumedFiat = Math.min(consumedFiat, expectedFiat);
+            const pendingUsdt = Math.max(0, expectedUsdt - boundedConsumedUsdt);
+            const pendingFiat = Math.max(0, expectedFiat - boundedConsumedFiat);
+            const totalSellFiat = isPromise ? expectedFiat : Number(verdict.fiatReceived || 0);
+            const remainingFiat = isPromise ? pendingFiat : Number(verdict.remainingFiat || 0);
+            if (isPromise) {
+                if (pendingUsdt <= 0.009 && pendingFiat <= COVERAGE_COMPLETION_TOLERANCE_FIAT) continue;
+            } else if (remainingFiat <= COVERAGE_COMPLETION_TOLERANCE_FIAT) {
+                continue;
+            }
 
             // Restrict to current viewing range
-            const verdictDateStr = verdict.createdAt
-                ? new Date(verdict.createdAt).toLocaleDateString('en-CA', { timeZone: CARACAS_TZ })
-                : null;
+            const verdictDateStr = getVerdictCoverageDateStr(verdict);
             if (verdictDateStr) {
                 if (verdictDateStr < effectiveFrom) continue;
                 if (verdictDateStr > effectiveTo) continue;
             }
 
-            const recoveredFiat = Math.max(0, totalSellFiat - remainingFiat);
             const key = String(verdict.saleTransferId || verdict.saleId || '');
             if (!key) continue;
 
-            activeByKey.set(key, {
-                kind: 'cycle',
-                name: verdict.counterpartyName || 'Sin nombre',
-                recoveredFiat,
-                remainingFiat,
-                pct: totalSellFiat > 0 ? Math.min(100, (recoveredFiat / totalSellFiat) * 100) : 0,
-                fiatLabel: 'VES',
-            });
+            if (isPromise) {
+                const actualUsdt = boundedConsumedUsdt;
+                const actualFiat = boundedConsumedFiat;
+                activeByKey.set(key, {
+                    kind: 'promise',
+                    name: verdict.counterpartyName || 'Sin nombre',
+                    actualUsdt,
+                    actualFiat,
+                    pendingUsdt,
+                    pendingFiat,
+                    pct: expectedUsdt > 0 ? Math.min(100, (actualUsdt / expectedUsdt) * 100) : 0,
+                    fiatLabel: 'VES',
+                });
+            } else {
+                const recoveredFiat = Math.max(0, totalSellFiat - remainingFiat);
+                activeByKey.set(key, {
+                    kind: 'cycle',
+                    name: verdict.counterpartyName || 'Sin nombre',
+                    recoveredFiat,
+                    remainingFiat,
+                    pct: totalSellFiat > 0 ? Math.min(100, (recoveredFiat / totalSellFiat) * 100) : 0,
+                    fiatLabel: 'VES',
+                });
+            }
         }
     } else {
-        // Fallback: no judge data — scan transfer cache for open P2P_SELL cycles
+        // Fallback: no judge data — scan transfer cache for open P2P_SELL cycles and PAY promises
         for (const tx of transfers) {
-            if (normalizeTxType(tx) !== 'P2P_SELL') continue;
+            const txType = normalizeTxType(tx);
+            if (txType === 'PAY_SENT') {
+                const promiseMeta = getPromiseMeta(tx);
+                if (!promiseMeta) continue;
+                if (promiseMeta.pendingUsdt <= 0.009 && promiseMeta.pendingFiat <= COVERAGE_COMPLETION_TOLERANCE_FIAT) continue;
+
+                const key = getTransferKey(tx);
+                activeByKey.set(key, {
+                    kind: 'promise',
+                    name: tx?.counterpartyName || tx?.internalCounterpartyAlias || 'Sin nombre',
+                    actualUsdt: Number(promiseMeta.actualUsdt || 0),
+                    actualFiat: Number(promiseMeta.actualFiat || 0),
+                    pendingUsdt: Number(promiseMeta.pendingUsdt || 0),
+                    pendingFiat: Number(promiseMeta.pendingFiat || 0),
+                    pct: Number(promiseMeta.promiseUsdt || 0) > 0
+                        ? Math.min(100, (Number(promiseMeta.actualUsdt || 0) / Number(promiseMeta.promiseUsdt || 0)) * 100)
+                        : 0,
+                    fiatLabel: getFiatLabel(tx),
+                });
+                continue;
+            }
+
+            if (txType !== 'P2P_SELL') continue;
             const key = getTransferKey(tx);
             const cycleData = cycleSpreads.get(key);
             if (!cycleData || cycleData.complete) continue;
@@ -2353,51 +2447,66 @@ const prefetchSellContextPages = async () => {
 };
 
 const bindEventsOnce = () => {
-    if (state.initialized) return;
-    state.initialized = true;
-
     const { prevBtn, nextBtn, searchInput, typeFilters } = getElements();
+    const hasCoreElements = Boolean(prevBtn && nextBtn && searchInput && typeFilters.length > 0);
+    if (!hasCoreElements) {
+        state.initialized = false;
+        return;
+    }
 
-    prevBtn?.addEventListener('click', () => {
-        if (hasActiveSearch()) return;
-        if (state.page <= 1) return;
-        void fetchTransfersPage(state.page - 1);
-    });
+    if (!prevBtn.dataset.ledgerBound) {
+        prevBtn.addEventListener('click', () => {
+            if (hasActiveSearch()) return;
+            if (state.page <= 1) return;
+            void fetchTransfersPage(state.page - 1);
+        });
+        prevBtn.dataset.ledgerBound = 'true';
+    }
 
-    nextBtn?.addEventListener('click', () => {
-        if (hasActiveSearch()) return;
-        if (state.page >= state.totalPages) return;
-        void fetchTransfersPage(state.page + 1);
-    });
+    if (!nextBtn.dataset.ledgerBound) {
+        nextBtn.addEventListener('click', () => {
+            if (hasActiveSearch()) return;
+            if (state.page >= state.totalPages) return;
+            void fetchTransfersPage(state.page + 1);
+        });
+        nextBtn.dataset.ledgerBound = 'true';
+    }
 
-    searchInput?.addEventListener('input', (event) => {
-        state.searchTerm = String(event?.target?.value || '').trim();
-        state.searchSeq += 1;
-        if (searchDebounceTimer) {
-            clearTimeout(searchDebounceTimer);
-            searchDebounceTimer = null;
-        }
+    if (!searchInput.dataset.ledgerBound) {
+        searchInput.addEventListener('input', (event) => {
+            state.searchTerm = String(event?.target?.value || '').trim();
+            state.searchSeq += 1;
+            if (searchDebounceTimer) {
+                clearTimeout(searchDebounceTimer);
+                searchDebounceTimer = null;
+            }
 
-        const searchActive = hasActiveSearch();
-        state.searchPending = searchActive && !areAllPagesCached();
-        renderTransfers(state.currentTransfers, { resetScroll: true });
+            const searchActive = hasActiveSearch();
+            state.searchPending = searchActive && !areAllPagesCached();
+            renderTransfers(state.currentTransfers, { resetScroll: true });
 
-        if (!searchActive || !state.searchPending) {
-            state.searchPending = false;
-            updatePaginationUI();
+            if (!searchActive || !state.searchPending) {
+                state.searchPending = false;
+                updatePaginationUI();
+                return;
+            }
+
+            const currentSearchSeq = state.searchSeq;
+            searchDebounceTimer = setTimeout(async () => {
+                await prefetchSellContextPages();
+                if (currentSearchSeq !== state.searchSeq) return;
+                state.searchPending = !areAllPagesCached();
+                renderTransfers(state.currentTransfers, { resetScroll: false });
+            }, 180);
+        });
+        searchInput.dataset.ledgerBound = 'true';
+    }
+
+    typeFilters.forEach((button) => {
+        if (button.dataset.ledgerBound) {
             return;
         }
 
-        const currentSearchSeq = state.searchSeq;
-        searchDebounceTimer = setTimeout(async () => {
-            await prefetchSellContextPages();
-            if (currentSearchSeq !== state.searchSeq) return;
-            state.searchPending = !areAllPagesCached();
-            renderTransfers(state.currentTransfers, { resetScroll: false });
-        }, 180);
-    });
-
-    typeFilters.forEach((button) => {
         button.addEventListener('click', () => {
             const nextType = String(button?.dataset?.ledgerType || 'ALL').toUpperCase();
             if (!LEDGER_FILTER_OPTIONS.includes(nextType) || nextType === state.typeFilter) {
@@ -2421,7 +2530,10 @@ const bindEventsOnce = () => {
             renderPlaceholder('Filtrando movimientos...');
             void fetchTransfersPage(1);
         });
+        button.dataset.ledgerBound = 'true';
     });
+
+    state.initialized = true;
 };
 
 export const updateBalanceLedgerUI = (kpis = {}, context = {}) => {
