@@ -1193,6 +1193,7 @@ const getNearestSellForBuy = (buyTx) => {
                 fee: effectiveFee,
                 role: role || '',
                 amount,
+                isPromise: Boolean(getPromiseMeta(tx)?.promiseUsdt > 0),
                 tx,
                 key: getTransferKey(tx),
                 timestampMs: sellTs,
@@ -1242,6 +1243,7 @@ const getNearestSellRoleForBuy = (buyTx) => {
                 role: role || '',
                 fee: fee > 0 && (!feeCurrency || feeCurrency === 'USDT') ? fee : 0,
                 amount: getTxUsdtVolume(tx),
+                isPromise: Boolean(getPromiseMeta(tx)?.promiseUsdt > 0),
             };
         }
     }
@@ -1354,7 +1356,7 @@ const computeTxSpread = (tx = {}, rateOverride = 0) => {
     // Si no hay una venta pairable en la página actual (p.ej. la página 1 tiene compras
     // cuyas ventas correspondientes están en la página 2), usamos la tasa de referencia
     // global del KPI para estimar igualmente el spread en vez de devolver 0.
-    let sellRate, sellRoleSource, sellFeeSource, sellAmountSource;
+    let sellRate, sellRoleSource, sellFeeSource, sellAmountSource, sellIsPromise = false;
     if (rateOverride > 0) {
         // Ciclo con múltiples ventas abiertas: se usa la tasa promedio ponderada
         // calculada por computeCycleSpreads. Para role/fee se toma la venta más cercana.
@@ -1362,11 +1364,13 @@ const computeTxSpread = (tx = {}, rateOverride = 0) => {
         sellRoleSource = nearestSell?.role || '';
         sellFeeSource = nearestSell?.fee || 0;
         sellAmountSource = nearestSell?.amount || buyUsdtIn;
+        sellIsPromise = Boolean(nearestSell?.isPromise);
     } else if (nearestSell && nearestSell.rate > 0) {
         sellRate = nearestSell.rate;
         sellRoleSource = nearestSell.role;
         sellFeeSource = nearestSell.fee;
         sellAmountSource = nearestSell.amount;
+        sellIsPromise = Boolean(nearestSell.isPromise);
     } else {
         sellRate = getFallbackSellReferenceRate();
         if (sellRate <= 0) return 0;
@@ -1376,6 +1380,7 @@ const computeTxSpread = (tx = {}, rateOverride = 0) => {
         sellRoleSource = nearestSellRole?.role || '';
         sellFeeSource = nearestSellRole?.fee || 0;
         sellAmountSource = nearestSellRole?.amount || buyUsdtIn;
+        sellIsPromise = Boolean(nearestSellRole?.isPromise);
     }
 
     // Fórmula de venta: se usan los VES de la COMPRA divididos por la tasa de la venta.
@@ -1385,15 +1390,22 @@ const computeTxSpread = (tx = {}, rateOverride = 0) => {
         ? buyFiat / sellRate
         : sellAmountSource; // fallback si no hay fiat en la compra
 
-    // El rol de la VENTA determina si se aplica fee en la fórmula de costo de venta.
-    // El rol del BUY ya fue contabilizado por getSignedAmount (que descuenta el fee real de compra).
-    // Usar el rol del BUY aquí era incorrecto: una compra MAKER con venta TAKER
-    // omitía el fee de venta y sobreestimaba el spread.
-    const effectiveSellRole = inferMakerTakerRole({
+    // Solo las promesas deben forzar la fórmula con el rol de la VENTA.
+    // Para ventas normales mantenemos el comportamiento previo y usamos
+    // el rol del BUY como referencia principal.
+    const buyRole = inferMakerTakerRole({
+        explicitRole: tx?.advertisementRole,
+        fee: toFiniteNumber(tx?.fee),
+        amount: Math.abs(Number(tx?.amount || 0)),
+    });
+    const inferredSellRole = inferMakerTakerRole({
         explicitRole: sellRoleSource,
         fee: sellFeeSource,
         amount: sellAmountSource,
     });
+    const effectiveSellRole = sellIsPromise
+        ? inferredSellRole
+        : (buyRole === 'MAKER' || buyRole === 'TAKER' ? buyRole : inferredSellRole);
 
     const makerFeeRate = Number(state.kpis?.config?.verificationPercent || 0) / 100;
     // sellFee solo aplica en la rama TAKER (fórmula a). La rama MAKER usa makerFeeRate,
