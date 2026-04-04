@@ -802,7 +802,14 @@ const buildTransfersUrl = (apiBase, range = {}, page = 1, limit = 12, includeCha
     return `${String(apiBase || '').replace(/\/+$/, '')}/api/transfers?${params.toString()}`;
 };
 
-const hasActiveSearch = () => Boolean(String(state.searchTerm || '').trim());
+const getEffectiveSearchTerm = () => {
+    const { searchInput } = getElements();
+    const liveValue = String(searchInput?.value || '').trim();
+    if (liveValue) return liveValue;
+    return String(state.searchTerm || '').trim();
+};
+
+const hasActiveSearch = () => Boolean(getEffectiveSearchTerm());
 
 const areAllPagesCached = () => {
     if (state.totalPages <= 0) return false;
@@ -1114,7 +1121,7 @@ const getAvgTakerSellFeeForBank = (txToMatch) => {
     for (const tx of state.currentTransfers) {
         if (!isLedgerSellTarget(tx)) continue;
 
-        const role = String(tx?.advertisementRole || '').toUpperCase();
+        const role = getTxDisplayRole(tx);
         if (role && role !== 'TAKER') continue;
 
         const txBankKey = normalizeBankKey(tx?.bankName || tx?.bank || tx?.paymentMethod);
@@ -1154,7 +1161,7 @@ const getNearestSellForBuy = (buyTx) => {
         if (tx === buyTx) continue;
         if (!isLedgerSellTarget(tx)) continue;
 
-        const role = String(tx?.advertisementRole || '').toUpperCase();
+        const role = getTxDisplayRole(tx);
 
         const sellBankKey = normalizeBankKey(tx?.bankName || tx?.bank || tx?.paymentMethod);
         if (!sellBankKey) continue;
@@ -1228,7 +1235,7 @@ const getNearestSellRoleForBuy = (buyTx) => {
 
         if (score < bestScore) {
             bestScore = score;
-            const role = String(tx?.advertisementRole || '').toUpperCase();
+            const role = getTxDisplayRole(tx);
             const fee = toFiniteNumber(tx?.fee);
             const feeCurrency = String(tx?.feeCurrency || '').toUpperCase();
             best = {
@@ -1271,7 +1278,7 @@ const buildSpreadSellSnapshot = (tx = {}, remainingFiat = 0) => {
     const fiatAmount = resolveFiatAmount(tx);
     const usdtAmount = getTxUsdtVolume(tx);
     const role = inferMakerTakerRole({
-        explicitRole: tx?.advertisementRole,
+        explicitRole: getTxDisplayRole(tx),
         fee: toFiniteNumber(tx?.fee),
         amount: Math.abs(Number(tx?.amount || 0)),
     });
@@ -1343,16 +1350,6 @@ const computeTxSpread = (tx = {}, rateOverride = 0) => {
     if (buyUsdtIn <= 0) return 0;
 
     const nearestSell = getNearestSellForBuy(tx);
-
-    // El rol de la COMPRA (si es explícito: MAKER o TAKER) tiene prioridad absoluta
-    // sobre el rol inferido de la venta emparejada. Esto evita que una compra marcada
-    // como MAKER reciba penalización de TAKER solo porque la venta asociada tiene un
-    // rol no estándar (p.ej. LARGE) o una fee que no cuadra con el porcentaje MAKER.
-    const buyRole = inferMakerTakerRole({
-        explicitRole: tx?.advertisementRole,
-        fee: toFiniteNumber(tx?.fee),
-        amount: Math.abs(Number(tx?.amount || 0)),
-    });
 
     // Si no hay una venta pairable en la página actual (p.ej. la página 1 tiene compras
     // cuyas ventas correspondientes están en la página 2), usamos la tasa de referencia
@@ -2109,7 +2106,11 @@ const renderTransfers = (transfers = [], options = {}) => {
     const savedScrollTop = scroll && !resetScroll ? scroll.scrollTop : 0;
 
     const allTransfers = Array.isArray(transfers) ? transfers : [];
-    const searchActive = hasActiveSearch();
+    const searchTerm = getEffectiveSearchTerm();
+    if (searchTerm !== state.searchTerm) {
+        state.searchTerm = searchTerm;
+    }
+    const searchActive = Boolean(searchTerm);
 
     // Llenar el caché global con las transacciones recién cargadas
     allTransfers.forEach((tx) => {
@@ -2154,10 +2155,21 @@ const renderTransfers = (transfers = [], options = {}) => {
         }
     }
 
+    if (searchActive && !areAllPagesCached() && !state.searchPending) {
+        state.searchPending = true;
+        updatePaginationUI();
+        const scheduledSearchTerm = searchTerm;
+        void prefetchSellContextPages().then(() => {
+            if (getEffectiveSearchTerm() !== scheduledSearchTerm) return;
+            state.searchPending = !areAllPagesCached();
+            renderTransfers(state.currentTransfers, { resetScroll: false });
+        });
+    }
+
     const searchableRows = searchActive
         ? buildRowsWithRangeBalance(cachedScopedTransfers)
         : rowsWithBalance;
-    const filteredRows = searchableRows.filter(({ tx }) => matchesSearch(tx, state.searchTerm));
+    const filteredRows = searchableRows.filter(({ tx }) => matchesSearch(tx, searchTerm));
     state.searchResultCount = filteredRows.length;
 
     if (count) {
@@ -2563,7 +2575,10 @@ export const updateBalanceLedgerUI = (kpis = {}, context = {}) => {
     state.bankData = Array.isArray(context?.bankData) ? context.bankData : [];
 
     const { searchInput } = getElements();
-    if (searchInput && searchInput.value !== state.searchTerm) {
+    const domSearchTerm = String(searchInput?.value || '').trim();
+    if (domSearchTerm && domSearchTerm !== state.searchTerm) {
+        state.searchTerm = domSearchTerm;
+    } else if (searchInput && searchInput.value !== state.searchTerm) {
         searchInput.value = state.searchTerm;
     }
     updateTypeFilterUI();
