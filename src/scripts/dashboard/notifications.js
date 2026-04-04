@@ -21,6 +21,8 @@ function formatTimestamp(value) {
 
 const NOTIF_TYPE_STYLE = {
     promise_created: { icon: '🤝', color: '#F3BA2F', label: 'Promesa' },
+    promise_paid: { icon: '✅', color: '#22c55e', label: 'Liquidada' },
+    promise_reminder: { icon: '⏳', color: '#f97316', label: 'Recordatorio' },
     rebuy_shortfall: { icon: '⚠️', color: '#f87171', label: 'Recompra' },
     cycle_incomplete: { icon: '⏳', color: '#fb923c', label: 'Ciclo' },
     ves_holding_prolonged: { icon: '💰', color: '#fbbf24', label: 'VES Retenido' },
