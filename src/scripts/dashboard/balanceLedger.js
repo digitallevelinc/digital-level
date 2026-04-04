@@ -2447,90 +2447,95 @@ const prefetchSellContextPages = async () => {
 };
 
 const bindEventsOnce = () => {
-    const { prevBtn, nextBtn, searchInput, typeFilters } = getElements();
-    const hasCoreElements = Boolean(prevBtn && nextBtn && searchInput && typeFilters.length > 0);
-    if (!hasCoreElements) {
-        state.initialized = false;
+    if (state.initialized) {
         return;
     }
 
-    if (!prevBtn.dataset.ledgerBound) {
-        prevBtn.addEventListener('click', () => {
-            if (hasActiveSearch()) return;
-            if (state.page <= 1) return;
-            void fetchTransfersPage(state.page - 1);
-        });
-        prevBtn.dataset.ledgerBound = 'true';
-    }
+    const applySearchTerm = (rawValue, resetScroll = true) => {
+        state.searchTerm = String(rawValue || '').trim();
+        state.searchSeq += 1;
+        if (searchDebounceTimer) {
+            clearTimeout(searchDebounceTimer);
+            searchDebounceTimer = null;
+        }
 
-    if (!nextBtn.dataset.ledgerBound) {
-        nextBtn.addEventListener('click', () => {
-            if (hasActiveSearch()) return;
-            if (state.page >= state.totalPages) return;
-            void fetchTransfersPage(state.page + 1);
-        });
-        nextBtn.dataset.ledgerBound = 'true';
-    }
+        const searchActive = hasActiveSearch();
+        state.searchPending = searchActive && !areAllPagesCached();
+        renderTransfers(state.currentTransfers, { resetScroll });
 
-    if (!searchInput.dataset.ledgerBound) {
-        searchInput.addEventListener('input', (event) => {
-            state.searchTerm = String(event?.target?.value || '').trim();
-            state.searchSeq += 1;
-            if (searchDebounceTimer) {
-                clearTimeout(searchDebounceTimer);
-                searchDebounceTimer = null;
-            }
-
-            const searchActive = hasActiveSearch();
-            state.searchPending = searchActive && !areAllPagesCached();
-            renderTransfers(state.currentTransfers, { resetScroll: true });
-
-            if (!searchActive || !state.searchPending) {
-                state.searchPending = false;
-                updatePaginationUI();
-                return;
-            }
-
-            const currentSearchSeq = state.searchSeq;
-            searchDebounceTimer = setTimeout(async () => {
-                await prefetchSellContextPages();
-                if (currentSearchSeq !== state.searchSeq) return;
-                state.searchPending = !areAllPagesCached();
-                renderTransfers(state.currentTransfers, { resetScroll: false });
-            }, 180);
-        });
-        searchInput.dataset.ledgerBound = 'true';
-    }
-
-    typeFilters.forEach((button) => {
-        if (button.dataset.ledgerBound) {
+        if (!searchActive || !state.searchPending) {
+            state.searchPending = false;
+            updatePaginationUI();
             return;
         }
 
-        button.addEventListener('click', () => {
-            const nextType = String(button?.dataset?.ledgerType || 'ALL').toUpperCase();
-            if (!LEDGER_FILTER_OPTIONS.includes(nextType) || nextType === state.typeFilter) {
-                return;
-            }
-            state.typeFilter = nextType;
-            if (searchDebounceTimer) {
-                clearTimeout(searchDebounceTimer);
-                searchDebounceTimer = null;
-            }
-            state.pageNetByPage.clear();
-            state.transfersCache.clear();
-            state.prefetchedPages.clear();
-            state.closingBalance = null;
-            state.total = 0;
-            state.totalPages = 0;
-            state.searchPending = false;
-            state.searchResultCount = 0;
-            updateTypeFilterUI();
-            updatePaginationUI();
-            renderPlaceholder('Filtrando movimientos...');
-            void fetchTransfersPage(1);
-        });
-        button.dataset.ledgerBound = 'true';
+        const currentSearchSeq = state.searchSeq;
+        searchDebounceTimer = setTimeout(async () => {
+            await prefetchSellContextPages();
+            if (currentSearchSeq !== state.searchSeq) return;
+            state.searchPending = !areAllPagesCached();
+            renderTransfers(state.currentTransfers, { resetScroll: false });
+        }, 180);
+    };
+
+    document.addEventListener('input', (event) => {
+        const target = event.target;
+        if (!(target instanceof HTMLInputElement)) return;
+        if (target.id !== 'balance-ledger-search') return;
+        applySearchTerm(target.value, true);
+    });
+
+    document.addEventListener('search', (event) => {
+        const target = event.target;
+        if (!(target instanceof HTMLInputElement)) return;
+        if (target.id !== 'balance-ledger-search') return;
+        applySearchTerm(target.value, true);
+    });
+
+    document.addEventListener('click', (event) => {
+        const target = event.target;
+        if (!(target instanceof Element)) return;
+
+        const prevBtn = target.closest('#balance-ledger-prev');
+        if (prevBtn) {
+            if (hasActiveSearch()) return;
+            if (state.page <= 1) return;
+            void fetchTransfersPage(state.page - 1);
+            return;
+        }
+
+        const nextBtn = target.closest('#balance-ledger-next');
+        if (nextBtn) {
+            if (hasActiveSearch()) return;
+            if (state.page >= state.totalPages) return;
+            void fetchTransfersPage(state.page + 1);
+            return;
+        }
+
+        const typeButton = target.closest('[data-ledger-type]');
+        if (!typeButton) return;
+
+        const nextType = String(typeButton?.dataset?.ledgerType || 'ALL').toUpperCase();
+        if (!LEDGER_FILTER_OPTIONS.includes(nextType) || nextType === state.typeFilter) {
+            return;
+        }
+        state.typeFilter = nextType;
+        if (searchDebounceTimer) {
+            clearTimeout(searchDebounceTimer);
+            searchDebounceTimer = null;
+        }
+        state.pageNetByPage.clear();
+        state.transfersCache.clear();
+        state.prefetchedPages.clear();
+        state.closingBalance = null;
+        state.total = 0;
+        state.totalPages = 0;
+        state.searchPending = false;
+        state.searchResultCount = 0;
+        updateTypeFilterUI();
+        updatePaginationUI();
+        renderPlaceholder('Filtrando movimientos...');
+        void fetchTransfersPage(1);
     });
 
     state.initialized = true;
