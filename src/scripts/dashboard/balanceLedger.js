@@ -53,8 +53,8 @@ const formatCoveragePercent = (pct, complete = false) => {
     const safePct = Math.max(0, Number(pct || 0));
     if (complete) return '100%';
 
-    const cappedPct = Math.min(safePct, 99.9);
-    if (cappedPct >= 99) return `${cappedPct.toFixed(1)}%`;
+    const cappedPct = Math.min(safePct, 99.99);
+    if (cappedPct >= 99) return `${cappedPct.toFixed(2)}%`;
     if (cappedPct >= 10) return `${Math.round(cappedPct)}%`;
     return `${cappedPct.toFixed(1)}%`;
 };
