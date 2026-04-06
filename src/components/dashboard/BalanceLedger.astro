@@ -3,11 +3,6 @@
     <div id="balance-ledger-panel" class="ledger-panel">
         <div class="ledger-panel-head px-4 py-3 md:px-5">
             <div class="ledger-head-pills">
-                <span id="balance-ledger-coverage-badge" class="ledger-pill ledger-pill-coverage" style="display:none">
-                    <span class="ledger-pulse ledger-pulse-warning"></span>
-                    <span id="balance-ledger-coverage-label">0 coberturas</span>
-                    <div class="ledger-coverage-tooltip" id="balance-ledger-coverage-tooltip"></div>
-                </span>
             </div>
         </div>
 
@@ -18,6 +13,13 @@
                         Pagina 0 / 0
                     </span>
                     <span id="balance-ledger-count" class="ledger-panel-copy ledger-page-copy">Cargando historial...</span>
+                    <div class="ledger-head-pills ledger-head-pills-inline">
+                        <span id="balance-ledger-coverage-badge" class="ledger-pill ledger-pill-coverage" style="display:none">
+                            <span class="ledger-pulse ledger-pulse-warning"></span>
+                            <span id="balance-ledger-coverage-label">0 coberturas</span>
+                            <div class="ledger-coverage-tooltip" id="balance-ledger-coverage-tooltip"></div>
+                        </span>
+                    </div>
                 </div>
 
                 <div class="ledger-toolbar-actions">
@@ -166,6 +168,11 @@
         flex-wrap: wrap;
         justify-content: flex-end;
         gap: 0.6rem;
+    }
+
+    .ledger-head-pills-inline {
+        justify-content: flex-start;
+        margin-top: 0.3rem;
     }
 
     .ledger-pill {
