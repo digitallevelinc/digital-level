@@ -135,12 +135,17 @@
     @media (max-width: 767px) {
         .sidebar-auditor-shell {
             top: auto;
-            right: 0.75rem;
-            bottom: calc(env(safe-area-inset-bottom, 0px) + 5.25rem);
-            align-items: end;
+            right: 0;
+            bottom: 0;
+            width: 100%;
+            align-items: flex-end;
+            justify-content: flex-end;
         }
 
         #sidebar-trigger {
+            position: fixed;
+            right: 0.9rem;
+            bottom: calc(env(safe-area-inset-bottom, 0px) + 0.9rem);
             margin-top: 0;
             border-right: 2px solid rgba(243, 186, 47, 0.4);
             border-left-width: 2px;
@@ -148,16 +153,28 @@
             padding: 0.88rem;
             box-shadow: 0 18px 36px rgba(0, 0, 0, 0.38);
             background: rgba(22, 26, 30, 0.96);
+            z-index: 1102;
         }
 
         #sidebar-panel {
-            height: min(calc(100dvh - 8.5rem), 78dvh);
-            margin-top: 0;
-            margin-right: 0.45rem;
+            position: fixed;
+            inset: 0;
+            height: 100dvh;
+            margin: 0;
         }
 
         .sidebar-panel-shell {
-            border-radius: 1.25rem;
+            border-radius: 0;
+            border-left: 0;
+            background: rgba(18, 23, 29, 0.99);
+        }
+
+        .sidebar-panel-shell.is-open {
+            box-shadow: none;
+        }
+
+        #sidebar-panel > div {
+            padding: max(1rem, env(safe-area-inset-top, 0px)) 1rem calc(1.1rem + env(safe-area-inset-bottom, 0px));
         }
     }
 
@@ -178,8 +195,7 @@
 
     const getPanelWidth = () => {
         const w = window.innerWidth || 0;
-        if (w <= 480) return 'calc(100vw - 12px)';
-        if (w <= 768) return 'min(calc(100vw - 12px), 360px)';
+        if (w <= 768) return '100vw';
         if (w >= 1700) return '440px';
         if (w >= 1440) return '400px';
         if (w >= 1200) return '360px';
