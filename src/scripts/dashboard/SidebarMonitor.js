@@ -157,12 +157,6 @@ function getBankMonitorSummary(kpis = {}, bankInsights = []) {
     };
 }
 
-function buildBankRateLabel(bank, fallbackRate = 0) {
-    const averageSellRate = resolveBankAverageSellRate(bank);
-    const ceilingRate = resolveBankCeilingRate(bank, fallbackRate);
-    return `Venta prom. ${formatPlain(averageSellRate)} | Techo ${formatPlain(ceilingRate)}`;
-}
-
 function getLedgerSpreadProfit(bank = {}) {
     if (bank?.ledgerSpreadReady !== true) return 0;
     return toNumber(bank.spreadProfitUsdt);
@@ -960,12 +954,6 @@ export function updateSidebarMonitor(kpis = {}, bankInsights = []) {
         discEl.className = `text-sm font-mono font-black tracking-tighter ${diferencia < 0 ? 'text-rose-500' : 'text-emerald-400'}`;
     }
 
-    const hasLiveVerdictsFeed = Array.isArray(kpis?.judge?.openVerdicts);
-    const openVerdicts = hasLiveVerdictsFeed
-        ? getActiveOpenVerdicts(kpis).length
-        : (kpis.judge?.openVerdictsCount ?? kpis.judge?.summary?.openVerdictsCount ?? 0);
-    inject('side-verdicts-count', `${openVerdicts} Open`);
-
     const listContainer = document.getElementById('side-banks-list');
     if (!listContainer) return;
     listContainer.innerHTML = '';
@@ -986,22 +974,14 @@ export function updateSidebarMonitor(kpis = {}, bankInsights = []) {
         // no del profit agregado del backend/judge. balanceLedger.js inyecta ese
         // valor por banco cuando termina de recalcular los spreads del rango actual.
         const bankProfit = getLedgerSpreadProfit(bank);
-        const rateLabel = buildBankRateLabel(bank, bankSummary.referenceSellRate);
         const vesControl = buildBankVesLimitLabel(bank, kpis.config || {}, vesControlSummaryByBank);
         const bankCeiling = Number(vesControl.limit || 0);
-        const ceilingRate = Number(
-            bank.ceilingRate
-            || resolveBankAverageSellRate(bank)
-            || bankSummary.referenceSellRate
-            || 0
-        );
 
         return {
             bank,
             ops,
             vesControl,
             pagoMovil,
-            rateLabel,
             promiseLabel,
             cyclesCompleted,
             bankCeiling,
@@ -1009,22 +989,11 @@ export function updateSidebarMonitor(kpis = {}, bankInsights = []) {
         };
     });
 
-    const activeBankCards = bankCards.filter((entry) => Number(entry.bankCeiling || 0) > 0);
+    inject('side-ceiling-level-label', 'NIVEL ACTUAL');
+    inject('side-ceiling-level-value', String(bankSummary.levelLabel || 'Sin nivel').toUpperCase());
+    inject('side-ceiling-level-meta', `${formatPlain(bankSummary.verificationPercent)}%`);
 
-    inject('side-ceiling-level-label', 'TECHO GENERAL');
-    inject(
-        'side-ceiling-level-value',
-        bankSummary.avgSellRate > 0 || bankSummary.avgCeilingRate > 0
-            ? `${formatPlain(bankSummary.avgSellRate)} Venta | ${formatPlain(bankSummary.avgCeilingRate)} Techo`
-            : '0,00 Venta | 0,00 Techo'
-    );
-    inject('side-ceiling-level-meta', bankSummary.banksWithSell > 0
-        ? `Tasa promedio de ${formatPlain(bankSummary.banksWithSell, 0)} bancos con venta`
-        : 'Sin bancos con venta activa');
-    inject('side-ceiling-sell-rate', `Nivel ${String(bankSummary.levelLabel || 'Sin nivel').toUpperCase()} | ${formatPlain(bankSummary.verificationPercent)}%`);
-    inject('side-ceiling-level-badge', `${formatPlain(activeBankCards.length, 0)} Bancos`);
-
-    bankCards.forEach(({ bank, ops, vesControl, pagoMovil, rateLabel, promiseLabel, cyclesCompleted, bankProfit }) => {
+    bankCards.forEach(({ bank, ops, vesControl, pagoMovil, cyclesCompleted, bankProfit }) => {
         const performancePercent = Number(bank.profitPercent ?? bank.margin ?? 0);
         const hasReliablePerformanceBase = (
             Math.abs(Number(bank.spreadSellUsdt || 0)) > 0.0001
@@ -1032,9 +1001,6 @@ export function updateSidebarMonitor(kpis = {}, bankInsights = []) {
             || Math.abs(Number(bank.sellVolUSDT || 0)) > 0.0001
         );
         const showPerformanceBadge = Number.isFinite(performancePercent) && hasReliablePerformanceBase;
-        const promiseTextClass = promiseLabel.pendingUsdt > 0 || promiseLabel.pendingFiat > 0
-            ? 'text-amber-300'
-            : 'text-white/90';
         const statusLabel = `Ciclos ${formatPlain(cyclesCompleted, 0)} | Ops ${formatPlain(ops, 0)}`;
         const performanceClass = performancePercent >= 0
             ? 'border-emerald-500/20 bg-emerald-500/10 text-emerald-300'
@@ -1062,21 +1028,6 @@ export function updateSidebarMonitor(kpis = {}, bankInsights = []) {
                     <span class="text-[1rem] font-mono font-black ${bankProfit >= 0 ? 'text-emerald-400' : 'text-rose-500'} tracking-tight">${formatSignedUsdt(bankProfit)}</span>
                     <span class="text-[9px] text-gray-500 block font-black uppercase tracking-wider">Profit Neto</span>
                 </div>
-            </div>
-            <div class="text-[11px] font-mono font-black tracking-tight text-[#F3BA2F] mt-1">
-                ${rateLabel}
-            </div>
-            <div class="flex items-center justify-between gap-3 mt-1">
-                <span class="text-[11px] text-slate-500 font-black uppercase tracking-[0.18em]">Parseo 2.0</span>
-                <span class="text-[11px] text-slate-500 font-black tracking-tight">${promiseLabel.meta}</span>
-            </div>
-            ${promiseLabel.promisedLine ? `
-                <div class="text-[11px] font-mono font-black tracking-tight ${promiseLabel.promisedLineClass}">
-                    ${promiseLabel.promisedLabel}: ${promiseLabel.promisedLine}
-                </div>
-            ` : ''}
-            <div class="text-[13px] font-mono font-black tracking-tight ${promiseTextClass}">
-                ${promiseLabel.pendingLabel}: ${promiseLabel.value}
             </div>
             <div class="flex items-center justify-between gap-3 mt-1">
                 <span class="text-[11px] text-slate-500 font-black uppercase tracking-[0.18em]">Control VES</span>

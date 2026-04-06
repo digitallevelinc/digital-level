@@ -40,14 +40,10 @@
             
             <div class="space-y-4 mb-6">
                 <div class="bg-[#1b2128] p-5 rounded-2xl border border-white/10 shadow-[inset_0_1px_0_rgba(255,255,255,0.02)]">
-                    <div class="flex items-start justify-between gap-3">
-                        <div class="min-w-0">
-                            <p id="side-ceiling-level-label" class="text-[11px] font-black text-rose-400 uppercase tracking-[0.18em]">Techo (Nivel)</p>
-                            <p id="side-ceiling-level-value" class="text-[1.45rem] leading-tight mt-2 font-black text-white tracking-tight">0.00</p>
-                            <p id="side-ceiling-level-meta" class="text-[10px] text-gray-500 uppercase font-black tracking-[0.15em] mt-2">Sin data</p>
-                            <p id="side-ceiling-sell-rate" class="text-[11px] text-cyan-300 uppercase font-black tracking-[0.15em] mt-1.5">Venta prom. ponderada: 0.00 VES/USDT</p>
-                        </div>
-                        <span id="side-ceiling-level-badge" class="text-[10px] font-black text-white/80 bg-[#2a3139] px-2.5 py-1 rounded-full uppercase tracking-[0.18em] border border-white/8">0 Bancos</span>
+                    <div class="min-w-0">
+                        <p id="side-ceiling-level-label" class="text-[11px] font-black text-rose-400 uppercase tracking-[0.18em]">Nivel actual</p>
+                        <p id="side-ceiling-level-value" class="text-[1.45rem] leading-tight mt-2 font-black text-white tracking-tight">Sin nivel</p>
+                        <p id="side-ceiling-level-meta" class="text-[10px] text-cyan-300 uppercase font-black tracking-[0.15em] mt-2">0,00%</p>
                     </div>
                 </div>
                 <div class="bg-[#171d24] p-4 rounded-xl border border-white/10 shadow-[inset_0_1px_0_rgba(255,255,255,0.02)]">
@@ -78,7 +74,6 @@
                     <p class="text-[12px] font-black text-gray-400 uppercase tracking-widest">Monitor Bancos</p>
                     <div class="flex items-center gap-2">
                         <button id="btn-clean-stale-ves" class="hidden text-[9px] font-black text-slate-300 hover:text-rose-300 bg-[#232a32] hover:bg-rose-500/10 border border-white/10 hover:border-rose-500/30 px-2 py-0.5 rounded cursor-pointer transition-all" title="Cerrar ciclos VES viejos sin parseo">Limpiar VES</button>
-                        <span id="side-verdicts-count" class="text-[10px] font-black text-[#F3BA2F] bg-[#F3BA2F]/10 px-2 py-0.5 rounded">0 Open</span>
                     </div>
                 </div>
                 <div id="side-banks-list" class="space-y-4">
