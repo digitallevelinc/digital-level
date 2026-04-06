@@ -1,5 +1,7 @@
 import { fUSDT, inject } from './utils.js';
 
+const SIDEBAR_BANK_COLLAPSE_KEY = 'sidebar_bank_cards_collapsed_v1';
+
 function isAdminCycleActionEnabled() {
     try {
         return sessionStorage.getItem('admin_impersonation') === 'true';
@@ -206,6 +208,35 @@ function normalizeBankName(value) {
 
 function normalizeBankLimitKey(bank) {
     return normalizeBankName(bank?.bankName || bank?.bank || '');
+}
+
+function readSidebarBankCollapseState() {
+    try {
+        const raw = localStorage.getItem(SIDEBAR_BANK_COLLAPSE_KEY);
+        const parsed = raw ? JSON.parse(raw) : {};
+        return parsed && typeof parsed === 'object' ? parsed : {};
+    } catch (_error) {
+        return {};
+    }
+}
+
+function writeSidebarBankCollapseState(nextState) {
+    try {
+        localStorage.setItem(SIDEBAR_BANK_COLLAPSE_KEY, JSON.stringify(nextState));
+    } catch (_error) {}
+}
+
+function isSidebarBankCollapsed(bankKey) {
+    if (!bankKey) return false;
+    const state = readSidebarBankCollapseState();
+    return state[bankKey] === true;
+}
+
+function setSidebarBankCollapsed(bankKey, collapsed) {
+    if (!bankKey) return;
+    const state = readSidebarBankCollapseState();
+    state[bankKey] = Boolean(collapsed);
+    writeSidebarBankCollapseState(state);
 }
 
 const CANONICAL_BANK_LABELS = {
@@ -1006,12 +1037,16 @@ export function updateSidebarMonitor(kpis = {}, bankInsights = []) {
             ? 'border-emerald-500/20 bg-emerald-500/10 text-emerald-300'
             : 'border-rose-500/20 bg-rose-500/10 text-rose-300';
         const performanceLabel = `${performancePercent >= 0 ? '+' : ''}${formatPlain(performancePercent, 2)}%`;
+        const bankCardKey = normalizeBankLimitKey(bank) || normalizeBankName(bank?.bankName || bank?.bank);
+        const isCollapsed = isSidebarBankCollapsed(bankCardKey);
 
         const div = document.createElement('div');
-        div.className = 'bg-[#1a2027] p-4 rounded-xl border border-white/10 flex flex-col gap-2.5 transition-all hover:bg-[#202730] shadow-[inset_0_1px_0_rgba(255,255,255,0.02)]';
+        div.className = 'sidebar-bank-card bg-[#1a2027] p-4 rounded-xl border border-white/10 flex flex-col gap-2.5 transition-all hover:bg-[#202730] shadow-[inset_0_1px_0_rgba(255,255,255,0.02)]';
+        div.dataset.bankCard = bankCardKey;
+        div.dataset.collapsed = isCollapsed ? 'true' : 'false';
         div.innerHTML = `
-            <div class="flex justify-between items-start">
-                <div class="flex flex-col">
+            <button type="button" data-bank-toggle="${bankCardKey}" class="w-full flex justify-between items-start gap-3 bg-transparent border-0 p-0 text-left cursor-pointer">
+                <div class="flex flex-col min-w-0">
                     <div class="flex items-center gap-2 flex-wrap">
                         <span class="text-[13px] font-black text-white uppercase italic tracking-wider">${bank.bankName || bank.bank}</span>
                         ${showPerformanceBadge ? `
@@ -1024,33 +1059,38 @@ export function updateSidebarMonitor(kpis = {}, bankInsights = []) {
                         ${statusLabel}
                     </span>
                 </div>
-                <div class="text-right">
-                    <span class="text-[1rem] font-mono font-black ${bankProfit >= 0 ? 'text-emerald-400' : 'text-rose-500'} tracking-tight">${formatSignedUsdt(bankProfit)}</span>
-                    <span class="text-[9px] text-gray-500 block font-black uppercase tracking-wider">Profit Neto</span>
+                <div class="flex items-start gap-3 shrink-0">
+                    <div class="text-right">
+                        <span class="text-[1rem] font-mono font-black ${bankProfit >= 0 ? 'text-emerald-400' : 'text-rose-500'} tracking-tight">${formatSignedUsdt(bankProfit)}</span>
+                        <span class="text-[9px] text-gray-500 block font-black uppercase tracking-wider">Profit Neto</span>
+                    </div>
+                    <span data-bank-toggle-icon class="text-[#F3BA2F] text-[14px] leading-none mt-0.5">${isCollapsed ? '&#9656;' : '&#9662;'}</span>
                 </div>
-            </div>
-            <div class="flex items-center justify-between gap-3 mt-1">
-                <span class="text-[11px] text-slate-500 font-black uppercase tracking-[0.18em]">Control VES</span>
-                <div class="flex items-center gap-1.5">
-                    <span class="text-[11px] text-slate-500 font-black tracking-tight">${vesControl.meta}</span>
-                    ${canManageCycles && vesControl.hasFlow ? `<button data-close-bank="${(bank.bankName || bank.bank || '').toUpperCase()}" class="btn-close-bank-ves text-[8px] text-slate-500 hover:text-rose-400 bg-transparent hover:bg-rose-500/10 border border-transparent hover:border-rose-500/30 px-1 py-0 rounded cursor-pointer transition-all leading-tight" title="Forzar cierre de ciclos VES en este banco">&#10005;</button>` : ''}
+            </button>
+            <div data-bank-body class="${isCollapsed ? 'hidden ' : ''}mt-2 flex flex-col gap-2.5">
+                <div class="flex items-center justify-between gap-3 mt-1">
+                    <span class="text-[11px] text-slate-500 font-black uppercase tracking-[0.18em]">Control VES</span>
+                    <div class="flex items-center gap-1.5">
+                        <span class="text-[11px] text-slate-500 font-black tracking-tight">${vesControl.meta}</span>
+                        ${canManageCycles && vesControl.hasFlow ? `<button data-close-bank="${(bank.bankName || bank.bank || '').toUpperCase()}" class="btn-close-bank-ves text-[8px] text-slate-500 hover:text-rose-400 bg-transparent hover:bg-rose-500/10 border border-transparent hover:border-rose-500/30 px-1 py-0 rounded cursor-pointer transition-all leading-tight" title="Forzar cierre de ciclos VES en este banco">&#10005;</button>` : ''}
+                    </div>
                 </div>
-            </div>
-            <div class="text-[13px] font-mono font-black tracking-tight text-white/90">
-                ${vesControl.value}
-            </div>
-            <div class="h-1.5 w-full bg-[#313842] rounded-full overflow-hidden mt-1">
-                <div class="h-full bg-[#F3BA2F] transition-all duration-700 ease-out" style="width: ${vesControl.progress}%"></div>
-            </div>
-            <div class="flex items-center justify-between gap-3 mt-1">
-                <span class="text-[11px] text-slate-500 font-black uppercase tracking-[0.18em]">Pago Movil</span>
-                <span class="text-[11px] text-slate-500 font-black tracking-tight">${pagoMovil.meta}</span>
-            </div>
-            <div class="text-[13px] font-mono font-black tracking-tight text-white/90">
-                ${pagoMovil.value}
-            </div>
-            <div class="h-1.5 w-full bg-[#313842] rounded-full overflow-hidden mt-1">
-                <div class="h-full bg-[#F3BA2F] transition-all duration-700 ease-out" style="width: ${pagoMovil.progress}%"></div>
+                <div class="text-[13px] font-mono font-black tracking-tight text-white/90">
+                    ${vesControl.value}
+                </div>
+                <div class="h-1.5 w-full bg-[#313842] rounded-full overflow-hidden mt-1">
+                    <div class="h-full bg-[#F3BA2F] transition-all duration-700 ease-out" style="width: ${vesControl.progress}%"></div>
+                </div>
+                <div class="flex items-center justify-between gap-3 mt-1">
+                    <span class="text-[11px] text-slate-500 font-black uppercase tracking-[0.18em]">Pago Movil</span>
+                    <span class="text-[11px] text-slate-500 font-black tracking-tight">${pagoMovil.meta}</span>
+                </div>
+                <div class="text-[13px] font-mono font-black tracking-tight text-white/90">
+                    ${pagoMovil.value}
+                </div>
+                <div class="h-1.5 w-full bg-[#313842] rounded-full overflow-hidden mt-1">
+                    <div class="h-full bg-[#F3BA2F] transition-all duration-700 ease-out" style="width: ${pagoMovil.progress}%"></div>
+                </div>
             </div>
         `;
         listContainer.appendChild(div);
@@ -1095,6 +1135,21 @@ export function updateSidebarMonitor(kpis = {}, bankInsights = []) {
     if (listContainer && !listContainer.dataset.closeBankWired) {
         listContainer.dataset.closeBankWired = '1';
         listContainer.addEventListener('click', async (e) => {
+            const toggle = e.target.closest('[data-bank-toggle]');
+            if (toggle) {
+                const card = toggle.closest('[data-bank-card]');
+                const body = card?.querySelector('[data-bank-body]');
+                const icon = toggle.querySelector('[data-bank-toggle-icon]');
+                const bankKey = toggle.dataset.bankToggle || card?.dataset.bankCard || '';
+                if (!card || !body) return;
+                const nextCollapsed = card.dataset.collapsed !== 'true';
+                card.dataset.collapsed = nextCollapsed ? 'true' : 'false';
+                body.classList.toggle('hidden', nextCollapsed);
+                if (icon) icon.innerHTML = nextCollapsed ? '&#9656;' : '&#9662;';
+                setSidebarBankCollapsed(bankKey, nextCollapsed);
+                return;
+            }
+
             if (!isAdminCycleActionEnabled()) return;
             const btn = e.target.closest('.btn-close-bank-ves');
             if (!btn) return;

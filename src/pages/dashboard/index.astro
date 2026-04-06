@@ -71,90 +71,110 @@ import 'flatpickr/dist/themes/dark.css';
     </div>
   </div>
 
-
-  <section class="mb-10 rounded-[1.75rem] border border-gray-800 bg-gradient-to-br from-[#0f1216] to-[#0b0d11] p-4 shadow-xl shadow-black/40 sm:mb-12 sm:p-6 lg:p-7">
-    <div class="mb-5 flex items-center gap-3">
-      <span class="w-1.5 h-5 bg-[#F3BA2F]"></span>
-      <p class="text-[11px] font-black uppercase tracking-[0.2em] text-gray-300 sm:text-[12px] sm:tracking-[0.28em]">Filtro temporal KPI</p>
-    </div>
-
-    <div class="scrollbar-hide mb-8 flex gap-3 overflow-x-auto pb-4" id="kpi-preset-group">
-      {[
-        { id: 'all', label: 'Todo' },
-        { id: 'last_30', label: 'Ultimos 30 dias' },
-        { id: 'this_month', label: 'Mes actual' },
-        { id: 'last_7', label: 'Ultimos 7 dias' },
-        { id: 'this_week', label: 'Esta semana' },
-        { id: 'yesterday', label: 'Ayer' },
-        { id: 'today', label: 'Hoy' }
-      ].map((preset) => (
-        <button 
-          class={`kpi-preset-btn whitespace-nowrap rounded-xl border bg-white/5 px-4 py-3 text-[11px] font-black uppercase shadow-md transition-all hover:border-[#F3BA2F]/60 hover:text-[#F3BA2F] sm:px-6 sm:text-[12px] ${preset.id === 'today' ? 'kpi-preset-btn-active' : 'border-gray-800'}`}
-          data-preset={preset.id}
-        >
-          {preset.label}
-        </button>
-      ))}
-    </div>
-
-    <div class="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 lg:gap-6">
-    <div class="space-y-2">
-        <label class="sentinel-label px-1">Desde</label>
-        <div class="relative group">
-            <input id="kpi-date-from" type="text" placeholder="Seleccionar fecha..." class="w-full cursor-pointer rounded-xl border border-white-700 bg-black p-4 pl-11 text-[15px] text-white shadow-inner outline-none transition-all focus:border-[#F3BA2F]/70 focus:bg-white/5 sm:text-base" readonly />
-            <div class="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 group-hover:text-[#F3BA2F] transition-colors pointer-events-none">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
-            </div>
-        </div>
+  <section class="dashboard-collapsible mb-8 rounded-[1.75rem] border border-gray-800 bg-gradient-to-br from-[#0f1216] to-[#0b0d11] shadow-xl shadow-black/40 sm:mb-10"
+    data-collapsible="kpi-filter">
+    <button class="dashboard-collapsible-trigger" type="button" data-collapsible-trigger aria-expanded="true">
+      <span class="dashboard-collapsible-title-wrap">
+        <span class="w-1.5 h-5 bg-[#F3BA2F]"></span>
+        <span class="text-[11px] font-black uppercase tracking-[0.2em] text-gray-300 sm:text-[12px] sm:tracking-[0.28em]">Filtro temporal KPI</span>
+      </span>
+      <span class="dashboard-collapsible-icon" aria-hidden="true">▾</span>
+    </button>
+    <div class="dashboard-collapsible-body p-4 pt-0 sm:p-6 sm:pt-0 lg:p-7 lg:pt-0" data-collapsible-body>
+      <div class="scrollbar-hide mb-8 flex gap-3 overflow-x-auto pb-4" id="kpi-preset-group">
+        {[
+          { id: 'all', label: 'Todo' },
+          { id: 'last_30', label: 'Ultimos 30 dias' },
+          { id: 'this_month', label: 'Mes actual' },
+          { id: 'last_7', label: 'Ultimos 7 dias' },
+          { id: 'this_week', label: 'Esta semana' },
+          { id: 'yesterday', label: 'Ayer' },
+          { id: 'today', label: 'Hoy' }
+        ].map((preset) => (
+          <button 
+            class={`kpi-preset-btn whitespace-nowrap rounded-xl border bg-white/5 px-4 py-3 text-[11px] font-black uppercase shadow-md transition-all hover:border-[#F3BA2F]/60 hover:text-[#F3BA2F] sm:px-6 sm:text-[12px] ${preset.id === 'today' ? 'kpi-preset-btn-active' : 'border-gray-800'}`}
+            data-preset={preset.id}
+          >
+            {preset.label}
+          </button>
+        ))}
       </div>
+
+      <div class="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 lg:gap-6">
       <div class="space-y-2">
-        <label class="sentinel-label px-1">Hasta</label>
-        <div class="relative group">
-            <input id="kpi-date-to" type="text" placeholder="Seleccionar fecha..." class="w-full cursor-pointer rounded-xl border border-white-700 bg-black p-4 pl-11 text-[15px] text-white shadow-inner outline-none transition-all focus:border-[#F3BA2F]/70 focus:bg-white/5 sm:text-base" readonly />
-            <div class="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 group-hover:text-[#F3BA2F] transition-colors pointer-events-none">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
-            </div>
+          <label class="sentinel-label px-1">Desde</label>
+          <div class="relative group">
+              <input id="kpi-date-from" type="text" placeholder="Seleccionar fecha..." class="w-full cursor-pointer rounded-xl border border-white-700 bg-black p-4 pl-11 text-[15px] text-white shadow-inner outline-none transition-all focus:border-[#F3BA2F]/70 focus:bg-white/5 sm:text-base" readonly />
+              <div class="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 group-hover:text-[#F3BA2F] transition-colors pointer-events-none">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+              </div>
+          </div>
         </div>
-      </div>
-      <div class="flex items-end">
-        <button id="kpi-apply-range" class="w-full rounded-xl bg-[#F3BA2F] px-4 text-[12px] font-black uppercase tracking-[0.2em] text-black shadow-lg shadow-[#F3BA2F]/20 transition-all hover:bg-[#d9a927] active:scale-[0.98] sm:text-[13px]">
-          Actualizar Reporte
-        </button>
+        <div class="space-y-2">
+          <label class="sentinel-label px-1">Hasta</label>
+          <div class="relative group">
+              <input id="kpi-date-to" type="text" placeholder="Seleccionar fecha..." class="w-full cursor-pointer rounded-xl border border-white-700 bg-black p-4 pl-11 text-[15px] text-white shadow-inner outline-none transition-all focus:border-[#F3BA2F]/70 focus:bg-white/5 sm:text-base" readonly />
+              <div class="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 group-hover:text-[#F3BA2F] transition-colors pointer-events-none">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+              </div>
+          </div>
+        </div>
+        <div class="flex items-end">
+          <button id="kpi-apply-range" class="w-full rounded-xl bg-[#F3BA2F] px-4 text-[12px] font-black uppercase tracking-[0.2em] text-black shadow-lg shadow-[#F3BA2F]/20 transition-all hover:bg-[#d9a927] active:scale-[0.98] sm:text-[13px]">
+            Actualizar Reporte
+          </button>
+        </div>
       </div>
     </div>
   </section>
 
-  <section class="mb-2 lg:mb-3">
-    <h2 class="mb-6 flex items-center gap-3 break-words px-1 text-[11px] font-black uppercase italic tracking-[0.18em] text-[#F3BA2F] sm:px-2 sm:text-[13px] sm:tracking-[0.26em]">
-      <span class="w-1.5 h-4 bg-[#F3BA2F]"></span> 1. RENDIMIENTO DE OPERACIONES CRITICAS
-    </h2>
-    <div class="grid grid-cols-1 gap-6 xl:gap-7">
-      <div id="dashboard-profit-panel" class="w-full">
-        <Profit />
+  <section class="dashboard-collapsible mb-2 lg:mb-3" data-collapsible="critical-performance">
+    <button class="dashboard-collapsible-trigger dashboard-collapsible-trigger-section px-1 sm:px-2" type="button" data-collapsible-trigger aria-expanded="true">
+      <span class="dashboard-collapsible-title-wrap">
+        <span class="w-1.5 h-4 bg-[#F3BA2F]"></span>
+        <span class="break-words text-[11px] font-black uppercase italic tracking-[0.18em] text-[#F3BA2F] sm:text-[13px] sm:tracking-[0.26em]">1. RENDIMIENTO DE OPERACIONES CRITICAS</span>
+      </span>
+      <span class="dashboard-collapsible-icon" aria-hidden="true">▾</span>
+    </button>
+    <div class="dashboard-collapsible-body" data-collapsible-body>
+      <div class="grid grid-cols-1 gap-6 xl:gap-7">
+        <div id="dashboard-profit-panel" class="w-full">
+          <Profit />
+        </div>
       </div>
     </div>
   </section>
 
   <div class="mb-12 grid grid-cols-1 gap-8 xl:grid-cols-2 xl:gap-8">
-    <section>
-      <h2 class="mb-6 flex items-center gap-3 break-words px-1 text-[11px] font-black uppercase italic tracking-[0.18em] text-[#F3BA2F] sm:px-2 sm:text-[13px] sm:tracking-[0.26em]">
-      <span class="w-1.5 h-4 bg-[#F3BA2F]"></span> 2. CONTROL DE OPERACIONES Y VOLUMEN
-    </h2>
-      
-      <div class="grid grid-cols-1 gap-5 sm:grid-cols-2">
-        <Operaciones />
-        <Comisiones />
+    <section class="dashboard-collapsible self-start" data-collapsible="ops-volume">
+      <button class="dashboard-collapsible-trigger dashboard-collapsible-trigger-section px-1 sm:px-2" type="button" data-collapsible-trigger aria-expanded="true">
+        <span class="dashboard-collapsible-title-wrap">
+          <span class="w-1.5 h-4 bg-[#F3BA2F]"></span>
+          <span class="break-words text-[11px] font-black uppercase italic tracking-[0.18em] text-[#F3BA2F] sm:text-[13px] sm:tracking-[0.26em]">2. CONTROL DE OPERACIONES Y VOLUMEN</span>
+        </span>
+        <span class="dashboard-collapsible-icon" aria-hidden="true">▾</span>
+      </button>
+      <div class="dashboard-collapsible-body" data-collapsible-body>
+        <div class="grid grid-cols-1 gap-5 sm:grid-cols-2">
+          <Operaciones />
+          <Comisiones />
+        </div>
       </div>
     </section>
 
-    <section>
-      
-      <h2 class="mb-6 flex items-center gap-3 break-words px-1 text-[11px] font-black uppercase italic tracking-[0.18em] text-[#F3BA2F] sm:px-2 sm:text-[13px] sm:tracking-[0.26em]">
-      <span class="w-1.5 h-4 bg-[#F3BA2F]"></span> 4. PROYECCIONES E INSIGHTS
-    </h2>
-      <div class="grid grid-cols-1 gap-5 sm:grid-cols-2">
-        <ProyeccionGanancias />
-        <ComisionOperador />
+    <section class="dashboard-collapsible self-start" data-collapsible="insights">
+      <button class="dashboard-collapsible-trigger dashboard-collapsible-trigger-section px-1 sm:px-2" type="button" data-collapsible-trigger aria-expanded="true">
+        <span class="dashboard-collapsible-title-wrap">
+          <span class="w-1.5 h-4 bg-[#F3BA2F]"></span>
+          <span class="break-words text-[11px] font-black uppercase italic tracking-[0.18em] text-[#F3BA2F] sm:text-[13px] sm:tracking-[0.26em]">4. PROYECCIONES E INSIGHTS</span>
+        </span>
+        <span class="dashboard-collapsible-icon" aria-hidden="true">▾</span>
+      </button>
+      <div class="dashboard-collapsible-body" data-collapsible-body>
+        <div class="grid grid-cols-1 gap-5 sm:grid-cols-2">
+          <ProyeccionGanancias />
+          <ComisionOperador />
+        </div>
       </div>
     </section>
   </div>
@@ -170,6 +190,46 @@ import 'flatpickr/dist/themes/dark.css';
     import { initDashboard } from '../../scripts/dashboard.js';
     initDashboard();
   </script>
+  <script is:inline>
+    (() => {
+      const STORAGE_KEY = 'dashboard_collapsible_sections_v1';
+      const sections = Array.from(document.querySelectorAll('[data-collapsible]'));
+      const savedState = (() => {
+        try {
+          return JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+        } catch (_error) {
+          return {};
+        }
+      })();
+
+      const syncSection = (section, open) => {
+        const trigger = section.querySelector('[data-collapsible-trigger]');
+        const body = section.querySelector('[data-collapsible-body]');
+        if (!trigger || !body) return;
+        section.dataset.collapsed = open ? 'false' : 'true';
+        trigger.setAttribute('aria-expanded', open ? 'true' : 'false');
+        body.hidden = !open;
+      };
+
+      sections.forEach((section) => {
+        const id = section.getAttribute('data-collapsible');
+        const trigger = section.querySelector('[data-collapsible-trigger]');
+        if (!id || !trigger) return;
+
+        const isOpen = savedState[id] !== false;
+        syncSection(section, isOpen);
+
+        trigger.addEventListener('click', () => {
+          const nextOpen = section.dataset.collapsed === 'true';
+          syncSection(section, nextOpen);
+          savedState[id] = nextOpen;
+          try {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(savedState));
+          } catch (_error) {}
+        });
+      });
+    })();
+  </script>
   
 </DashboardLayout>
 
@@ -182,6 +242,47 @@ import 'flatpickr/dist/themes/dark.css';
     border-color: #F3BA2F;
     background: rgba(243, 186, 47, 0.10);
     color: #F3BA2F;
+  }
+
+  .dashboard-collapsible-trigger {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 1rem 1rem 1.15rem;
+    background: transparent;
+    border: 0;
+    cursor: pointer;
+    text-align: left;
+  }
+
+  .dashboard-collapsible-trigger-section {
+    padding: 0 0 1.15rem;
+  }
+
+  .dashboard-collapsible-title-wrap {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.75rem;
+    min-width: 0;
+  }
+
+  .dashboard-collapsible-icon {
+    flex-shrink: 0;
+    color: rgba(243, 186, 47, 0.9);
+    font-size: 1rem;
+    line-height: 1;
+    transition: transform 180ms ease, opacity 180ms ease;
+  }
+
+  .dashboard-collapsible[data-collapsed="true"] .dashboard-collapsible-icon {
+    transform: rotate(-90deg);
+    opacity: 0.85;
+  }
+
+  .dashboard-collapsible[data-collapsed="true"] .dashboard-collapsible-trigger {
+    padding-bottom: 1rem;
   }
   
   /* Ajuste para el alto del boton de aplicar */
