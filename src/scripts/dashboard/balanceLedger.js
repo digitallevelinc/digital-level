@@ -472,12 +472,12 @@ const isLedgerSellTarget = (tx) => {
 
 const getFiatLabel = (tx = {}) => {
     const fiatCurrency = String(tx?.fiatCurrency || '').trim().toUpperCase();
-    if (fiatCurrency) return fiatCurrency;
+    if (fiatCurrency) return fiatCurrency === 'VES' ? 'FIAT' : fiatCurrency;
 
     const type = String(tx?.type || '').toUpperCase();
     const hasFiatSignal = Number(tx?.fiatAmount || 0) > 0 || Number(tx?.exchangeRate || 0) > 0;
     if ((type === 'PAY_SENT' || type === 'PAY_RECEIVED') && hasFiatSignal) {
-        return 'VES';
+        return 'FIAT';
     }
 
     return 'FIAT';
@@ -1685,11 +1685,11 @@ const renderSpreadReferenceTrigger = (tx = {}, cycleData = undefined) => {
         if (sell.role) metaParts.push(sell.role);
         const secondaryParts = [];
         if (sell.usdtAmount > 0) secondaryParts.push(`${formatNumber(sell.usdtAmount, 2, 'en-US')} USDT`);
-        if (sell.fiatAmount > 0) secondaryParts.push(`${formatNumber(sell.fiatAmount, 2)} VES`);
+        if (sell.fiatAmount > 0) secondaryParts.push(`${formatNumber(sell.fiatAmount, 2)} FIAT`);
         if (isCycle && sell.consumedFiat > 0) {
-            secondaryParts.push(`Usado ${formatNumber(sell.consumedFiat, 2)} VES`);
+            secondaryParts.push(`Usado ${formatNumber(sell.consumedFiat, 2)} FIAT`);
         } else if (isCycle && sell.remainingFiat > 0 && Math.abs(sell.remainingFiat - sell.fiatAmount) > COVERAGE_COMPLETION_TOLERANCE_FIAT) {
-            secondaryParts.push(`Pendiente ${formatNumber(sell.remainingFiat, 2)} VES`);
+            secondaryParts.push(`Pendiente ${formatNumber(sell.remainingFiat, 2)} FIAT`);
         }
 
         return `
@@ -1878,7 +1878,7 @@ const updateCoverageBadge = (transfers = [], cycleSpreads = new Map()) => {
                     pendingUsdt,
                     pendingFiat,
                     pct: expectedUsdt > 0 ? Math.min(100, (actualUsdt / expectedUsdt) * 100) : 0,
-                    fiatLabel: 'VES',
+                    fiatLabel: 'FIAT',
                 });
             } else {
                 const recoveredFiat = Math.max(0, totalSellFiat - remainingFiat);
@@ -1888,7 +1888,7 @@ const updateCoverageBadge = (transfers = [], cycleSpreads = new Map()) => {
                     recoveredFiat,
                     remainingFiat,
                     pct: totalSellFiat > 0 ? Math.min(100, (recoveredFiat / totalSellFiat) * 100) : 0,
-                    fiatLabel: 'VES',
+                    fiatLabel: 'FIAT',
                 });
             }
         }
@@ -2075,8 +2075,8 @@ const renderRow = (tx, rowBalance, cycleData = undefined) => {
             label: 'Cobertura',
             value: formatCoveragePercent(recoveredPct, complete),
             sub: complete
-                ? `${formatNumber(totalSellFiat, 0)} VES cubierto`
-                : `Faltan ${formatNumber(remaining, 0)} VES`,
+                ? `${formatNumber(totalSellFiat, 0)} FIAT cubierto`
+                : `Faltan ${formatNumber(remaining, 0)} FIAT`,
             tone: complete ? 'ledger-metric-positive' : 'ledger-metric-warning',
         });
     } else {

@@ -412,10 +412,10 @@ export function updateBancosUI(insights = [], kpis = {}) {
             if (Math.abs(delta) < THRESHOLD || (fiatBal <= 0.01 && availableFromPromise <= 0.01)) {
                 ui.vesDelta.classList.add('hidden');
             } else if (delta > THRESHOLD) {
-                ui.vesDelta.textContent = `${formatVesInline(delta)} VES sin promesa activa`;
+                ui.vesDelta.textContent = `${formatVesInline(delta)} FIAT sin promesa activa`;
                 ui.vesDelta.className = 'mt-2 text-xs font-mono font-bold text-amber-400 truncate';
             } else {
-                ui.vesDelta.textContent = `${formatVesInline(Math.abs(delta))} VES en promesa pendiente`;
+                ui.vesDelta.textContent = `${formatVesInline(Math.abs(delta))} FIAT en promesa pendiente`;
                 ui.vesDelta.className = 'mt-2 text-xs font-mono font-bold text-sky-400 truncate';
             }
         }

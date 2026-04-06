@@ -614,11 +614,11 @@ function buildPromiseLabel(bank, promiseSummaryByBank = new Map()) {
 
     if (hasPromise) {
         return {
-            value: `${formatUsdtInline(pendingUsdt)} | ${fVESInline(pendingFiat)} VES`,
+            value: `${formatUsdtInline(pendingUsdt)} | ${fVESInline(pendingFiat)} FIAT`,
             meta: hasPending
                 ? `Pendiente de promesa (${promise.activePromises} activa${promise.activePromises === 1 ? '' : 's'})`
                 : `Promesa cubierta (${promise.activePromises} activa${promise.activePromises === 1 ? '' : 's'})`,
-            promisedLine: `${formatUsdtInline(promisedUsdt)} | ${fVESInline(promisedFiat)} VES`,
+            promisedLine: `${formatUsdtInline(promisedUsdt)} | ${fVESInline(promisedFiat)} FIAT`,
             promisedLabel: 'Prometido',
             promisedLineClass: 'text-sky-200/95',
             pendingLabel: 'Pendiente',
@@ -630,7 +630,7 @@ function buildPromiseLabel(bank, promiseSummaryByBank = new Map()) {
     }
 
     return {
-        value: `${formatUsdtInline(pendingUsdt)} | ${fVESInline(pendingFiat)} VES`,
+        value: `${formatUsdtInline(pendingUsdt)} | ${fVESInline(pendingFiat)} FIAT`,
         meta: 'Sin promesa activa',
         promisedLine: '',
         promisedLabel: 'Prometido',
@@ -1020,9 +1020,12 @@ export function updateSidebarMonitor(kpis = {}, bankInsights = []) {
         };
     });
 
-    inject('side-ceiling-level-label', 'NIVEL ACTUAL');
-    inject('side-ceiling-level-value', String(bankSummary.levelLabel || 'Sin nivel').toUpperCase());
-    inject('side-ceiling-level-meta', `${formatPlain(bankSummary.verificationPercent)}%`);
+    inject('side-ceiling-level-label', 'VENTA ACTUAL');
+    inject('side-ceiling-level-value', bankSummary.avgSellRate > 0 ? formatPlain(bankSummary.avgSellRate) : '0,00');
+    inject(
+        'side-ceiling-level-meta',
+        `Nivel ${String(bankSummary.levelLabel || 'Sin nivel').toUpperCase()} | ${formatPlain(bankSummary.verificationPercent)}%`
+    );
 
     bankCards.forEach(({ bank, ops, vesControl, pagoMovil, cyclesCompleted, bankProfit }) => {
         const performancePercent = Number(bank.profitPercent ?? bank.margin ?? 0);
@@ -1069,10 +1072,10 @@ export function updateSidebarMonitor(kpis = {}, bankInsights = []) {
             </button>
             <div data-bank-body class="${isCollapsed ? 'hidden ' : ''}mt-2 flex flex-col gap-2.5">
                 <div class="flex items-center justify-between gap-3 mt-1">
-                    <span class="text-[11px] text-slate-500 font-black uppercase tracking-[0.18em]">Control VES</span>
+                    <span class="text-[11px] text-slate-500 font-black uppercase tracking-[0.18em]">Control FIAT</span>
                     <div class="flex items-center gap-1.5">
                         <span class="text-[11px] text-slate-500 font-black tracking-tight">${vesControl.meta}</span>
-                        ${canManageCycles && vesControl.hasFlow ? `<button data-close-bank="${(bank.bankName || bank.bank || '').toUpperCase()}" class="btn-close-bank-ves text-[8px] text-slate-500 hover:text-rose-400 bg-transparent hover:bg-rose-500/10 border border-transparent hover:border-rose-500/30 px-1 py-0 rounded cursor-pointer transition-all leading-tight" title="Forzar cierre de ciclos VES en este banco">&#10005;</button>` : ''}
+                        ${canManageCycles && vesControl.hasFlow ? `<button data-close-bank="${(bank.bankName || bank.bank || '').toUpperCase()}" class="btn-close-bank-ves text-[8px] text-slate-500 hover:text-rose-400 bg-transparent hover:bg-rose-500/10 border border-transparent hover:border-rose-500/30 px-1 py-0 rounded cursor-pointer transition-all leading-tight" title="Forzar cierre de ciclos FIAT en este banco">&#10005;</button>` : ''}
                     </div>
                 </div>
                 <div class="text-[13px] font-mono font-black tracking-tight text-white/90">
@@ -1096,7 +1099,7 @@ export function updateSidebarMonitor(kpis = {}, bankInsights = []) {
         listContainer.appendChild(div);
     });
 
-    // Wire up "Limpiar VES" button for closing stale/orphaned verdicts
+    // Wire up "Limpiar FIAT" button for closing stale/orphaned verdicts
     const cleanBtn = document.getElementById('btn-clean-stale-ves');
     if (cleanBtn) {
         cleanBtn.classList.toggle('hidden', !canManageCycles);
@@ -1105,7 +1108,7 @@ export function updateSidebarMonitor(kpis = {}, bankInsights = []) {
         cleanBtn.dataset.wired = '1';
         cleanBtn.addEventListener('click', async () => {
             if (!isAdminCycleActionEnabled()) return;
-            if (!confirm('Cerrar ciclos VES viejos sin parseo (>48h sin compras vinculadas)?')) return;
+            if (!confirm('Cerrar ciclos FIAT viejos sin parseo (>48h sin compras vinculadas)?')) return;
             cleanBtn.disabled = true;
             cleanBtn.textContent = 'Limpiando...';
             try {
@@ -1121,10 +1124,10 @@ export function updateSidebarMonitor(kpis = {}, bankInsights = []) {
                 });
                 const data = await res.json();
                 cleanBtn.textContent = data.closed > 0 ? `${data.closed} cerrados` : 'Sin cambios';
-                setTimeout(() => { cleanBtn.textContent = 'Limpiar VES'; }, 3000);
+                setTimeout(() => { cleanBtn.textContent = 'Limpiar FIAT'; }, 3000);
             } catch (err) {
                 cleanBtn.textContent = 'Error';
-                setTimeout(() => { cleanBtn.textContent = 'Limpiar VES'; }, 3000);
+                setTimeout(() => { cleanBtn.textContent = 'Limpiar FIAT'; }, 3000);
             } finally {
                 cleanBtn.disabled = false;
             }
@@ -1155,7 +1158,7 @@ export function updateSidebarMonitor(kpis = {}, bankInsights = []) {
             if (!btn) return;
             const bankName = btn.dataset.closeBank;
             if (!bankName) return;
-            if (!confirm(`Forzar cierre de TODOS los ciclos VES abiertos en ${bankName}?`)) return;
+            if (!confirm(`Forzar cierre de TODOS los ciclos FIAT abiertos en ${bankName}?`)) return;
             btn.disabled = true;
             btn.textContent = '...';
             try {

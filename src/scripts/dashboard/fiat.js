@@ -35,9 +35,9 @@ export function updateFiatSection(kpis = {}, bankInsights = []) {
 
     // 3. Inyección en UI
 
-    // Balance Total VES
+    // Balance Total FIAT
     if (ui.amount) {
-        ui.amount.textContent = `${formatNumber(fiatBalance, 2)} VES`;
+        ui.amount.textContent = `${formatNumber(fiatBalance, 2)} FIAT`;
         ui.amount.style.color = fiatBalance >= 0 ? "#28a745" : "#dc3545";
     }
 
@@ -49,7 +49,7 @@ export function updateFiatSection(kpis = {}, bankInsights = []) {
     // VENDIDO (Salidas/Withdrawals)
     // Elements.fiatSold -> ui.withdrawalVol
     if (ui.withdrawalVol) {
-        ui.withdrawalVol.textContent = `${formatNumber(fiatSold, 2)} VES`;
+        ui.withdrawalVol.textContent = `${formatNumber(fiatSold, 2)} FIAT`;
     }
     // Counts mapping (keep existing logic or map from operations)
     if (ui.withdrawalCount) {
@@ -59,7 +59,7 @@ export function updateFiatSection(kpis = {}, bankInsights = []) {
     // COMPRADO (Entradas/Deposits)
     // Elements.fiatBought -> ui.depoVol
     if (ui.depoVol) {
-        ui.depoVol.textContent = `${formatNumber(fiatBought, 2)} VES`;
+        ui.depoVol.textContent = `${formatNumber(fiatBought, 2)} FIAT`;
     }
     if (ui.depoCount) {
         ui.depoCount.textContent = (operations?.buys?.count || 0).toString();

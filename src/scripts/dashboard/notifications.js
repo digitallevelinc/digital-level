@@ -25,7 +25,7 @@ const NOTIF_TYPE_STYLE = {
     promise_reminder: { icon: '⏳', color: '#f97316', label: 'Recordatorio' },
     rebuy_shortfall: { icon: '⚠️', color: '#f87171', label: 'Recompra' },
     cycle_incomplete: { icon: '⏳', color: '#fb923c', label: 'Ciclo' },
-    ves_holding_prolonged: { icon: '💰', color: '#fbbf24', label: 'VES Retenido' },
+    ves_holding_prolonged: { icon: '💰', color: '#fbbf24', label: 'FIAT Retenido' },
     anomalous_transfer: { icon: '🚨', color: '#ef4444', label: 'Anomalia' },
     bank_overuse: { icon: '🏦', color: '#f97316', label: 'Banco' },
     admin_note: { icon: '📝', color: '#60a5fa', label: 'Nota Admin' },
