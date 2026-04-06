@@ -2468,6 +2468,7 @@ const prefetchSellContextPages = async () => {
     const _effectiveTo = _rangeTo || _todayStr;
 
     let totalSpread = 0;
+    let spreadCount = 0;
     const ledgerSpreadByBank = new Map(); // bankKey → spread sum
     for (const tx of allScoped) {
         const txDateStr = new Date(getTxTimestampMs(tx)).toLocaleDateString('en-CA', { timeZone: CARACAS_TZ });
@@ -2476,6 +2477,7 @@ const prefetchSellContextPages = async () => {
         const spreadContext = cycleEntry?.sellContextOverride || (cycleEntry?.rateOverride ?? 0);
         const txSpread = truncateTowardZero(computeTxSpread(tx, spreadContext), 2);
         if (txSpread !== 0) {
+            spreadCount++;
             const bankKey = normalizeBankKey(tx?.paymentMethod || tx?.bankName || tx?.bank || '');
             if (bankKey) {
                 ledgerSpreadByBank.set(bankKey, (ledgerSpreadByBank.get(bankKey) || 0) + txSpread);
@@ -2512,9 +2514,9 @@ const prefetchSellContextPages = async () => {
                 ledgerSpreadReady: true,
             };
         });
-        // Re-render sidebar with updated per-bank ledger spreads
+        // Re-render sidebar with updated per-bank ledger spreads and summary
         if (typeof state.onBankDataUpdate === 'function') {
-            state.onBankDataUpdate(state.bankData);
+            state.onBankDataUpdate(state.bankData, { totalSpread, spreadCount });
         }
     }
 

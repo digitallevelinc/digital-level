@@ -2,6 +2,9 @@ import { fUSDT, inject } from './utils.js';
 
 const SIDEBAR_BANK_COLLAPSE_KEY = 'sidebar_bank_cards_collapsed_v1';
 
+// Cache the last ledger summary so dashboard refreshes don't flicker the spread back to 0
+let _cachedLedgerSummary = null;
+
 function isAdminCycleActionEnabled() {
     try {
         return sessionStorage.getItem('admin_impersonation') === 'true';
@@ -888,7 +891,9 @@ function buildBankVesLimitLabel(bank, _config = {}, vesControlSummaryByBank = ne
     };
 }
 
-export function updateSidebarMonitor(kpis = {}, bankInsights = []) {
+export function updateSidebarMonitor(kpis = {}, bankInsights = [], ledgerSummary = null) {
+    if (ledgerSummary) _cachedLedgerSummary = ledgerSummary;
+    const ls = _cachedLedgerSummary || { totalSpread: 0, spreadCount: 0 };
     const canManageCycles = isAdminCycleActionEnabled();
     const summary = kpis.metrics || kpis.kpis || kpis.summary || {};
     const audit = kpis.audit || {};
@@ -915,26 +920,37 @@ export function updateSidebarMonitor(kpis = {}, bankInsights = []) {
     inject('side-teorico', fUSDT(teorico));
     inject('side-binance', fUSDT(binance));
     inject('side-profit-total', fUSDT(profit));
-    const spreadProfit = bankSummary.spreadProfitUsdt;
-    inject('side-spread-value', formatSignedUsdt(spreadProfit));
-    inject('side-spread-meta', `${formatPlain(bankSummary.spreadPercent)}%`);
+
+    // SPREAD promedio: total spread del ledger / cantidad de spreads individuales
+    const avgSpread = ls.spreadCount > 0 ? ls.totalSpread / ls.spreadCount : 0;
+    const spreadEl = document.getElementById('side-spread-value');
+    if (spreadEl) {
+        spreadEl.textContent = formatSignedUsdt(avgSpread);
+        spreadEl.className = `text-[1.2rem] mt-2 font-mono font-black tracking-tight ${avgSpread >= 0 ? 'text-emerald-400' : 'text-rose-400'}`;
+    }
+    inject('side-spread-meta', ls.spreadCount > 0 ? `${ls.spreadCount} spreads` : '—');
+
+    // PROM/CICLO: promedio real desde el desglose por banco del judge
+    let totalProfitFromJudge = 0;
+    let totalCyclesFromJudge = 0;
+    judgeByBank.forEach((bank) => {
+        totalProfitFromJudge += Number(bank.totalProfitUSDT || 0);
+        totalCyclesFromJudge += Number(bank.completedCycles || 0);
+    });
     const criticalCyclesCount = Number(
         critical.cycleEquivalentCount
         ?? critical.completedCycles
         ?? 0
     );
     const judgeCyclesCount = Number(completedCycles.count || 0);
-    const cycleCountToDisplay = criticalCyclesCount > 0 ? criticalCyclesCount : judgeCyclesCount;
-    const avgProfitPerCycle = cycleCountToDisplay > 0
-        ? spreadProfit / cycleCountToDisplay
-        : 0;
+    const cycleCountToDisplay = totalCyclesFromJudge > 0
+        ? totalCyclesFromJudge
+        : criticalCyclesCount > 0 ? criticalCyclesCount : judgeCyclesCount;
+    const avgProfitPerCycle = totalCyclesFromJudge > 0
+        ? totalProfitFromJudge / totalCyclesFromJudge
+        : (cycleCountToDisplay > 0 ? ls.totalSpread / cycleCountToDisplay : 0);
     inject('side-cycle-avg', formatPlain(avgProfitPerCycle));
     inject('side-cycle-count', formatPlain(cycleCountToDisplay, 0));
-
-    const spreadEl = document.getElementById('side-spread-value');
-    if (spreadEl) {
-        spreadEl.className = `text-[1.2rem] mt-2 font-mono font-black tracking-tight ${spreadProfit >= 0 ? 'text-emerald-400' : 'text-rose-400'}`;
-    }
 
     const alias = audit.operatorAlias || kpis.operatorAlias || 'N/A';
     inject('side-operator-alias', alias);

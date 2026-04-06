@@ -837,8 +837,8 @@ export async function updateDashboard(API_BASE, token, alias, range = {}, opts =
             range: mainRange,
             onAuthError: handleExpiredSession,
             bankData,
-            onBankDataUpdate: (updatedBankData) => {
-                updateSidebarMonitor(kpis, updatedBankData);
+            onBankDataUpdate: (updatedBankData, ledgerSummary) => {
+                updateSidebarMonitor(kpis, updatedBankData, ledgerSummary);
             },
         });
 
