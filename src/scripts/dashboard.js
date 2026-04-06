@@ -278,14 +278,14 @@ export async function initDashboard() {
                 window.open(sheetHref, '_blank', 'noopener,noreferrer');
                 return;
             }
-            // Otherwise export the current range as Excel XML
+            // Otherwise export the current range as CSV for Google Sheets/Excel
             try {
                 exportBtn.style.opacity = '0.5';
                 exportBtn.style.pointerEvents = 'none';
                 const params = new URLSearchParams();
                 if (currentRange?.from) params.set('from', currentRange.from);
                 if (currentRange?.to) params.set('to', currentRange.to);
-                const res = await fetch(`${API_BASE}/api/export/range.xml?${params.toString()}`, {
+                const res = await fetch(`${API_BASE}/api/export/range.csv?${params.toString()}`, {
                     headers: { Authorization: `Bearer ${token}` },
                     cache: 'no-store',
                 });
@@ -294,7 +294,7 @@ export async function initDashboard() {
                     alert(err?.error || `Error ${res.status} al exportar`);
                     return;
                 }
-                const filename = res.headers.get('X-Export-File-Name') || 'export.xml';
+                const filename = res.headers.get('X-Export-File-Name') || 'export.csv';
                 const blob = await res.blob();
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement('a');
