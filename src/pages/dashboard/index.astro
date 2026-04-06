@@ -145,39 +145,32 @@ import 'flatpickr/dist/themes/dark.css';
     </div>
   </section>
 
-  <div class="mb-12 grid grid-cols-1 gap-8 xl:grid-cols-2 xl:gap-8">
-    <section class="dashboard-collapsible self-start" data-collapsible="ops-volume">
-      <button class="dashboard-collapsible-trigger dashboard-collapsible-trigger-section px-1 sm:px-2" type="button" data-collapsible-trigger aria-expanded="true">
-        <span class="dashboard-collapsible-title-wrap">
-          <span class="w-1.5 h-4 bg-[#F3BA2F]"></span>
-          <span class="break-words text-[11px] font-black uppercase italic tracking-[0.18em] text-[#F3BA2F] sm:text-[13px] sm:tracking-[0.26em]">2. CONTROL DE OPERACIONES Y VOLUMEN</span>
-        </span>
-        <span class="dashboard-collapsible-icon" aria-hidden="true">▾</span>
-      </button>
-      <div class="dashboard-collapsible-body" data-collapsible-body>
-        <div class="grid grid-cols-1 gap-5 sm:grid-cols-2">
-          <Operaciones />
-          <Comisiones />
-        </div>
-      </div>
-    </section>
+  <section class="dashboard-collapsible mb-12" data-collapsible="ops-insights">
+    <button class="dashboard-collapsible-trigger dashboard-collapsible-trigger-section px-1 sm:px-2" type="button" data-collapsible-trigger aria-expanded="true">
+      <span class="dashboard-collapsible-title-wrap">
+        <span class="w-1.5 h-4 bg-[#F3BA2F]"></span>
+        <span class="break-words text-[11px] font-black uppercase italic tracking-[0.18em] text-[#F3BA2F] sm:text-[13px] sm:tracking-[0.26em]">2. CONTROL DE OPERACIONES Y VOLUMEN + 4. PROYECCIONES E INSIGHTS</span>
+      </span>
+      <span class="dashboard-collapsible-icon" aria-hidden="true">▾</span>
+    </button>
+    <div class="dashboard-collapsible-body" data-collapsible-body>
+      <div class="grid grid-cols-1 gap-8 xl:grid-cols-2 xl:gap-8">
+        <section class="self-start">
+          <div class="grid grid-cols-1 gap-5 sm:grid-cols-2">
+            <Operaciones />
+            <Comisiones />
+          </div>
+        </section>
 
-    <section class="dashboard-collapsible self-start" data-collapsible="insights">
-      <button class="dashboard-collapsible-trigger dashboard-collapsible-trigger-section px-1 sm:px-2" type="button" data-collapsible-trigger aria-expanded="true">
-        <span class="dashboard-collapsible-title-wrap">
-          <span class="w-1.5 h-4 bg-[#F3BA2F]"></span>
-          <span class="break-words text-[11px] font-black uppercase italic tracking-[0.18em] text-[#F3BA2F] sm:text-[13px] sm:tracking-[0.26em]">4. PROYECCIONES E INSIGHTS</span>
-        </span>
-        <span class="dashboard-collapsible-icon" aria-hidden="true">▾</span>
-      </button>
-      <div class="dashboard-collapsible-body" data-collapsible-body>
-        <div class="grid grid-cols-1 gap-5 sm:grid-cols-2">
-          <ProyeccionGanancias />
-          <ComisionOperador />
-        </div>
+        <section class="self-start">
+          <div class="grid grid-cols-1 gap-5 sm:grid-cols-2">
+            <ProyeccionGanancias />
+            <ComisionOperador />
+          </div>
+        </section>
       </div>
-    </section>
-  </div>
+    </div>
+  </section>
 
   <section class="mb-12 lg:mb-14">
     
