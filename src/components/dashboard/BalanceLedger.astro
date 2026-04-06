@@ -1,34 +1,7 @@
----
-import CardHelp from './CardHelp.astro';
----
 <div id="balance-module" class="overflow-hidden rounded-[1.6rem] border border-white/8 bg-[#0b0f14] shadow-[0_14px_36px_rgba(0,0,0,0.24)]">
     <div class="ledger-shell">
-    <div class="ledger-hero px-4 py-4 md:px-5 md:py-5">
-        <div class="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-            <div>
-                <p class="ledger-kicker">Balance General</p>
-            </div>
-            <CardHelp
-                title="Balance General"
-                description="Lectura historica del extracto operativo, cargada bajo demanda."
-                calculation="Cada fila clasifica solo flujos PAY y P2P. Se omiten RED, SWITCH y PARSEO."
-                notes={[
-                    "No bloquea la carga inicial del dashboard.",
-                    "Scroll interno para listas largas.",
-                    "Negativos en rojo y fiat como referencia secundaria.",
-                    "Vista depurada para conciliacion directa de Binance Pay y P2P."
-                ]}
-                align="left"
-            />
-        </div>
-    </div>
-
     <div id="balance-ledger-panel" class="ledger-panel">
         <div class="ledger-panel-head px-4 py-3 md:px-5">
-            <div>
-                <div class="ledger-panel-title">Transacciones</div>
-                <div id="balance-ledger-count" class="ledger-panel-copy">Cargando historial...</div>
-            </div>
             <div class="ledger-head-pills">
                 <span id="balance-ledger-results" class="ledger-pill ledger-pill-primary">0 Resultados</span>
                 <span id="balance-ledger-coverage-badge" class="ledger-pill ledger-pill-coverage" style="display:none">
@@ -41,10 +14,11 @@ import CardHelp from './CardHelp.astro';
 
         <div class="border-t border-white/8 px-4 py-3 md:px-5">
             <div class="ledger-toolbar">
-                <div class="flex flex-wrap items-center gap-2.5">
+                <div class="ledger-page-meta">
                     <span id="balance-ledger-page-indicator" class="ledger-page-indicator">
                         Pagina 0 / 0
                     </span>
+                    <span id="balance-ledger-count" class="ledger-panel-copy ledger-page-copy">Cargando historial...</span>
                 </div>
 
                 <div class="ledger-toolbar-actions">
@@ -100,6 +74,20 @@ import CardHelp from './CardHelp.astro';
 
                     <div class="ledger-nav">
                         <button
+                            id="balance-ledger-today"
+                            type="button"
+                            class="ledger-nav-btn"
+                        >
+                            Today
+                        </button>
+                        <button
+                            id="balance-ledger-last"
+                            type="button"
+                            class="ledger-nav-btn"
+                        >
+                            Last One
+                        </button>
+                        <button
                             id="balance-ledger-prev"
                             type="button"
                             class="ledger-nav-btn"
@@ -153,41 +141,23 @@ import CardHelp from './CardHelp.astro';
         pointer-events: none;
     }
 
-    .ledger-hero,
     .ledger-panel {
         position: relative;
         z-index: 1;
     }
 
-    .ledger-kicker {
-        font-size: 0.72rem;
-        font-weight: 800;
-        text-transform: uppercase;
-        letter-spacing: 0.22em;
-        color: #F3BA2F;
-    }
-
     .ledger-panel {
-        border-top: 1px solid rgba(255, 255, 255, 0.08);
+        padding-top: 0.2rem;
     }
 
     .ledger-panel-head {
         display: flex;
         align-items: center;
-        justify-content: space-between;
+        justify-content: flex-end;
         gap: 1rem;
     }
 
-    .ledger-panel-title {
-        font-size: 0.86rem;
-        font-weight: 800;
-        text-transform: uppercase;
-        letter-spacing: 0.16em;
-        color: white;
-    }
-
     .ledger-panel-copy {
-        margin-top: 0.35rem;
         font-size: 0.92rem;
         color: rgba(255, 255, 255, 0.96);
     }
@@ -385,12 +355,23 @@ import CardHelp from './CardHelp.astro';
         gap: 0.9rem;
     }
 
+    .ledger-page-meta {
+        display: flex;
+        flex-direction: column;
+        gap: 0.32rem;
+    }
+
     .ledger-page-indicator {
         font-size: 0.74rem;
         font-weight: 800;
         text-transform: uppercase;
         letter-spacing: 0.16em;
         color: rgba(255, 255, 255, 0.96);
+    }
+
+    .ledger-page-copy {
+        font-size: 0.84rem;
+        color: rgba(255, 255, 255, 0.84);
     }
 
     .ledger-toolbar-actions {

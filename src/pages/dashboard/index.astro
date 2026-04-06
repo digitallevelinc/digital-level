@@ -8,7 +8,6 @@ import BalanceLedger from '../../components/dashboard/BalanceLedger.astro';
 import Profit from '../../components/dashboard/profit.astro';
 import ComisionOperador from '../../components/dashboard/ComisionOperador.astro'; 
 import ProyeccionGanancias from '../../components/dashboard/ProyeccionGanancias.astro';
-import AnunciosActivos from '../../components/dashboard/anunciosActivos.astro';
 import 'flatpickr/dist/flatpickr.min.css';
 import 'flatpickr/dist/themes/dark.css';
 ---
@@ -42,7 +41,7 @@ import 'flatpickr/dist/themes/dark.css';
   <!-- Banner de impersonación admin -->
   <div id="admin-impersonation-banner" class="hidden mb-4 mx-1 sm:mx-2 flex items-center gap-3 rounded-xl border border-[#F3BA2F]/30 bg-[#F3BA2F]/10 px-4 py-2.5 text-sm">
     <span class="text-[#F3BA2F] font-black text-xs uppercase tracking-[0.15em]">Admin</span>
-    <span class="text-white/80">Viendo dashboard de <strong id="impersonation-alias" class="text-[#F3BA2F]"></strong> en modo lectura</span>
+    <span class="text-white/80">Viendo dashboard de <strong id="impersonation-alias" class="text-[#F3BA2F]"></strong> en modo admin</span>
     <button onclick="sessionStorage.clear(); window.close();" class="ml-auto rounded-lg border border-white/10 bg-white/5 px-3 py-1 text-xs font-bold text-white/70 hover:bg-white/10 hover:text-white transition-colors">Cerrar</button>
   </div>
   <script is:inline>
@@ -159,13 +158,6 @@ import 'flatpickr/dist/themes/dark.css';
       </div>
     </section>
   </div>
-
-  <section class="mb-12 lg:mb-14">
-    <h2 class="mb-6 flex items-center gap-3 break-words px-1 text-[12px] font-black uppercase italic tracking-[0.16em] text-[#F3BA2F] sm:px-2 sm:text-[14px] sm:tracking-[0.22em]">
-      <span class="w-1.5 h-4 bg-[#F3BA2F]"></span> MONITOR DE ORDENES P2P ACTIVAS
-    </h2>
-    <AnunciosActivos />
-  </section>
 
   <section class="mb-12 lg:mb-14">
     

@@ -1,5 +1,13 @@
 import { fUSDT, inject } from './utils.js';
 
+function isAdminCycleActionEnabled() {
+    try {
+        return sessionStorage.getItem('admin_impersonation') === 'true';
+    } catch (_error) {
+        return false;
+    }
+}
+
 function clampPercent(value) {
     const numeric = Number(value || 0);
     if (!Number.isFinite(numeric)) return 0;
@@ -856,6 +864,7 @@ function buildBankVesLimitLabel(bank, _config = {}, vesControlSummaryByBank = ne
 }
 
 export function updateSidebarMonitor(kpis = {}, bankInsights = []) {
+    const canManageCycles = isAdminCycleActionEnabled();
     const summary = kpis.metrics || kpis.kpis || kpis.summary || {};
     const audit = kpis.audit || {};
     const critical = kpis.critical || {};
@@ -1073,7 +1082,7 @@ export function updateSidebarMonitor(kpis = {}, bankInsights = []) {
                 <span class="text-[11px] text-slate-500 font-black uppercase tracking-[0.18em]">Control VES</span>
                 <div class="flex items-center gap-1.5">
                     <span class="text-[11px] text-slate-500 font-black tracking-tight">${vesControl.meta}</span>
-                    ${vesControl.hasFlow ? `<button data-close-bank="${(bank.bankName || bank.bank || '').toUpperCase()}" class="btn-close-bank-ves text-[8px] text-slate-500 hover:text-rose-400 bg-transparent hover:bg-rose-500/10 border border-transparent hover:border-rose-500/30 px-1 py-0 rounded cursor-pointer transition-all leading-tight" title="Forzar cierre de ciclos VES en este banco">&#10005;</button>` : ''}
+                    ${canManageCycles && vesControl.hasFlow ? `<button data-close-bank="${(bank.bankName || bank.bank || '').toUpperCase()}" class="btn-close-bank-ves text-[8px] text-slate-500 hover:text-rose-400 bg-transparent hover:bg-rose-500/10 border border-transparent hover:border-rose-500/30 px-1 py-0 rounded cursor-pointer transition-all leading-tight" title="Forzar cierre de ciclos VES en este banco">&#10005;</button>` : ''}
                 </div>
             </div>
             <div class="text-[13px] font-mono font-black tracking-tight text-white/90">
@@ -1098,9 +1107,13 @@ export function updateSidebarMonitor(kpis = {}, bankInsights = []) {
 
     // Wire up "Limpiar VES" button for closing stale/orphaned verdicts
     const cleanBtn = document.getElementById('btn-clean-stale-ves');
+    if (cleanBtn) {
+        cleanBtn.classList.toggle('hidden', !canManageCycles);
+    }
     if (cleanBtn && !cleanBtn.dataset.wired) {
         cleanBtn.dataset.wired = '1';
         cleanBtn.addEventListener('click', async () => {
+            if (!isAdminCycleActionEnabled()) return;
             if (!confirm('Cerrar ciclos VES viejos sin parseo (>48h sin compras vinculadas)?')) return;
             cleanBtn.disabled = true;
             cleanBtn.textContent = 'Limpiando...';
@@ -1131,6 +1144,7 @@ export function updateSidebarMonitor(kpis = {}, bankInsights = []) {
     if (listContainer && !listContainer.dataset.closeBankWired) {
         listContainer.dataset.closeBankWired = '1';
         listContainer.addEventListener('click', async (e) => {
+            if (!isAdminCycleActionEnabled()) return;
             const btn = e.target.closest('.btn-close-bank-ves');
             if (!btn) return;
             const bankName = btn.dataset.closeBank;

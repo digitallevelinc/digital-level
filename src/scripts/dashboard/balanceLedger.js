@@ -772,6 +772,8 @@ const getElements = () => ({
     count: document.getElementById('balance-ledger-count'),
     results: document.getElementById('balance-ledger-results'),
     pageIndicator: document.getElementById('balance-ledger-page-indicator'),
+    todayBtn: document.getElementById('balance-ledger-today'),
+    lastBtn: document.getElementById('balance-ledger-last'),
     prevBtn: document.getElementById('balance-ledger-prev'),
     nextBtn: document.getElementById('balance-ledger-next'),
     scroll: document.getElementById('balance-ledger-scroll'),
@@ -820,7 +822,7 @@ const areAllPagesCached = () => {
 };
 
 const updatePaginationUI = () => {
-    const { results, pageIndicator, prevBtn, nextBtn } = getElements();
+    const { results, pageIndicator, todayBtn, lastBtn, prevBtn, nextBtn } = getElements();
     const searchActive = hasActiveSearch();
 
     if (results) {
@@ -842,6 +844,8 @@ const updatePaginationUI = () => {
         }
     }
 
+    if (todayBtn) todayBtn.disabled = searchActive || state.page <= 1 || state.totalPages === 0;
+    if (lastBtn) lastBtn.disabled = searchActive || state.page >= state.totalPages || state.totalPages === 0;
     if (prevBtn) prevBtn.disabled = searchActive || state.page <= 1 || state.totalPages === 0;
     if (nextBtn) nextBtn.disabled = searchActive || state.page >= state.totalPages || state.totalPages === 0;
 };
@@ -2567,6 +2571,22 @@ const bindEventsOnce = () => {
     document.addEventListener('click', (event) => {
         const target = event.target;
         if (!(target instanceof Element)) return;
+
+        const todayBtn = target.closest('#balance-ledger-today');
+        if (todayBtn) {
+            if (hasActiveSearch()) return;
+            if (state.page <= 1) return;
+            void fetchTransfersPage(1);
+            return;
+        }
+
+        const lastBtn = target.closest('#balance-ledger-last');
+        if (lastBtn) {
+            if (hasActiveSearch()) return;
+            if (state.totalPages === 0 || state.page >= state.totalPages) return;
+            void fetchTransfersPage(state.totalPages);
+            return;
+        }
 
         const prevBtn = target.closest('#balance-ledger-prev');
         if (prevBtn) {

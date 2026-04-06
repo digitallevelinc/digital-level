@@ -12,7 +12,6 @@ import { updateOperacionesUI } from './dashboard/operaciones.js';
 import { updateBancosUI } from './dashboard/bancos.js';
 import { updateBalanceLedgerUI } from './dashboard/balanceLedger.js';
 import { updateSidebarMonitor } from './dashboard/SidebarMonitor.js';
-import { initActiveAdsToggle, refreshActiveAds } from './dashboard/activeAds.js';
 import { initCardHelpTooltips } from './dashboard/cardHelp.js';
 import { initDashboardNotifications } from './dashboard/notifications.js';
 const KPI_REQUEST_TIMEOUT_MS = 12000;
@@ -233,7 +232,6 @@ export async function initDashboard() {
     console.log("Sentinel Dashboard: Sincronizando módulos...");
     purgeLegacySharedAuth();
     initCardHelpTooltips();
-    initActiveAdsToggle();
 
     const API_BASE = resolveApiBase();
     const token = sessionStore.getItem('auth_token') || sessionStore.getItem('session_token');
@@ -842,10 +840,6 @@ export async function updateDashboard(API_BASE, token, alias, range = {}, opts =
             onBankDataUpdate: (updatedBankData) => {
                 updateSidebarMonitor(kpis, updatedBankData);
             },
-        });
-        void refreshActiveAds(API_BASE, token, {
-            signal: dashboardAbortController?.signal,
-            onAuthError: handleExpiredSession
         });
 
         // --- UI ESTADO ---
