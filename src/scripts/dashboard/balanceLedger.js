@@ -2514,18 +2514,8 @@ const prefetchSellContextPages = async () => {
         }
     }
 
-    const profitText = formatUsd(Math.abs(totalSpread));
-    const profitColor = totalSpread >= 0 ? '#10b981' : '#ef4444';
-    const injectLedgerProfit = (id) => {
-        const container = document.getElementById(id);
-        if (!container) return;
-        const el = container.querySelector('h3') || container.querySelector('.text-white') || container.querySelector('span') || container;
-        if (!el) return;
-        if (el.textContent !== profitText) el.textContent = profitText;
-        el.style.color = profitColor;
-    };
-    injectLedgerProfit('kpi-profit');
-    injectLedgerProfit('audit-total-profit-display');
+    // totalSpread stays useful for ledger/sidebar analytics, but the visible
+    // Profit Operativo KPI must remain the canonical net value from /api/kpis.
 };
 
 const bindEventsOnce = () => {

@@ -483,22 +483,44 @@ async function fetchDashboardKpis(API_BASE, token, range = {}, signal, options =
     return await res.json();
 }
 
+function hasFiniteNumber(value) {
+    return value !== null && value !== undefined && Number.isFinite(Number(value));
+}
+
+function getSellFeesTotal(kpis = {}, bankData = []) {
+    if (hasFiniteNumber(kpis.operations?.totalFeesSell)) {
+        return Number(kpis.operations.totalFeesSell);
+    }
+
+    return (bankData || []).reduce((sum, bank) => (
+        sum
+        + Number(bank?.trf?.sellFee || 0)
+        + Number(bank?.pm?.sellFee || 0)
+    ), 0);
+}
+
 function syncCriticalProfitFromBanks(kpis = {}, metrics = {}, bankData = []) {
-    // Suma de spreads de ciclos cerrados según el judge service (misma fórmula que el ledger)
-    const bankProfitSum = Number(kpis.judge?.completedCycles?.totalProfit || 0);
+    // Preserve canonical net profit from backend. Only rebuild it when missing,
+    // using judge closed profit minus sell fees.
+    const judgeProfit = Number(kpis.judge?.completedCycles?.totalProfit || 0);
+    const sellFees = getSellFeesTotal(kpis, bankData);
+    const fallbackNetProfit = judgeProfit - sellFees;
 
     if (!kpis.critical) kpis.critical = {};
+    if (!kpis.metrics) kpis.metrics = metrics;
 
     const critical = kpis.critical;
     const completedCycles = Number(critical.completedCycles || 0);
+    const canonicalProfit = hasFiniteNumber(critical.profitTotalUSDT)
+        ? Number(critical.profitTotalUSDT)
+        : fallbackNetProfit;
 
-    critical.profitTotalUSDT = bankProfitSum;
-    critical.averageCycleProfit = completedCycles > 0 ? bankProfitSum / completedCycles : 0;
+    critical.profitTotalUSDT = canonicalProfit;
+    critical.averageCycleProfit = completedCycles > 0 ? canonicalProfit / completedCycles : 0;
 
-    if (!kpis.metrics) kpis.metrics = metrics;
-    kpis.metrics.totalProfit = bankProfitSum;
+    kpis.metrics.totalProfit = canonicalProfit;
 
-    return bankProfitSum;
+    return canonicalProfit;
 }
 
 function normalizeKpiBankData(kpis = {}) {
@@ -780,12 +802,8 @@ export async function updateDashboard(API_BASE, token, alias, range = {}, opts =
             }
         });
 
-        // ---------------------------------------------------------
-        // PROFIT TOTAL = SUMA DE PROFITS POR BANCO (Fuente: bankInsights)
-        // ---------------------------------------------------------
-        // El backend puede calcular profit por ciclos (Judge) y eso puede no coincidir
-        // con lo que el usuario espera como "profit" diario/por periodo.
-        // Para la UI, forzamos el Profit Total a ser la suma de los profits por banco.
+        // Mantener el profit neto canonico del backend. Si no llega, reconstruir
+        // un fallback desde judge - fees de venta para no inflar el KPI.
         syncCriticalProfitFromBanks(kpis, metrics, bankData);
 
         // --- ACTUALIZACIÓN DE MÉTRICAS BASE ---
