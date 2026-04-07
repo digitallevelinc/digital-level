@@ -683,12 +683,13 @@ const renderReceiversDetail = (receivers = []) => {
     </div>`;
 };
 
-const renderMetricCard = ({ label, value, sub = '', sub2 = '', tone = '' }) => `
-    <div class="ledger-metric-card ${tone}">
+const renderMetricCard = ({ label, value, sub = '', sub2 = '', tone = '', extraHtml = '' }) => `
+    <div class="ledger-metric-card ${tone}" style="position: relative;">
         <span class="ledger-metric-label">${escapeHtml(label)}</span>
         <span class="ledger-metric-value">${escapeHtml(value)}</span>
         <span class="ledger-metric-sub">${escapeHtml(sub)}</span>
         ${sub2 ? `<span class="ledger-metric-sub ledger-metric-sub-secondary">${escapeHtml(sub2)}</span>` : ''}
+        ${extraHtml}
     </div>
 `;
 
@@ -1392,12 +1393,12 @@ const getFallbackSpreadPercent = () => {
 
 const computeTxSpread = (tx = {}, override = 0) => {
     const type = normalizeTxType(tx);
-    if (isLedgerSellTarget(tx)) return 0; // Ventas y promesas no muestran spread individual
-    if (type !== 'P2P_BUY') return 0;
+    if (isLedgerSellTarget(tx)) return { val: 0 }; // Ventas y promesas no muestran spread individual
+    if (type !== 'P2P_BUY') return { val: 0 };
 
     // Monto neto recibido en la compra (getSignedAmount ya descuenta el fee)
     const buyUsdtIn = getSignedAmount(tx);
-    if (buyUsdtIn <= 0) return 0;
+    if (buyUsdtIn <= 0) return { val: 0 };
 
     const nearestSell = getNearestSellForBuy(tx);
     const hasStructuredOverride = override && typeof override === 'object';
@@ -1474,7 +1475,11 @@ const computeTxSpread = (tx = {}, override = 0) => {
         : sellGross;
 
     // Spread = monto neto compra − costo total venta
-    return buyUsdtIn - sellUsdtOut;
+    const val = buyUsdtIn - sellUsdtOut;
+    return {
+        val,
+        details: { buyFiat, sellRate, sellGross, effectiveSellRole, buyUsdtIn, sellUsdtOut, sellFee: sellUsdtOut - sellGross }
+    };
 };
 
 // Cobertura basada en recuperación de bolívares:
@@ -2030,20 +2035,47 @@ const renderRow = (tx, rowBalance, cycleData = undefined) => {
 
     let spreadMetric;
     {
-        const spreadValRaw = isCycleBuyOverride
+        const spreadRet = isCycleBuyOverride
             ? computeTxSpread(tx, cycleData?.sellContextOverride || cycleData.rateOverride)
             : computeTxSpread(tx);
+        const spreadValRaw = spreadRet.val;
+        const details = spreadRet.details;
         const spreadVal = truncateTowardZero(spreadValRaw, 2);
         const spreadTone = spreadVal > 0
             ? 'ledger-metric-positive'
             : spreadVal < 0
                 ? 'ledger-metric-negative'
                 : 'ledger-metric-muted';
+
+        let extraHtml = '';
+        if (details && spreadVal !== 0) {
+            const roleText = details.effectiveSellRole;
+            const step1 = `${formatNumber(details.buyFiat, 2)} / ${formatNumber(details.sellRate, 2)} = ${formatNumber(details.sellGross, 4)}`;
+            const stepOut = details.effectiveSellRole === 'TAKER' ? `${formatNumber(details.sellGross, 4)} + ${formatNumber(details.sellFee, 2)} = ${formatNumber(details.sellUsdtOut, 4)}` : '';
+            const step2 = `${formatNumber(details.buyUsdtIn, 2)} - ${formatNumber(details.sellUsdtOut, 2)} = ${formatNumber(spreadValRaw, 4)}`;
+
+            extraHtml = `
+            <div style="position: absolute; bottom: 8px; left: 8px; cursor: help; color: #a0aec0;" 
+                 onmouseenter="const p=this.querySelector('.formula-popover');if(p)p.style.display='block'" 
+                 onmouseleave="const p=this.querySelector('.formula-popover');if(p)p.style.display='none'">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="7" r="2.5"></circle><circle cx="12" cy="15" r="2.5"></circle>
+                </svg>
+                <div class="formula-popover" style="display: none; position: absolute; bottom: 100%; left: 0; margin-bottom: 4px; padding: 6px; background: #2d3748; border: 1px solid #4a5568; border-radius: 4px; font-family: monospace; font-size: 11px; white-space: nowrap; color: #cbd5e0; z-index: 50; box-shadow: 0 4px 6px rgba(0,0,0,0.3); text-align: left; line-height: 1.4;">
+                    <div style="color: #ecc94b; margin-bottom: 2px;">${roleText}</div>
+                    <div>${step1}</div>
+                    ${stepOut ? `<div>${stepOut}</div>` : ''}
+                    <div style="color: #e2e8f0; margin-top: 2px;">${step2}</div>
+                </div>
+            </div>`;
+        }
+
         spreadMetric = renderMetricCard({
             label: 'Spread',
             value: spreadVal !== 0 ? `${spreadVal > 0 ? '+' : '-'}${formatUsd(Math.abs(spreadVal))}` : '--',
             sub: spreadVal !== 0 ? '' : 'Sin spread calculable',
-            tone: spreadTone
+            tone: spreadTone,
+            extraHtml
         });
     }
     const promiseMetaForBalance = getPromiseMeta(tx);
@@ -2513,7 +2545,8 @@ const prefetchSellContextPages = async () => {
         if (txDateStr < _effectiveFrom || txDateStr > _effectiveTo) continue;
         const cycleEntry = allCycleSpreads.get(getTransferKey(tx));
         const spreadContext = cycleEntry?.sellContextOverride || (cycleEntry?.rateOverride ?? 0);
-        const txSpread = truncateTowardZero(computeTxSpread(tx, spreadContext), 2);
+        const txSpreadRet = computeTxSpread(tx, spreadContext);
+        const txSpread = truncateTowardZero(txSpreadRet.val, 2);
         if (txSpread !== 0) {
             spreadCount++;
             const bankKey = normalizeBankKey(tx?.paymentMethod || tx?.bankName || tx?.bank || '');
