@@ -137,19 +137,19 @@ function renderProfitChart(chartData = []) {
             labels: labels,
             datasets: [
                 {
-                    label: 'Profit (USDT)',
-                    data: profitData,
-                    backgroundColor: '#4ade80',
-                    stack: 'Stack 0',
-                    order: 2,
-                    yAxisID: 'y'
-                },
-                {
                     label: 'Fees (USDT)',
                     data: feesData,
                     backgroundColor: '#f87171',
                     stack: 'Stack 0',
                     order: 3,
+                    yAxisID: 'y'
+                },
+                {
+                    label: 'Profit (USDT)',
+                    data: profitData,
+                    backgroundColor: '#4ade80',
+                    stack: 'Stack 0',
+                    order: 2,
                     yAxisID: 'y'
                 },
                 {
