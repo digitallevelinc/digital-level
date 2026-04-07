@@ -905,12 +905,8 @@ export function updateSidebarMonitor(kpis = {}, bankInsights = [], ledgerSummary
     const profit = parseFloat(critical.profitTotalUSDT || summary.totalProfit || 0);
     const teorico = parseFloat(audit.currentBalanceEstimate || critical.balanceTotal || 0);
 
-    const binanceSource =
-        audit.realBalance ??
-        summary.totalBalance ??
-        critical.realBalance ??
-        0;
-    const binance = parseFloat(binanceSource || 0);
+    // Sidebar Binance figure must stay aligned with API-only balance.
+    const binance = Number.isFinite(Number(audit.realBalance)) ? Number(audit.realBalance) : 0;
 
     const diferencia = critical.balanceGap !== undefined ? parseFloat(critical.balanceGap) : (binance - teorico);
     const bankSummary = getBankMonitorSummary(kpis, normalizedBankInsights);

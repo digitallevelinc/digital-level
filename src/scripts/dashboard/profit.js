@@ -19,12 +19,8 @@ export function updateProfitUI(kpis = {}, bankInsights = []) {
 
     const totalProfitUSDT = parseFloat(critical.profitTotalUSDT || 0);
 
-    const realBinanceSource =
-        audit.realBalance ??
-        kpis.metrics?.totalBalance ??
-        critical.realBalance ??
-        0;
-    const realBinance = parseFloat(realBinanceSource || 0);
+    // This card must reflect Binance API balance only; never fall back to reconstructed totals.
+    const realBinance = parseNumeric(audit.realBalance);
     inject('real-binance-balance', fUSDT(realBinance));
     inject('audit-total-profit-display', fUSDT(totalProfitUSDT), true);
 
