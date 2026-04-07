@@ -2055,17 +2055,20 @@ const renderRow = (tx, rowBalance, cycleData = undefined) => {
             const step2 = `${formatNumber(details.buyUsdtIn, 2)} - ${formatNumber(details.sellUsdtOut, 2)} = ${formatNumber(spreadValRaw, 4)}`;
 
             extraHtml = `
-            <div style="position: absolute; bottom: 8px; left: 8px; cursor: help; color: #a0aec0;" 
-                 onmouseenter="const p=this.querySelector('.formula-popover');if(p)p.style.display='block'" 
+            <div style="position: absolute; bottom: 8px; left: 8px; cursor: help;" 
+                 onmouseenter="const p=this.querySelector('.formula-popover');if(p)p.style.display='flex'" 
                  onmouseleave="const p=this.querySelector('.formula-popover');if(p)p.style.display='none'">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <circle cx="12" cy="7" r="2.5"></circle><circle cx="12" cy="15" r="2.5"></circle>
-                </svg>
-                <div class="formula-popover" style="display: none; position: absolute; bottom: 100%; left: 0; margin-bottom: 4px; padding: 6px; background: #2d3748; border: 1px solid #4a5568; border-radius: 4px; font-family: monospace; font-size: 11px; white-space: nowrap; color: #cbd5e0; z-index: 50; box-shadow: 0 4px 6px rgba(0,0,0,0.3); text-align: left; line-height: 1.4;">
-                    <div style="color: #ecc94b; margin-bottom: 2px;">${roleText}</div>
-                    <div>${step1}</div>
-                    ${stepOut ? `<div>${stepOut}</div>` : ''}
-                    <div style="color: #e2e8f0; margin-top: 2px;">${step2}</div>
+                <div style="display: flex; align-items: center; justify-content: center; width: 22px; height: 22px; border-radius: 50%; border: 1.5px solid rgba(243, 186, 47, 0.35); background: rgba(243, 186, 47, 0.1); color: #f7d774; transition: all 0.2s ease;">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
+                        <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                    </svg>
+                </div>
+                <div class="formula-popover" style="display: none; position: absolute; bottom: 100%; right: 0; margin-bottom: 6px; padding: 12px 14px; background: #0f1923; border: 1px solid rgba(255, 255, 255, 0.12); border-radius: 12px; font-family: monospace; font-size: 11px; white-space: nowrap; color: rgba(255, 255, 255, 0.88); z-index: 50; box-shadow: 0 12px 32px rgba(0,0,0,0.4); text-align: left; line-height: 1.5; flex-direction: column; gap: 4px;">
+                    <div style="color: #f7d774; font-weight: 700; margin-bottom: 2px;">${roleText}</div>
+                    <div style="letter-spacing: 0.05em;">${step1}</div>
+                    ${stepOut ? `<div style="letter-spacing: 0.05em;">${stepOut}</div>` : ''}
+                    <div style="color: #cbd5e0; margin-top: 4px; border-top: 1px solid rgba(255, 255, 255, 0.08); padding-top: 6px; font-weight: 600; letter-spacing: 0.05em;">${step2}</div>
                 </div>
             </div>`;
         }
