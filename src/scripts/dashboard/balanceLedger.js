@@ -1849,8 +1849,19 @@ const updateCoverageBadge = (transfers = [], cycleSpreads = new Map()) => {
             const boundedConsumedFiat = Math.min(consumedFiat, expectedFiat);
             const pendingUsdt = Math.max(0, expectedUsdt - boundedConsumedUsdt);
             const pendingFiat = Math.max(0, expectedFiat - boundedConsumedFiat);
-            const totalSellFiat = isPromise ? expectedFiat : Number(verdict.fiatReceived || 0);
-            const remainingFiat = isPromise ? pendingFiat : Number(verdict.remainingFiat || 0);
+            let totalSellFiat = isPromise ? expectedFiat : Number(verdict.fiatReceived || 0);
+
+            const key = String(verdict.saleTransferId || verdict.saleId || '');
+            if (!key) continue;
+
+            const localCycle = cycleSpreads.get(key);
+            let remainingFiat = isPromise ? pendingFiat : Number(verdict.remainingFiat || 0);
+
+            if (!isPromise && localCycle) {
+                totalSellFiat = localCycle.totalSellFiat || totalSellFiat;
+                remainingFiat = Math.max(0, totalSellFiat - Math.max(0, localCycle.recoveredFiat || 0));
+            }
+
             if (isPromise) {
                 if (pendingUsdt <= 0.009 && pendingFiat <= COVERAGE_COMPLETION_TOLERANCE_FIAT) continue;
             } else if (remainingFiat <= COVERAGE_COMPLETION_TOLERANCE_FIAT) {
@@ -1863,9 +1874,6 @@ const updateCoverageBadge = (transfers = [], cycleSpreads = new Map()) => {
                 if (verdictDateStr < effectiveFrom) continue;
                 if (verdictDateStr > effectiveTo) continue;
             }
-
-            const key = String(verdict.saleTransferId || verdict.saleId || '');
-            if (!key) continue;
 
             if (isPromise) {
                 const actualUsdt = boundedConsumedUsdt;
@@ -2087,8 +2095,12 @@ const renderRow = (tx, rowBalance, cycleData = undefined) => {
     const directionLabel = signedAmount < 0 ? 'Salida' : 'Entrada';
     const spreadReferenceTrigger = renderSpreadReferenceTrigger(tx, cycleData);
     const fiatText = formatFiat(tx);
-    const fiatHtml = '';
-    const fiatDesktopHtml = '';
+    const fiatHtml = fiatText
+        ? `<div class="ledger-mobile-fiat">${escapeHtml(fiatText)}</div>`
+        : '';
+    const fiatDesktopHtml = fiatText
+        ? `<div class="ledger-amount-fiat">${escapeHtml(fiatText)}</div>`
+        : '';
 
     const isDispersorPending = String(tx?.type || '').toUpperCase() === 'DISPERSOR_PENDING';
     const receivers = isDispersorPending ? (tx?.syntheticPromiseMeta?.receivers || []) : [];
