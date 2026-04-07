@@ -29,6 +29,7 @@ const NOTIF_TYPE_STYLE = {
     anomalous_transfer: { icon: '🚨', color: '#ef4444', label: 'Anomalia' },
     bank_overuse: { icon: '🏦', color: '#f97316', label: 'Banco' },
     admin_note: { icon: '📝', color: '#60a5fa', label: 'Nota Admin' },
+    coverage_stale: { icon: '🔴', color: '#f87171', label: 'Cobertura' },
 };
 
 const INTERNAL_ACTIVATION_STYLE = { icon: '👥', color: '#60a5fa', label: 'Interna' };
