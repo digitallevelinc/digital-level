@@ -1810,7 +1810,7 @@ const updateCoverageBadge = (transfers = [], cycleSpreads = new Map()) => {
         ? judgeOpenVerdicts.filter((v) => {
             const s = String(v?.status || '').toUpperCase();
             return !s.startsWith('CLOS') && !s.startsWith('CANCEL') && !s.startsWith('COMPLET');
-          })
+        })
         : null;
 
     // Map saleTransferId → verdict for quick lookup in cycle entries
@@ -1819,7 +1819,7 @@ const updateCoverageBadge = (transfers = [], cycleSpreads = new Map()) => {
             judgeActiveVerdicts
                 .map((v) => [String(v?.saleTransferId || v?.saleId || ''), v])
                 .filter(([k]) => k)
-          )
+        )
         : null;
 
     const activeByKey = new Map();
@@ -2087,8 +2087,8 @@ const renderRow = (tx, rowBalance, cycleData = undefined) => {
     const directionLabel = signedAmount < 0 ? 'Salida' : 'Entrada';
     const spreadReferenceTrigger = renderSpreadReferenceTrigger(tx, cycleData);
     const fiatText = formatFiat(tx);
-    const fiatHtml = fiatText ? `<div class="ledger-mobile-sub">${escapeHtml(fiatText)}</div>` : '';
-    const fiatDesktopHtml = fiatText ? `<div class="ledger-amount-sub">${escapeHtml(fiatText)}</div>` : '';
+    const fiatHtml = '';
+    const fiatDesktopHtml = '';
 
     const isDispersorPending = String(tx?.type || '').toUpperCase() === 'DISPERSOR_PENDING';
     const receivers = isDispersorPending ? (tx?.syntheticPromiseMeta?.receivers || []) : [];
