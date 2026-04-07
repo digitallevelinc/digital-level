@@ -2312,6 +2312,15 @@ const renderTransfers = (transfers = [], options = {}) => {
     }
 };
 
+const doFetchTransfers = async (url, signal, token) => {
+    const res = await fetch(url, {
+        headers: { 'Authorization': `Bearer ${token}` },
+        cache: 'no-store',
+        signal,
+    });
+    return res;
+};
+
 const fetchTransfersPage = async (page = 1, options = {}) => {
     if (!state.apiBase || !state.token) return;
     const showLoading = options?.showLoading !== false;
@@ -2322,7 +2331,12 @@ const fetchTransfersPage = async (page = 1, options = {}) => {
     }
 
     state.page = page;
-    state.abortController = new AbortController();
+    // Capture controller and signal locally so both fetches (main + fallback)
+    // always use the same signal, even if state.abortController is replaced by
+    // a concurrent call before the fallback runs.
+    const abortController = new AbortController();
+    state.abortController = abortController;
+    const signal = abortController.signal;
     const requestSeq = ++state.requestSeq;
     if (showLoading) {
         renderLoading();
@@ -2330,24 +2344,34 @@ const fetchTransfersPage = async (page = 1, options = {}) => {
     }
 
     try {
-        let res = await fetch(buildTransfersUrl(state.apiBase, state.range, page, state.limit, true), {
-            headers: {
-                'Authorization': `Bearer ${state.token}`
-            },
-            cache: 'no-store',
-            signal: state.abortController.signal
-        });
+        let res = await doFetchTransfers(
+            buildTransfersUrl(state.apiBase, state.range, page, state.limit, true),
+            signal,
+            state.token,
+        );
 
         if (!res.ok && res.status !== 401 && res.status !== 403) {
-            const fallbackRes = await fetch(buildTransfersUrl(state.apiBase, state.range, page, state.limit, false), {
-                headers: {
-                    'Authorization': `Bearer ${state.token}`
-                },
-                cache: 'no-store',
-                signal: state.abortController.signal
-            });
-            if (fallbackRes.ok) {
-                res = fallbackRes;
+            // Retry once after a short delay for transient server errors (e.g. DB lock)
+            if (res.status >= 500) {
+                await new Promise((resolve) => setTimeout(resolve, 1500));
+                if (signal.aborted || requestSeq !== state.requestSeq) return;
+                res = await doFetchTransfers(
+                    buildTransfersUrl(state.apiBase, state.range, page, state.limit, true),
+                    signal,
+                    state.token,
+                );
+            }
+
+            // Fallback without channel filter if still not ok
+            if (!res.ok && res.status !== 401 && res.status !== 403) {
+                const fallbackRes = await doFetchTransfers(
+                    buildTransfersUrl(state.apiBase, state.range, page, state.limit, false),
+                    signal,
+                    state.token,
+                );
+                if (fallbackRes.ok) {
+                    res = fallbackRes;
+                }
             }
         }
 
@@ -2387,6 +2411,8 @@ const fetchTransfersPage = async (page = 1, options = {}) => {
         void prefetchSellContextPages();
     } catch (error) {
         if (error?.name === 'AbortError') return;
+        // Ignore error if a newer request has already taken over (stale request)
+        if (requestSeq !== state.requestSeq) return;
         console.warn('No fue posible cargar el historial de balance:', error);
         if (!preserveOnError) {
             renderError('No fue posible cargar el historial. Intenta de nuevo.');
