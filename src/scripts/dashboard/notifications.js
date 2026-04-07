@@ -114,10 +114,19 @@ export function initDashboardNotifications({ apiBase, token }) {
         'Content-Type': 'application/json'
     };
 
-    const setOpen = (open) => {
+    let hasUnreadWhenOpened = false;
+
+    const setOpen = (open, { skipMarkRead = false } = {}) => {
+        const wasOpen = notificationsOpen;
         notificationsOpen = Boolean(open);
         panel.classList.toggle('hidden', !notificationsOpen);
         toggle.setAttribute('aria-expanded', notificationsOpen ? 'true' : 'false');
+
+        // Mark as read only when CLOSING the panel (not when opening)
+        if (wasOpen && !notificationsOpen && !skipMarkRead && hasUnreadWhenOpened) {
+            hasUnreadWhenOpened = false;
+            void markRead();
+        }
     };
 
     const render = (items = [], unreadCount = 0) => {
@@ -212,12 +221,14 @@ export function initDashboardNotifications({ apiBase, token }) {
         setOpen(nextOpen);
         if (nextOpen) {
             await fetchNotifications();
-            await markRead();
+            // Track if there were unread items when panel was opened
+            hasUnreadWhenOpened = cachedUnreadCount > 0;
         }
     });
 
     markReadBtn?.addEventListener('click', async (event) => {
         event.stopPropagation();
+        hasUnreadWhenOpened = false;
         await markRead();
     });
 
@@ -251,12 +262,12 @@ export function initDashboardNotifications({ apiBase, token }) {
     document.addEventListener('click', (event) => {
         if (!notificationsOpen) return;
         if (root.contains(event.target)) return;
-        setOpen(false);
+        setOpen(false); // triggers markRead on close
     });
 
     document.addEventListener('keydown', (event) => {
         if (event.key === 'Escape' && notificationsOpen) {
-            setOpen(false);
+            setOpen(false); // triggers markRead on close
         }
     });
 
