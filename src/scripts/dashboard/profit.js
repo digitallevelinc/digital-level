@@ -2,6 +2,7 @@ import { fUSDT, fVES, inject } from './utils.js';
 import Chart from 'chart.js/auto';
 
 let cachedLedgerProfitSummary = null;
+let cachedDisplayedProfit = null;
 
 function parseNumeric(value) {
     const n = Number(value);
@@ -30,6 +31,7 @@ function updateProfitTooltip(kpis = {}, bankInsights = [], ledgerSummary = null)
     const hasLedgerSpreadsReady = Array.isArray(bankInsights) && bankInsights.some((bank) => bank?.ledgerSpreadReady);
     if (!ledgerSummary && !hasLedgerSpreadsReady) {
         cachedLedgerProfitSummary = null;
+        cachedDisplayedProfit = null;
     }
     if (ledgerSummary && typeof ledgerSummary === 'object') {
         cachedLedgerProfitSummary = ledgerSummary;
@@ -44,35 +46,38 @@ function updateProfitTooltip(kpis = {}, bankInsights = [], ledgerSummary = null)
     const hasLedgerProfit = Number.isFinite(ledgerSpreadTotal) && (
         ledgerSpreadTotal !== 0 || parseNumeric(cachedLedgerProfitSummary?.spreadCount) > 0
     );
-    const displayedProfit = hasLedgerProfit ? (ledgerSpreadTotal - sellFees) : fallbackJudgeProfit;
+    if (cachedDisplayedProfit === null) {
+        cachedDisplayedProfit = fallbackJudgeProfit;
+    }
+    const displayedProfit = cachedDisplayedProfit;
 
     if (hasLedgerProfit) {
         const ledgerNetProfit = ledgerSpreadTotal - sellFees;
 
         setText(
             'audit-profit-tooltip-summary',
-            'El valor visible se calcula con la suma total de spreads del ledger menos los fees de venta del rango.'
+            'El valor visible conserva el primer profit consolidado correcto del rango. El ledger se muestra abajo como referencia para comparar el recalculo.'
         );
         const formulaEl = document.getElementById('audit-profit-tooltip-formula');
-        if (formulaEl) formulaEl.innerHTML = '<strong>Regla:</strong> Profit Operativo = ledgerSummary.totalSpread - fees de venta';
+        if (formulaEl) formulaEl.innerHTML = '<strong>Regla visible:</strong> Profit Operativo = profit consolidado inicial del rango';
 
         const judgeRow = document.getElementById('audit-profit-tooltip-judge');
         if (judgeRow && judgeRow.previousElementSibling) {
-            judgeRow.previousElementSibling.textContent = 'Suma de spreads';
+            judgeRow.previousElementSibling.textContent = 'Judge ciclos cerrados';
         }
 
         setText('audit-profit-tooltip-result', fUSDT(displayedProfit));
         setText('audit-profit-tooltip-backend', fUSDT(backendProfit));
-        setText('audit-profit-tooltip-judge', fUSDT(ledgerSpreadTotal));
+        setText('audit-profit-tooltip-judge', fUSDT(judgeProfit));
         setText('audit-profit-tooltip-sell-fees', fUSDT(sellFees));
 
-        setText('audit-profit-tooltip-fallback', fUSDT(fallbackJudgeProfit));
+        setText('audit-profit-tooltip-fallback', fUSDT(ledgerNetProfit));
         const fallbackLabel = document.getElementById('audit-profit-tooltip-fallback')?.previousElementSibling;
-        if (fallbackLabel) fallbackLabel.textContent = 'Fallback judge';
+        if (fallbackLabel) fallbackLabel.textContent = 'Referencia ledger';
 
         setText(
             'audit-profit-tooltip-note',
-            'El ledger usa el spread total real del rango. Abajo se deja el judge menos fees como referencia secundaria.'
+            'Si el ledger cambia el numero despues del primer render, se toma como referencia y no como fuente del KPI visible.'
         );
 
     } else {
