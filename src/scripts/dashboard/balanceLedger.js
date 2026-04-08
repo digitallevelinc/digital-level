@@ -1684,11 +1684,8 @@ const computeCycleSpreads = (transfers) => {
                             snapshot: buildSpreadSellSnapshot(entry.tx, { consumedFiat: effectiveConsumedFiat }),
                         });
                     }
-                    // Coverage tracks the original fiat of the buy, not the
-                    // interbank-discounted amount. The 0.3% discount only affects
-                    // the spread calculation, not how much fiat the buy covers.
-                    entry.recoveredFiat += consumedFiat;
-                    entry.remainingFiat = Math.max(0, entry.remainingFiat - consumedFiat);
+                    entry.recoveredFiat += effectiveConsumedFiat;
+                    entry.remainingFiat = Math.max(0, entry.remainingFiat - effectiveConsumedFiat);
                     remainingBuyFiat = Math.max(0, remainingBuyFiat - consumedFiat);
                     upsertSellCoverage(entry);
                 }
@@ -2445,6 +2442,32 @@ const renderTransfers = (transfers = [], options = {}) => {
                     cycleSpreads.set(key, exactSellContext);
                 }
             }
+
+            // Inject Judge coverage for the sale so COBERTURA column uses
+            // backend data (which tracks all purchases across all pages).
+            const saleKey = String(verdict.saleTransferId || verdict.saleId || '');
+            if (saleKey && !isPromiseVerdict(verdict)) {
+                const localCycle = cycleSpreads.get(saleKey);
+                const judgeFiatReceived = Number(verdict.fiatReceived || 0);
+                const judgeConsumedFiat = Number(verdict.consumedRebuyFiat || 0);
+                if (judgeFiatReceived > 0 && judgeConsumedFiat > 0) {
+                    const totalSellFiat = localCycle?.totalSellFiat || judgeFiatReceived;
+                    const judgeRecoveredFiat = Math.min(totalSellFiat, judgeConsumedFiat);
+                    const localRecoveredFiat = Number(localCycle?.recoveredFiat || 0);
+                    if (judgeRecoveredFiat > localRecoveredFiat) {
+                        const remainingFiat = Math.max(0, totalSellFiat - judgeRecoveredFiat);
+                        const pct = totalSellFiat > 0 ? Math.min(100, (judgeRecoveredFiat / totalSellFiat) * 100) : 0;
+                        cycleSpreads.set(saleKey, {
+                            ...(localCycle || {}),
+                            totalSellFiat,
+                            recoveredFiat: judgeRecoveredFiat,
+                            remainingFiat,
+                            recoveredPct: pct,
+                            complete: remainingFiat <= COVERAGE_COMPLETION_TOLERANCE_FIAT,
+                        });
+                    }
+                }
+            }
         }
     }
 
@@ -2696,6 +2719,34 @@ const prefetchSellContextPages = async () => {
                 const exactSellContext = buildJudgeSellContextFromVerdict(verdict, existing);
                 if (exactSellContext) {
                     allCycleSpreads.set(key, exactSellContext);
+                }
+            }
+
+            // Inject Judge coverage data for the sale so the COBERTURA column
+            // reflects all purchases tracked by the backend, not just those
+            // present in the local page cache.
+            const saleKey = String(verdict.saleTransferId || verdict.saleId || '');
+            if (saleKey && !isPromiseVerdict(verdict)) {
+                const localCycle = allCycleSpreads.get(saleKey);
+                const judgeFiatReceived = Number(verdict.fiatReceived || 0);
+                const judgeConsumedFiat = Number(verdict.consumedRebuyFiat || 0);
+                if (judgeFiatReceived > 0 && judgeConsumedFiat > 0) {
+                    const totalSellFiat = localCycle?.totalSellFiat || judgeFiatReceived;
+                    const judgeRecoveredFiat = Math.min(totalSellFiat, judgeConsumedFiat);
+                    const localRecoveredFiat = Number(localCycle?.recoveredFiat || 0);
+                    // Use whichever source has more coverage (Judge sees all pages)
+                    if (judgeRecoveredFiat > localRecoveredFiat) {
+                        const remainingFiat = Math.max(0, totalSellFiat - judgeRecoveredFiat);
+                        const pct = totalSellFiat > 0 ? Math.min(100, (judgeRecoveredFiat / totalSellFiat) * 100) : 0;
+                        allCycleSpreads.set(saleKey, {
+                            ...(localCycle || {}),
+                            totalSellFiat,
+                            recoveredFiat: judgeRecoveredFiat,
+                            remainingFiat,
+                            recoveredPct: pct,
+                            complete: remainingFiat <= COVERAGE_COMPLETION_TOLERANCE_FIAT,
+                        });
+                    }
                 }
             }
         }
