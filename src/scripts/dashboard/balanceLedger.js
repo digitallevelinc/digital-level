@@ -1334,7 +1334,8 @@ const buildJudgeSellContextFromVerdict = (verdict = {}, existing = {}) => {
                 ? Number(verdict.saleAmount)
                 : getTxUsdtVolume(saleTx || {}),
             isPromise: Boolean(Number(verdict?.expectedRebuyUsdt || 0) > 0),
-            forceSellRole: resolvedRole === 'MAKER' || resolvedRole === 'TAKER',
+            // Only promise-style verdicts must inherit the sale role.
+            forceSellRole: Boolean(Number(verdict?.expectedRebuyUsdt || 0) > 0),
         },
         ...(saleTx
             ? {
@@ -1413,7 +1414,8 @@ const computeTxSpread = (tx = {}, override = 0) => {
     let sellRate, sellRoleSource, sellFeeSource, sellAmountSource, sellIsPromise = false, forceSellRole = false;
     if (overrideRate > 0) {
         // Cuando el ciclo ya resolvió qué venta(s) consumió este BUY, respetamos
-        // esa referencia exacta. Si fue una sola venta, también heredamos su rol.
+        // la tasa/volumen de referencia. El rol del BUY solo debe ser pisado
+        // para promesas internas, no para compras P2P normales.
         sellRate = overrideRate;
         sellRoleSource = overrideContext?.role || nearestSell?.role || '';
         sellFeeSource = Number(overrideContext?.fee || 0) || nearestSell?.fee || 0;
@@ -1445,9 +1447,8 @@ const computeTxSpread = (tx = {}, override = 0) => {
         ? buyFiat / sellRate
         : sellAmountSource; // fallback si no hay fiat en la compra
 
-    // Las promesas y los BUYs ya enlazados a una venta consumida específica
-    // deben usar el rol de la VENTA. Fuera de eso mantenemos el comportamiento
-    // previo y usamos el rol del BUY como referencia principal.
+    // Las promesas internas sí deben usar el rol de la VENTA. Para compras P2P
+    // normales, el cálculo visible del spread debe respetar el rol del BUY.
     const buyRole = inferMakerTakerRole({
         explicitRole: tx?.advertisementRole,
         fee: toFiniteNumber(tx?.fee),
@@ -1462,11 +1463,13 @@ const computeTxSpread = (tx = {}, override = 0) => {
         ? inferredSellRole
         : (buyRole === 'MAKER' || buyRole === 'TAKER' ? buyRole : inferredSellRole);
 
-    const makerFeeRate = Number(state.kpis?.config?.verificationPercent || 0) / 100;
-    // sellFee solo aplica en la rama TAKER (fórmula a). La rama MAKER usa makerFeeRate,
-    // no sellFeeSource, por lo que tomar el fee de la venta pareada (que puede ser MAKER = 0.02)
-    // generaba un cálculo incorrecto cuando el BUY es TAKER.
-    const sellFee = 0.06;
+    const sellFee = effectiveSellRole === 'TAKER'
+        ? (
+            (sellIsPromise || forceSellRole)
+                ? sellFeeSource
+                : (getAvgTakerSellFeeForBank(tx) || 0.06)
+        )
+        : 0;
 
     // Fórmula a (TAKER):  VES/rate + fee
     // Fórmula b (MAKER):  VES/rate  (sin ajuste de comisión)
@@ -1620,7 +1623,7 @@ const computeCycleSpreads = (transfers) => {
                                 : 0,
                             amount: getTxUsdtVolume(singleConsumedSell),
                             isPromise: Boolean(getPromiseMeta(singleConsumedSell)?.promiseUsdt > 0),
-                            forceSellRole: true,
+                            forceSellRole: Boolean(getPromiseMeta(singleConsumedSell)?.promiseUsdt > 0),
                         }
                         : existing.sellContextOverride,
                     spreadReference: consumedSpreadEntries.length > 0
