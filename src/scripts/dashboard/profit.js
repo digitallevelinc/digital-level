@@ -43,40 +43,36 @@ function updateProfitTooltip(kpis = {}, bankInsights = [], ledgerSummary = null)
     const hasLedgerProfit = Number.isFinite(ledgerSpreadTotal) && (
         ledgerSpreadTotal !== 0 || parseNumeric(cachedLedgerProfitSummary?.spreadCount) > 0
     );
-    const displayedProfit = hasBackendProfit ? backendProfit : 0;
 
     if (hasLedgerProfit) {
         const ledgerNetProfit = ledgerSpreadTotal - sellFees;
+        const displayedProfit = ledgerNetProfit;
 
         setText(
             'audit-profit-tooltip-summary',
-            hasBackendProfit
-                ? 'El valor visible usa el profit canonico del backend. El ledger se muestra abajo como referencia para comparar el recalculo.'
-                : 'Todavia no llego el profit canonico del backend. Este KPI se mantiene en 0 y el ledger se muestra solo como referencia del recalculo.'
+            'El valor visible es la referencia del ledger. El profit canonico del backend se muestra como verificacion.'
         );
         const formulaEl = document.getElementById('audit-profit-tooltip-formula');
         if (formulaEl) {
-            formulaEl.innerHTML = hasBackendProfit
-                ? '<strong>Regla visible:</strong> Profit Operativo = profit canonico del backend'
-                : '<strong>Regla visible:</strong> Profit Operativo = profit canonico del backend';
+            formulaEl.innerHTML = '<strong>Regla visible:</strong> Profit Operativo = referencia ledger';
         }
 
         setText('audit-profit-tooltip-result', fUSDT(displayedProfit));
         setText('audit-profit-tooltip-backend', fUSDT(backendProfit));
         setText('audit-profit-tooltip-sell-fees', fUSDT(sellFees));
 
-        setText('audit-profit-tooltip-fallback', fUSDT(ledgerNetProfit));
+        setText('audit-profit-tooltip-fallback', hasBackendProfit ? fUSDT(backendProfit) : '---');
         const fallbackLabel = document.getElementById('audit-profit-tooltip-fallback')?.previousElementSibling;
-        if (fallbackLabel) fallbackLabel.textContent = 'Referencia ledger';
+        if (fallbackLabel) fallbackLabel.textContent = 'Canonico backend';
 
         setText(
             'audit-profit-tooltip-note',
-            hasBackendProfit
-                ? 'El ledger puede variar durante el recalculo, pero no debe pisar el KPI visible mientras exista profit canonico del backend.'
-                : 'Hasta que llegue el profit canonico del backend, este KPI no debe reconstruirse con otras fuentes.'
+            'El ledger calcula el spread neto por ciclos cerrados. El canonico del backend se muestra como referencia de verificacion.'
         );
 
+        return displayedProfit;
     } else {
+        const displayedProfit = hasBackendProfit ? backendProfit : 0;
         setText(
             'audit-profit-tooltip-summary',
             hasBackendProfit
@@ -101,9 +97,9 @@ function updateProfitTooltip(kpis = {}, bankInsights = [], ledgerSummary = null)
                 ? 'Mientras no llegue el ledger, el KPI visible debe seguir el valor canonico del backend.'
                 : 'Este KPI no debe reconstruirse con judge, spreads ni otras fuentes mientras falte el valor canonico.'
         );
-    }
 
-    return displayedProfit;
+        return displayedProfit;
+    }
 }
 
 export function updateProfitUI(kpis = {}, bankInsights = [], ledgerSummary = null) {
