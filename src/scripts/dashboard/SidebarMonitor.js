@@ -360,6 +360,7 @@ function mergeBankInsightsByAlias(bankInsights = []) {
             weightedAvgBuyRate: mergeWeightedMetric(current.weightedAvgBuyRate, currentBuyWeight, entry.weightedAvgBuyRate, entryBuyWeight),
             weightedAvgSellRate: mergeWeightedMetric(current.weightedAvgSellRate, currentSellWeight, entry.weightedAvgSellRate, entrySellWeight),
             activeVerdictsCount: toNumber(current.activeVerdictsCount) + toNumber(entry.activeVerdictsCount),
+            coverageActiveFiatCount: toNumber(current.coverageActiveFiatCount) + toNumber(entry.coverageActiveFiatCount),
             currentCycleSaleUSDT: toNumber(current.currentCycleSaleUSDT) + toNumber(entry.currentCycleSaleUSDT),
             currentCycleProgress: mergeWeightedMetric(current.currentCycleProgress, currentCycleWeight, entry.currentCycleProgress, entryCycleWeight),
             currentCycleFiatRemaining: toNumber(current.currentCycleFiatRemaining) + toNumber(entry.currentCycleFiatRemaining),
@@ -770,6 +771,7 @@ function buildLatestCycleByBank(kpis = {}, bankInsights = []) {
 function buildBankVesLimitLabel(bank, _config = {}, vesControlSummaryByBank = new Map()) {
     const key = normalizeBankLimitKey(bank);
     const dynamicSummary = vesControlSummaryByBank.get(key);
+    const fallbackCoverageCount = Math.max(0, Number(bank?.coverageActiveFiatCount || 0));
     const fallbackActiveVerdicts = Math.max(0, Number(bank?.activeVerdictsCount || 0));
     const fallbackAvailable = Math.max(
         0,
@@ -819,7 +821,11 @@ function buildBankVesLimitLabel(bank, _config = {}, vesControlSummaryByBank = ne
 
         return {
             value: `${fVESInline(fallbackAvailable)} / ${fVESInline(effectiveCap)}`,
-            meta: buildVesMeta(fallbackAvailable, effectiveCap, fallbackActiveVerdicts),
+            meta: buildVesMeta(
+                fallbackAvailable,
+                effectiveCap,
+                fallbackCoverageCount || fallbackActiveVerdicts
+            ),
             progress,
             limit: effectiveCap,
             current: fallbackAvailable,
@@ -832,7 +838,7 @@ function buildBankVesLimitLabel(bank, _config = {}, vesControlSummaryByBank = ne
     const inflowFiat = Number(dynamicSummary.inflowFiat || 0);
     const activeVerdicts = Math.max(
         0,
-        Number(dynamicSummary.activeVerdicts || fallbackActiveVerdicts || 0)
+        Number(fallbackCoverageCount || dynamicSummary.activeVerdicts || fallbackActiveVerdicts || 0)
     );
     const inferredCapFromFlow = Math.max(0, inflowFiat, available + consumed);
     let effectiveCap = Math.max(0, inferredCapFromFlow);

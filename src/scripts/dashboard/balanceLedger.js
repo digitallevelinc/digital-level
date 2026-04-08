@@ -1800,6 +1800,41 @@ const getVerdictCoverageDateStr = (verdict = {}) => {
     return date.toLocaleDateString('en-CA', { timeZone: CARACAS_TZ });
 };
 
+const getEffectiveCoverageRange = () => {
+    const rangeFrom = sanitizeDateValue(state.range?.from);
+    const rangeTo = sanitizeDateValue(state.range?.to);
+    const todayDateStr = new Intl.DateTimeFormat('en-CA', {
+        timeZone: CARACAS_TZ, year: 'numeric', month: '2-digit', day: '2-digit',
+    }).format(new Date());
+
+    return {
+        effectiveFrom: rangeFrom || todayDateStr,
+        effectiveTo: rangeTo || todayDateStr,
+    };
+};
+
+const buildActiveFiatCoverageCountByBank = (transfers = [], cycleSpreads = new Map()) => {
+    const counts = new Map();
+    const { effectiveFrom, effectiveTo } = getEffectiveCoverageRange();
+
+    for (const tx of transfers) {
+        if (normalizeTxType(tx) !== 'P2P_SELL') continue;
+
+        const txDateStr = new Date(getTxTimestampMs(tx)).toLocaleDateString('en-CA', { timeZone: CARACAS_TZ });
+        if (txDateStr < effectiveFrom || txDateStr > effectiveTo) continue;
+
+        const cycleData = cycleSpreads.get(getTransferKey(tx));
+        if (!cycleData || cycleData.complete) continue;
+
+        const bankKey = normalizeBankKey(tx?.bankName || tx?.bank || tx?.paymentMethod);
+        if (!bankKey) continue;
+
+        counts.set(bankKey, (counts.get(bankKey) || 0) + 1);
+    }
+
+    return counts;
+};
+
 const updateCoverageBadge = (transfers = [], cycleSpreads = new Map()) => {
     const badge = document.getElementById('balance-ledger-coverage-badge');
     const label = document.getElementById('balance-ledger-coverage-label');
@@ -1835,15 +1870,7 @@ const updateCoverageBadge = (transfers = [], cycleSpreads = new Map()) => {
     if (verdictBySaleId !== null) {
         // Judge data available: iterate over open verdicts directly.
         // Filtered to the current date range so sells from other days don't bleed in.
-        const rangeFrom = sanitizeDateValue(state.range?.from);
-        const rangeTo = sanitizeDateValue(state.range?.to);
-        // When no explicit range is set, default to today so yesterday's open cycles
-        // don't appear in today's badge with a confusingly "future" sale time.
-        const todayDateStr = new Intl.DateTimeFormat('en-CA', {
-            timeZone: CARACAS_TZ, year: 'numeric', month: '2-digit', day: '2-digit',
-        }).format(new Date());
-        const effectiveFrom = rangeFrom || todayDateStr;
-        const effectiveTo = rangeTo || todayDateStr;
+        const { effectiveFrom, effectiveTo } = getEffectiveCoverageRange();
 
         for (const verdict of verdictBySaleId.values()) {
             const isPromise = isPromiseVerdict(verdict);
@@ -2546,6 +2573,7 @@ const prefetchSellContextPages = async () => {
     let totalSpread = 0;
     let spreadCount = 0;
     const ledgerSpreadByBank = new Map(); // bankKey → spread sum
+    const activeFiatCoverageCountByBank = buildActiveFiatCoverageCountByBank(allScoped, allCycleSpreads);
     for (const tx of allScoped) {
         const txDateStr = new Date(getTxTimestampMs(tx)).toLocaleDateString('en-CA', { timeZone: CARACAS_TZ });
         if (txDateStr < _effectiveFrom || txDateStr > _effectiveTo) continue;
@@ -2588,6 +2616,7 @@ const prefetchSellContextPages = async () => {
             return {
                 ...bank,
                 spreadProfitUsdt: ledgerSpread,
+                coverageActiveFiatCount: Number(activeFiatCoverageCountByBank.get(key) || 0),
                 ledgerSpreadReady: true,
             };
         });
