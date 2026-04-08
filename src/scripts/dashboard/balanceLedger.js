@@ -2114,10 +2114,12 @@ const renderRow = (tx, rowBalance, cycleData = undefined) => {
             </div>`;
         }
 
+        const normalizedTxType = normalizeTxType(tx);
+        const showZeroSpreadValue = spreadVal === 0 && normalizedTxType === 'P2P_BUY';
         spreadMetric = renderMetricCard({
             label: 'Spread',
-            value: spreadVal !== 0 ? `${spreadVal > 0 ? '+' : '-'}${formatUsd(Math.abs(spreadVal))}` : formatUsd(0),
-            sub: spreadVal !== 0 ? '' : 'Spread neutro',
+            value: spreadVal !== 0 ? `${spreadVal > 0 ? '+' : '-'}${formatUsd(Math.abs(spreadVal))}` : (showZeroSpreadValue ? formatUsd(0) : '--'),
+            sub: spreadVal !== 0 ? '' : (showZeroSpreadValue ? 'Spread neutro' : 'Sin spread calculable'),
             tone: spreadTone,
             extraHtml
         });
