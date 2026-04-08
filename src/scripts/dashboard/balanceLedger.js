@@ -1470,7 +1470,6 @@ const computeTxSpread = (tx = {}, override = 0) => {
         sellFiatPortionSource = Number(nearestSell.fiatAmount || 0) || 0;
     } else {
         sellRate = getFallbackSellReferenceRate();
-        if (sellRate <= 0) return 0;
 
         // Intentar inferir el rol desde la venta más cercana sin restricción de banco.
         const nearestSellRole = getNearestSellRoleForBuy(tx);
@@ -1485,11 +1484,34 @@ const computeTxSpread = (tx = {}, override = 0) => {
     // Así comparamos el mismo volumen fiat: cuánto costó comprarlo vs cuánto costaría venderlo.
     const buyPaymentMethod = String(tx?.paymentMethod || tx?.bankName || tx?.bank || '').trim().toUpperCase();
     const buyFiat = resolveFiatAmount(tx);
+    const forcedInterbank = Boolean(overrideContext?.interbank);
     const {
         discountFiat: interbankFiatDiscount,
         adjustedFiat: adjustedBuyFiat,
         isInterbank,
-    } = applyInterbankFiatDiscount(buyFiat, buyPaymentMethod, sellPaymentMethod);
+    } = forcedInterbank
+        ? {
+            discountFiat: buyFiat > 0 ? buyFiat * INTERBANK_FIAT_DISCOUNT_RATE : 0,
+            adjustedFiat: buyFiat > 0 ? Math.max(0, buyFiat - (buyFiat * INTERBANK_FIAT_DISCOUNT_RATE)) : 0,
+            isInterbank: buyFiat > 0,
+        }
+        : applyInterbankFiatDiscount(buyFiat, buyPaymentMethod, sellPaymentMethod);
+
+    // If no sell rate is available, return early but still include interbank details
+    // so the UI can display the fiat adjustment even when spread is incalculable.
+    if (sellRate <= 0) {
+        return {
+            val: 0,
+            details: {
+                buyFiat,
+                adjustedBuyFiat,
+                interbankFiatDiscount,
+                isInterbank,
+                sellRate: 0,
+            },
+        };
+    }
+
     const sellFiatPortionBase = buyFiat > 0
         ? adjustedBuyFiat
         : sellFiatPortionSource;
@@ -1680,26 +1702,32 @@ const computeCycleSpreads = (transfers) => {
                 const singleConsumedSell = consumedSpreadEntries.length === 1
                     ? consumedSpreadEntries[0]?.tx
                     : null;
+                const cycleInterbank = consumedSpreadEntries.some(({ tx: consumedTx }) => {
+                    const consumedSellBank = String(consumedTx?.paymentMethod || consumedTx?.bankName || consumedTx?.bank || '').trim().toUpperCase();
+                    return isInterbankPair(buyPaymentMethod, consumedSellBank);
+                });
                 const singleConsumedFee = toFiniteNumber(singleConsumedSell?.fee);
                 const singleConsumedFeeCurrency = String(singleConsumedSell?.feeCurrency || '').toUpperCase();
 
                 result.set(buyKey, {
                     ...existing,
                     rateOverride: cycleRateOverride,
-                    sellContextOverride: singleConsumedSell
-                        ? {
-                            rate: cycleRateOverride,
-                            role: getTxDisplayRole(singleConsumedSell),
-                            fee: singleConsumedFee > 0 && (!singleConsumedFeeCurrency || singleConsumedFeeCurrency === 'USDT')
-                                ? singleConsumedFee
-                                : 0,
-                            amount: getTxUsdtVolume(singleConsumedSell),
-                            consumedFiat: consumedTotalFiat,
-                            isPromise: Boolean(getPromiseMeta(singleConsumedSell)?.promiseUsdt > 0),
-                            paymentMethod: String(singleConsumedSell?.paymentMethod || singleConsumedSell?.bankName || singleConsumedSell?.bank || '').trim().toUpperCase(),
-                            forceSellRole: Boolean(getPromiseMeta(singleConsumedSell)?.promiseUsdt > 0),
-                        }
-                        : existing.sellContextOverride,
+                    sellContextOverride: {
+                        ...(existing.sellContextOverride || {}),
+                        rate: cycleRateOverride,
+                        role: singleConsumedSell ? getTxDisplayRole(singleConsumedSell) : (existing.sellContextOverride?.role || ''),
+                        fee: singleConsumedSell && singleConsumedFee > 0 && (!singleConsumedFeeCurrency || singleConsumedFeeCurrency === 'USDT')
+                            ? singleConsumedFee
+                            : 0,
+                        amount: singleConsumedSell ? getTxUsdtVolume(singleConsumedSell) : 0,
+                        consumedFiat: consumedTotalFiat,
+                        isPromise: singleConsumedSell ? Boolean(getPromiseMeta(singleConsumedSell)?.promiseUsdt > 0) : false,
+                        paymentMethod: singleConsumedSell
+                            ? String(singleConsumedSell?.paymentMethod || singleConsumedSell?.bankName || singleConsumedSell?.bank || '').trim().toUpperCase()
+                            : '',
+                        forceSellRole: singleConsumedSell ? Boolean(getPromiseMeta(singleConsumedSell)?.promiseUsdt > 0) : false,
+                        interbank: cycleInterbank,
+                    },
                     spreadReference: consumedSpreadEntries.length > 0
                         ? {
                             mode: consumedSpreadEntries.length > 1 ? 'cycle' : 'single',
