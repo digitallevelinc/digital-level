@@ -214,12 +214,11 @@ function renderProfitChart(chartData = [], totalProfit = 0) {
         return;
     }
 
-    // If the backend returns all-zero profits but we know the real total profit
-    // (from Profit Operativo), distribute it proportionally by cycles so the
-    // chart always matches the KPI shown to the operator.
-    const profitSum = chartData.reduce((sum, d) => sum + (d.profit || 0), 0);
+    // The chart profit MUST always match the Profit Operativo KPI.
+    // Distribute totalProfit (= displayedProfit) across days proportionally
+    // by cycle count so the sum of chart bars equals the KPI exactly.
     let normalizedData = chartData;
-    if (Math.abs(profitSum) < 0.001 && Math.abs(totalProfit) > 0.001) {
+    if (Math.abs(totalProfit) > 0.001) {
         const totalCycles = chartData.reduce((sum, d) => sum + (d.cycles || 0), 0);
         if (totalCycles > 0) {
             normalizedData = chartData.map(d => ({
@@ -235,6 +234,8 @@ function renderProfitChart(chartData = [], totalProfit = 0) {
                 profit: i === targetIdx ? totalProfit : 0
             }));
         }
+    } else {
+        normalizedData = chartData.map(d => ({ ...d, profit: 0 }));
     }
 
     const sortedData = [...normalizedData].sort((a, b) => new Date(a.date) - new Date(b.date));
