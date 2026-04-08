@@ -2089,7 +2089,7 @@ const renderRow = (tx, rowBalance, cycleData = undefined) => {
                 : 'ledger-metric-muted';
 
         let extraHtml = '';
-        if (details && spreadVal !== 0) {
+        if (details) {
             const roleText = details.effectiveSellRole;
             const step1 = `${formatNumber(details.buyFiat, 2)} / ${formatNumber(details.sellRate, 2)} = ${formatNumber(details.sellGross, 4)}`;
             const stepOut = details.effectiveSellRole === 'TAKER' ? `${formatNumber(details.sellGross, 4)} + ${formatNumber(details.sellFee, 2)} = ${formatNumber(details.sellUsdtOut, 4)}` : '';
@@ -2116,8 +2116,8 @@ const renderRow = (tx, rowBalance, cycleData = undefined) => {
 
         spreadMetric = renderMetricCard({
             label: 'Spread',
-            value: spreadVal !== 0 ? `${spreadVal > 0 ? '+' : '-'}${formatUsd(Math.abs(spreadVal))}` : '--',
-            sub: spreadVal !== 0 ? '' : 'Sin spread calculable',
+            value: spreadVal !== 0 ? `${spreadVal > 0 ? '+' : '-'}${formatUsd(Math.abs(spreadVal))}` : formatUsd(0),
+            sub: spreadVal !== 0 ? '' : 'Spread neutro',
             tone: spreadTone,
             extraHtml
         });
