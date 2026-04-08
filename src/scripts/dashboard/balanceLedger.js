@@ -1346,6 +1346,8 @@ const buildJudgeSellContextFromVerdict = (verdict = {}, existing = {}) => {
                 ? Number(verdict.consumedRebuyFiat)
                 : 0,
             totalSellFiat: resolveFiatAmount(saleTx || {}),
+            originalTotalSellFiat: resolveFiatAmount(saleTx || {}),
+            crossBankDiscountFiat: 0,
             isPromise: Boolean(Number(verdict?.expectedRebuyUsdt || 0) > 0),
             paymentMethod: String(saleTx?.paymentMethod || saleTx?.bankName || saleTx?.bank || '').trim().toUpperCase(),
             // Only promise-style verdicts must inherit the sale role.
@@ -1425,7 +1427,7 @@ const computeTxSpread = (tx = {}, override = 0) => {
     // Si no hay una venta pairable en la página actual (p.ej. la página 1 tiene compras
     // cuyas ventas correspondientes están en la página 2), usamos la tasa de referencia
     // global del KPI para estimar igualmente el spread en vez de devolver 0.
-    let sellRate, sellRoleSource, sellFeeSource, sellAmountSource, sellIsPromise = false, forceSellRole = false, sellPaymentMethod = '', sellFiatPortionSource = 0, sellTotalFiatSource = 0;
+    let sellRate, sellRoleSource, sellFeeSource, sellAmountSource, sellIsPromise = false, forceSellRole = false, sellPaymentMethod = '', sellFiatPortionSource = 0, sellTotalFiatSource = 0, sellOriginalTotalFiatSource = 0, crossBankDiscountFiatSource = 0;
     if (overrideRate > 0) {
         // Cuando el ciclo ya resolvió qué venta(s) consumió este BUY, respetamos
         // la tasa/volumen de referencia. El rol del BUY solo debe ser pisado
@@ -1439,6 +1441,8 @@ const computeTxSpread = (tx = {}, override = 0) => {
         sellPaymentMethod = String(overrideContext?.paymentMethod || nearestSell?.paymentMethod || '').trim().toUpperCase();
         sellFiatPortionSource = Number(overrideContext?.consumedFiat || 0) || Number(nearestSell?.fiatAmount || 0) || 0;
         sellTotalFiatSource = Number(overrideContext?.totalSellFiat || 0) || Number(nearestSell?.fiatAmount || 0) || sellFiatPortionSource;
+        sellOriginalTotalFiatSource = Number(overrideContext?.originalTotalSellFiat || 0) || sellTotalFiatSource;
+        crossBankDiscountFiatSource = Number(overrideContext?.crossBankDiscountFiat || 0) || 0;
     } else if (nearestSell && nearestSell.rate > 0) {
         sellRate = nearestSell.rate;
         sellRoleSource = nearestSell.role;
@@ -1448,6 +1452,7 @@ const computeTxSpread = (tx = {}, override = 0) => {
         sellPaymentMethod = String(nearestSell.paymentMethod || '').trim().toUpperCase();
         sellFiatPortionSource = Number(nearestSell.fiatAmount || 0) || 0;
         sellTotalFiatSource = Number(nearestSell.fiatAmount || 0) || sellFiatPortionSource;
+        sellOriginalTotalFiatSource = sellTotalFiatSource;
     } else {
         sellRate = getFallbackSellReferenceRate();
         if (sellRate <= 0) return 0;
@@ -1471,21 +1476,18 @@ const computeTxSpread = (tx = {}, override = 0) => {
         ? sellTotalFiatSource
         : sellFiatPortionBase;
     const buyPaymentMethod = String(tx?.paymentMethod || tx?.bankName || tx?.bank || '').trim().toUpperCase();
-    const applyCrossBankDiscount = sellTotalFiatBase > 0
-        && !sellIsPromise
-        && !banksMatch(buyPaymentMethod, sellPaymentMethod);
-    const crossBankDiscountFiat = applyCrossBankDiscount
-        ? sellTotalFiatBase * CROSS_BANK_SELL_DISCOUNT_RATE
+    const originalSellTotalFiat = sellOriginalTotalFiatSource > 0
+        ? sellOriginalTotalFiatSource
+        : sellTotalFiatBase;
+    const crossBankDiscountFiat = crossBankDiscountFiatSource > 0
+        ? crossBankDiscountFiatSource
         : 0;
-    const adjustedSellTotalFiat = Math.max(0, sellTotalFiatBase - crossBankDiscountFiat);
-    const adjustedSellFiat = sellTotalFiatBase > 0 && sellFiatPortionBase > 0
-        ? adjustedSellTotalFiat * (sellFiatPortionBase / sellTotalFiatBase)
-        : adjustedSellTotalFiat;
+    const adjustedSellTotalFiat = sellTotalFiatBase;
     const sellGrossBase = sellFiatPortionBase > 0
         ? sellFiatPortionBase / sellRate
         : sellAmountSource; // fallback si no hay fiat de referencia
-    const sellGross = adjustedSellFiat > 0
-        ? adjustedSellFiat / sellRate
+    const sellGross = sellFiatPortionBase > 0
+        ? sellFiatPortionBase / sellRate
         : 0;
 
     // Las promesas internas sí deben usar el rol de la VENTA. Para compras P2P
@@ -1527,8 +1529,8 @@ const computeTxSpread = (tx = {}, override = 0) => {
             sellRate,
             sellFiatPortionBase,
             sellTotalFiatBase,
+            originalSellTotalFiat,
             adjustedSellTotalFiat,
-            adjustedSellFiat,
             sellGrossBase,
             crossBankDiscountFiat,
             sellGross,
@@ -1552,10 +1554,26 @@ const computeTxSpread = (tx = {}, override = 0) => {
 // incompletas para evitar que páginas históricas prefetcheadas contaminen ventas recientes.
 // Returns Map<txKey, { complete, totalSellFiat, recoveredFiat, recoveredPct, rateOverride?, spreadReference? }>.
 const CYCLE_MAX_SELL_GAP_MS = 6 * 60 * 60 * 1000; // 6 horas
-const computeCycleSpreads = (transfers) => {
+    const computeCycleSpreads = (transfers) => {
     const result = new Map();
     let openSells = [];
     let lastSellTs = 0;
+
+    const maybeApplyCrossBankSellDiscount = (entry, buyTx) => {
+        if (!entry || entry.crossBankDiscountApplied) return;
+        if (Boolean(getPromiseMeta(entry.tx)?.promiseUsdt > 0)) return;
+        const sellBank = String(entry.tx?.paymentMethod || entry.tx?.bankName || entry.tx?.bank || '').trim().toUpperCase();
+        const buyBank = String(buyTx?.paymentMethod || buyTx?.bankName || buyTx?.bank || '').trim().toUpperCase();
+        if (banksMatch(sellBank, buyBank)) return;
+
+        const originalTotal = Number(entry.originalTotalSellFiat || entry.totalSellFiat || 0);
+        if (!(originalTotal > 0)) return;
+        const discount = originalTotal * CROSS_BANK_SELL_DISCOUNT_RATE;
+        entry.crossBankDiscountApplied = true;
+        entry.crossBankDiscountFiat = discount;
+        entry.totalSellFiat = Math.max(0, originalTotal - discount);
+        entry.remainingFiat = Math.max(0, entry.totalSellFiat - Math.max(0, Number(entry.recoveredFiat || 0)));
+    };
 
     const upsertSellCoverage = (entry, forceComplete = null) => {
         const totalSellFiat = Number(entry?.totalSellFiat || 0);
@@ -1618,6 +1636,9 @@ const computeCycleSpreads = (transfers) => {
                     key,
                     tx,
                     totalSellFiat: sellFiat,
+                    originalTotalSellFiat: sellFiat,
+                    crossBankDiscountFiat: 0,
+                    crossBankDiscountApplied: false,
                     recoveredFiat: 0,
                     remainingFiat: sellFiat,
                 });
@@ -1637,6 +1658,12 @@ const computeCycleSpreads = (transfers) => {
                     if (remainingBuyFiat <= COVERAGE_COMPLETION_TOLERANCE_FIAT) break;
                     if (entry.remainingFiat <= COVERAGE_COMPLETION_TOLERANCE_FIAT) continue;
 
+                    maybeApplyCrossBankSellDiscount(entry, tx);
+                    if (entry.remainingFiat <= COVERAGE_COMPLETION_TOLERANCE_FIAT) {
+                        upsertSellCoverage(entry);
+                        continue;
+                    }
+
                     const consumedFiat = Math.min(entry.remainingFiat, remainingBuyFiat);
                     const sellRate = getTxRate(entry.tx);
                     if (consumedFiat > COVERAGE_COMPLETION_TOLERANCE_FIAT && sellRate > 0) {
@@ -1644,6 +1671,7 @@ const computeCycleSpreads = (transfers) => {
                         consumedTotalUsdt += consumedFiat / sellRate;
                         consumedSpreadEntries.push({
                             tx: entry.tx,
+                            entry,
                             snapshot: buildSpreadSellSnapshot(entry.tx, { consumedFiat }),
                         });
                     }
@@ -1680,7 +1708,9 @@ const computeCycleSpreads = (transfers) => {
                                 : 0,
                             amount: getTxUsdtVolume(singleConsumedSell),
                             consumedFiat: consumedTotalFiat,
-                            totalSellFiat: resolveFiatAmount(singleConsumedSell),
+                            totalSellFiat: Number(consumedSpreadEntries[0]?.entry?.totalSellFiat || resolveFiatAmount(singleConsumedSell)),
+                            originalTotalSellFiat: Number(consumedSpreadEntries[0]?.entry?.originalTotalSellFiat || resolveFiatAmount(singleConsumedSell)),
+                            crossBankDiscountFiat: Number(consumedSpreadEntries[0]?.entry?.crossBankDiscountFiat || 0),
                             isPromise: Boolean(getPromiseMeta(singleConsumedSell)?.promiseUsdt > 0),
                             paymentMethod: String(singleConsumedSell?.paymentMethod || singleConsumedSell?.bankName || singleConsumedSell?.bank || '').trim().toUpperCase(),
                             forceSellRole: Boolean(getPromiseMeta(singleConsumedSell)?.promiseUsdt > 0),
@@ -2152,13 +2182,13 @@ const renderRow = (tx, rowBalance, cycleData = undefined) => {
         if (details) {
             const roleText = details.effectiveSellRole;
             const step1Base = details.crossBankDiscountFiat > 0
-                ? `${formatNumber(details.sellTotalFiatBase, 2)} - ${formatNumber(details.crossBankDiscountFiat, 4)} (0.3%) = ${formatNumber(details.adjustedSellTotalFiat, 4)}`
+                ? `${formatNumber(details.originalSellTotalFiat, 2)} - ${formatNumber(details.crossBankDiscountFiat, 4)} (0.3%) = ${formatNumber(details.adjustedSellTotalFiat, 4)}`
                 : `${formatNumber(details.sellFiatPortionBase ?? details.buyFiat, 2)} / ${formatNumber(details.sellRate, 2)} = ${formatNumber(details.sellGrossBase ?? details.sellGross, 4)}`;
             const step1Discount = details.crossBankDiscountFiat > 0
-                ? `${formatNumber(details.adjustedSellTotalFiat, 4)} x (${formatNumber(details.sellFiatPortionBase, 2)} / ${formatNumber(details.sellTotalFiatBase, 2)}) = ${formatNumber(details.adjustedSellFiat, 4)}`
+                ? `${formatNumber(details.sellFiatPortionBase, 2)} / ${formatNumber(details.sellRate, 2)} = ${formatNumber(details.sellGross, 4)}`
                 : '';
             const step1Rate = details.crossBankDiscountFiat > 0
-                ? `${formatNumber(details.adjustedSellFiat, 4)} / ${formatNumber(details.sellRate, 2)} = ${formatNumber(details.sellGross, 4)}`
+                ? ''
                 : '';
             const stepOut = details.effectiveSellRole === 'TAKER' ? `${formatNumber(details.sellGross, 4)} + ${formatNumber(details.sellFee, 2)} = ${formatNumber(details.sellUsdtOut, 4)}` : '';
             const step2 = `${formatNumber(details.buyUsdtIn, 2)} - ${formatNumber(details.sellUsdtOut, 2)} = ${formatNumber(spreadValRaw, 4)}`;
@@ -2242,7 +2272,12 @@ const renderRow = (tx, rowBalance, cycleData = undefined) => {
     const methodText = tx?.paymentMethod ? escapeHtml(String(tx.paymentMethod).toUpperCase()) : '';
     const directionLabel = signedAmount < 0 ? 'Salida' : 'Entrada';
     const spreadReferenceTrigger = renderSpreadReferenceTrigger(tx, cycleData);
-    const fiatText = formatFiat(tx);
+    const fiatText = (() => {
+        if (isCycleSell && Number(cycleData?.totalSellFiat || 0) > 0) {
+            return `${formatNumber(Number(cycleData.totalSellFiat), 2)} ${getFiatLabel(tx)}`;
+        }
+        return formatFiat(tx);
+    })();
     const fiatHtml = fiatText
         ? `<div class="ledger-mobile-fiat">${escapeHtml(fiatText)}</div>`
         : '';
