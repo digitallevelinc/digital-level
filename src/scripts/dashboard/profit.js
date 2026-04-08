@@ -31,10 +31,6 @@ function getSellFeesTotal(kpis = {}, bankInsights = []) {
 }
 
 function updateProfitTooltip(kpis = {}, bankInsights = [], ledgerSummary = null) {
-    const hasLedgerSpreadsReady = Array.isArray(bankInsights) && bankInsights.some((bank) => bank?.ledgerSpreadReady);
-    if (!ledgerSummary && !hasLedgerSpreadsReady) {
-        cachedLedgerProfitSummary = null;
-    }
     if (ledgerSummary && typeof ledgerSummary === 'object') {
         cachedLedgerProfitSummary = ledgerSummary;
     }
