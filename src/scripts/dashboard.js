@@ -498,23 +498,21 @@ function getSellFeesTotal(kpis = {}, bankData = []) {
 }
 
 function syncCriticalProfitFromBanks(kpis = {}, metrics = {}, bankData = []) {
-    // Preserve canonical net profit from backend. Only rebuild it when missing,
-    // using judge closed profit minus sell fees.
-    const judgeProfit = Number(kpis.judge?.completedCycles?.totalProfit || 0);
-    const sellFees = getSellFeesTotal(kpis, bankData);
-    const fallbackNetProfit = judgeProfit - sellFees;
-
+    // Profit Operativo must come only from the canonical backend value.
     if (!kpis.critical) kpis.critical = {};
     if (!kpis.metrics) kpis.metrics = metrics;
 
     const critical = kpis.critical;
     const completedCycles = Number(critical.completedCycles || 0);
-    const canonicalProfit = hasFiniteNumber(critical.profitTotalUSDT)
-        ? Number(critical.profitTotalUSDT)
-        : fallbackNetProfit;
+    const hasCanonicalProfit = hasFiniteNumber(critical.profitTotalUSDT);
+    const canonicalProfit = hasCanonicalProfit ? Number(critical.profitTotalUSDT) : 0;
 
-    critical.profitTotalUSDT = canonicalProfit;
-    critical.averageCycleProfit = completedCycles > 0 ? canonicalProfit / completedCycles : 0;
+    if (hasCanonicalProfit) {
+        critical.profitTotalUSDT = canonicalProfit;
+    }
+    critical.averageCycleProfit = hasCanonicalProfit && completedCycles > 0
+        ? canonicalProfit / completedCycles
+        : 0;
 
     kpis.metrics.totalProfit = canonicalProfit;
 

@@ -2,11 +2,14 @@ import { fUSDT, fVES, inject } from './utils.js';
 import Chart from 'chart.js/auto';
 
 let cachedLedgerProfitSummary = null;
-let cachedDisplayedProfit = null;
 
 function parseNumeric(value) {
     const n = Number(value);
     return Number.isFinite(n) ? n : 0;
+}
+
+function hasFiniteNumber(value) {
+    return value !== null && value !== undefined && Number.isFinite(Number(value));
 }
 
 function setText(id, value) {
@@ -31,44 +34,39 @@ function updateProfitTooltip(kpis = {}, bankInsights = [], ledgerSummary = null)
     const hasLedgerSpreadsReady = Array.isArray(bankInsights) && bankInsights.some((bank) => bank?.ledgerSpreadReady);
     if (!ledgerSummary && !hasLedgerSpreadsReady) {
         cachedLedgerProfitSummary = null;
-        cachedDisplayedProfit = null;
     }
     if (ledgerSummary && typeof ledgerSummary === 'object') {
         cachedLedgerProfitSummary = ledgerSummary;
     }
 
     const critical = kpis.critical || {};
+    const hasBackendProfit = hasFiniteNumber(critical.profitTotalUSDT);
     const backendProfit = parseNumeric(critical.profitTotalUSDT);
-    const judgeProfit = parseNumeric(kpis.judge?.completedCycles?.totalProfit);
     const sellFees = getSellFeesTotal(kpis, bankInsights);
-    const fallbackJudgeProfit = judgeProfit - sellFees;
     const ledgerSpreadTotal = parseNumeric(cachedLedgerProfitSummary?.totalSpread);
     const hasLedgerProfit = Number.isFinite(ledgerSpreadTotal) && (
         ledgerSpreadTotal !== 0 || parseNumeric(cachedLedgerProfitSummary?.spreadCount) > 0
     );
-    if (cachedDisplayedProfit === null) {
-        cachedDisplayedProfit = fallbackJudgeProfit;
-    }
-    const displayedProfit = cachedDisplayedProfit;
+    const displayedProfit = hasBackendProfit ? backendProfit : 0;
 
     if (hasLedgerProfit) {
         const ledgerNetProfit = ledgerSpreadTotal - sellFees;
 
         setText(
             'audit-profit-tooltip-summary',
-            'El valor visible conserva el primer profit consolidado correcto del rango. El ledger se muestra abajo como referencia para comparar el recalculo.'
+            hasBackendProfit
+                ? 'El valor visible usa el profit canonico del backend. El ledger se muestra abajo como referencia para comparar el recalculo.'
+                : 'Todavia no llego el profit canonico del backend. Este KPI se mantiene en 0 y el ledger se muestra solo como referencia del recalculo.'
         );
         const formulaEl = document.getElementById('audit-profit-tooltip-formula');
-        if (formulaEl) formulaEl.innerHTML = '<strong>Regla visible:</strong> Profit Operativo = profit consolidado inicial del rango';
-
-        const judgeRow = document.getElementById('audit-profit-tooltip-judge');
-        if (judgeRow && judgeRow.previousElementSibling) {
-            judgeRow.previousElementSibling.textContent = 'Judge ciclos cerrados';
+        if (formulaEl) {
+            formulaEl.innerHTML = hasBackendProfit
+                ? '<strong>Regla visible:</strong> Profit Operativo = profit canonico del backend'
+                : '<strong>Regla visible:</strong> Profit Operativo = profit canonico del backend';
         }
 
         setText('audit-profit-tooltip-result', fUSDT(displayedProfit));
         setText('audit-profit-tooltip-backend', fUSDT(backendProfit));
-        setText('audit-profit-tooltip-judge', fUSDT(judgeProfit));
         setText('audit-profit-tooltip-sell-fees', fUSDT(sellFees));
 
         setText('audit-profit-tooltip-fallback', fUSDT(ledgerNetProfit));
@@ -77,35 +75,35 @@ function updateProfitTooltip(kpis = {}, bankInsights = [], ledgerSummary = null)
 
         setText(
             'audit-profit-tooltip-note',
-            'Si el ledger cambia el numero despues del primer render, se toma como referencia y no como fuente del KPI visible.'
+            hasBackendProfit
+                ? 'El ledger puede variar durante el recalculo, pero no debe pisar el KPI visible mientras exista profit canonico del backend.'
+                : 'Hasta que llegue el profit canonico del backend, este KPI no debe reconstruirse con otras fuentes.'
         );
 
     } else {
         setText(
             'audit-profit-tooltip-summary',
-            'Todavia no llego el resumen del ledger. Se usa judge ciclos cerrados menos fees de venta como fallback.'
+            hasBackendProfit
+                ? 'Todavia no llego el resumen del ledger. El valor visible usa el profit canonico del backend y el fallback queda solo como referencia.'
+                : 'Todavia no llego el resumen del ledger ni el profit canonico del backend. Este KPI se mantiene en 0.'
         );
-        const formulaHtml = '<strong>Regla:</strong> Profit Operativo = judge.completedCycles.totalProfit - fees de venta';
+        const formulaHtml = '<strong>Regla visible:</strong> Profit Operativo = profit canonico del backend';
         const formulaEl = document.getElementById('audit-profit-tooltip-formula');
         if (formulaEl) formulaEl.innerHTML = formulaHtml;
 
-        const judgeRow = document.getElementById('audit-profit-tooltip-judge');
-        if (judgeRow && judgeRow.previousElementSibling) {
-            judgeRow.previousElementSibling.textContent = 'Judge ciclos cerrados';
-        }
-
         setText('audit-profit-tooltip-result', fUSDT(displayedProfit));
         setText('audit-profit-tooltip-backend', fUSDT(backendProfit));
-        setText('audit-profit-tooltip-judge', fUSDT(judgeProfit));
         setText('audit-profit-tooltip-sell-fees', fUSDT(sellFees));
-        setText('audit-profit-tooltip-fallback', fUSDT(fallbackJudgeProfit));
+        setText('audit-profit-tooltip-fallback', '---');
 
         const fallbackLabel = document.getElementById('audit-profit-tooltip-fallback')?.previousElementSibling;
-        if (fallbackLabel) fallbackLabel.textContent = 'Fallback visual';
+        if (fallbackLabel) fallbackLabel.textContent = hasBackendProfit ? 'Referencia visual' : 'Referencia pendiente';
 
         setText(
             'audit-profit-tooltip-note',
-            'Cuando el ledger termina de recalcular, este valor debe coincidir con la suma de spreads menos fees de venta.'
+            hasBackendProfit
+                ? 'Mientras no llegue el ledger, el KPI visible debe seguir el valor canonico del backend.'
+                : 'Este KPI no debe reconstruirse con judge, spreads ni otras fuentes mientras falte el valor canonico.'
         );
     }
 

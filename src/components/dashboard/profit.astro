@@ -68,10 +68,6 @@ import CardHelp from './CardHelp.astro';
                   <span id="audit-profit-tooltip-backend" class="font-mono text-white/90">---</span>
                 </div>
                 <div class="flex items-center justify-between gap-3">
-                  <span class="text-white/55">Judge ciclos cerrados</span>
-                  <span id="audit-profit-tooltip-judge" class="font-mono text-white/90">---</span>
-                </div>
-                <div class="flex items-center justify-between gap-3">
                   <span class="text-white/55">Fees de venta</span>
                   <span id="audit-profit-tooltip-sell-fees" class="font-mono text-rose-300">---</span>
                 </div>
@@ -81,7 +77,7 @@ import CardHelp from './CardHelp.astro';
                 </div>
               </div>
               <p class="mt-3 text-[12px] leading-[1.45] text-white/60" id="audit-profit-tooltip-note">
-                Si el backend envia el profit canonico, ese valor manda. Si no, se reconstruye con judge cerrado menos fees de venta.
+                Si el backend envia el profit canonico, ese valor manda. Si no, este KPI no debe reconstruirse con otras fuentes.
               </p>
             </div>
           </div>
