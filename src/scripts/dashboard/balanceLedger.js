@@ -1021,6 +1021,27 @@ const isInterbankPair = (buyBank, sellBank) => {
     return buyKey !== sellKey;
 };
 
+const applyInterbankFiatDiscount = (fiatAmount, buyBank, sellBank) => {
+    const originalFiat = Math.max(0, Number(fiatAmount || 0));
+    if (!(originalFiat > 0)) {
+        return {
+            originalFiat: 0,
+            discountFiat: 0,
+            adjustedFiat: 0,
+            isInterbank: false,
+        };
+    }
+
+    const isInterbank = isInterbankPair(buyBank, sellBank);
+    const discountFiat = isInterbank ? originalFiat * INTERBANK_FIAT_DISCOUNT_RATE : 0;
+    return {
+        originalFiat,
+        discountFiat,
+        adjustedFiat: Math.max(0, originalFiat - discountFiat),
+        isInterbank,
+    };
+};
+
 const matchTxToBank = (tx) => {
     const txBankKey = normalizeBankKey(tx?.bankName || tx?.bank || tx?.paymentMethod);
     if (!txBankKey || !state.bankData.length) return null;
@@ -1464,12 +1485,11 @@ const computeTxSpread = (tx = {}, override = 0) => {
     // Así comparamos el mismo volumen fiat: cuánto costó comprarlo vs cuánto costaría venderlo.
     const buyPaymentMethod = String(tx?.paymentMethod || tx?.bankName || tx?.bank || '').trim().toUpperCase();
     const buyFiat = resolveFiatAmount(tx);
-    const interbankFiatDiscount = isInterbankPair(buyPaymentMethod, sellPaymentMethod) && buyFiat > 0
-        ? buyFiat * INTERBANK_FIAT_DISCOUNT_RATE
-        : 0;
-    const adjustedBuyFiat = buyFiat > 0
-        ? Math.max(0, buyFiat - interbankFiatDiscount)
-        : 0;
+    const {
+        discountFiat: interbankFiatDiscount,
+        adjustedFiat: adjustedBuyFiat,
+        isInterbank,
+    } = applyInterbankFiatDiscount(buyFiat, buyPaymentMethod, sellPaymentMethod);
     const sellFiatPortionBase = buyFiat > 0
         ? adjustedBuyFiat
         : sellFiatPortionSource;
@@ -1518,7 +1538,7 @@ const computeTxSpread = (tx = {}, override = 0) => {
             buyFiat,
             adjustedBuyFiat,
             interbankFiatDiscount,
-            isInterbank: interbankFiatDiscount > 0,
+            isInterbank,
             sellRate,
             sellFiatPortionBase,
             sellGrossBase,
@@ -1618,6 +1638,7 @@ const computeCycleSpreads = (transfers) => {
         } else if (type === 'P2P_BUY' && openSells.length > 0) {
             // Una compra consume VES del pool y aporta su spread
             const buyFiat = resolveFiatAmount(tx);
+            const buyPaymentMethod = String(tx?.paymentMethod || tx?.bankName || tx?.bank || '').trim().toUpperCase();
             const consumedSpreadEntries = [];
             let consumedTotalFiat = 0;
             let consumedTotalUsdt = 0;
@@ -1629,18 +1650,20 @@ const computeCycleSpreads = (transfers) => {
                     if (entry.remainingFiat <= COVERAGE_COMPLETION_TOLERANCE_FIAT) continue;
 
                     const consumedFiat = Math.min(entry.remainingFiat, remainingBuyFiat);
+                    const sellPaymentMethod = String(entry.tx?.paymentMethod || entry.tx?.bankName || entry.tx?.bank || '').trim().toUpperCase();
+                    const { adjustedFiat: effectiveConsumedFiat } = applyInterbankFiatDiscount(consumedFiat, buyPaymentMethod, sellPaymentMethod);
                     const sellRate = getTxRate(entry.tx);
-                    if (consumedFiat > COVERAGE_COMPLETION_TOLERANCE_FIAT && sellRate > 0) {
-                        consumedTotalFiat += consumedFiat;
-                        consumedTotalUsdt += consumedFiat / sellRate;
+                    if (effectiveConsumedFiat > COVERAGE_COMPLETION_TOLERANCE_FIAT && sellRate > 0) {
+                        consumedTotalFiat += effectiveConsumedFiat;
+                        consumedTotalUsdt += effectiveConsumedFiat / sellRate;
                         consumedSpreadEntries.push({
                             tx: entry.tx,
                             entry,
-                            snapshot: buildSpreadSellSnapshot(entry.tx, { consumedFiat }),
+                            snapshot: buildSpreadSellSnapshot(entry.tx, { consumedFiat: effectiveConsumedFiat }),
                         });
                     }
-                    entry.recoveredFiat += consumedFiat;
-                    entry.remainingFiat = Math.max(0, entry.remainingFiat - consumedFiat);
+                    entry.recoveredFiat += effectiveConsumedFiat;
+                    entry.remainingFiat = Math.max(0, entry.remainingFiat - effectiveConsumedFiat);
                     remainingBuyFiat = Math.max(0, remainingBuyFiat - consumedFiat);
                     upsertSellCoverage(entry);
                 }
