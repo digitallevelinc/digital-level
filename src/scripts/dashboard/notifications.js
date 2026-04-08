@@ -30,6 +30,7 @@ const NOTIF_TYPE_STYLE = {
     bank_overuse: { icon: '🏦', color: '#f97316', label: 'Banco' },
     admin_note: { icon: '📝', color: '#60a5fa', label: 'Nota Admin' },
     coverage_stale: { icon: '🔴', color: '#f87171', label: 'Cobertura' },
+    pay_sent_external: { icon: '💸', color: '#f97316', label: 'Pago externo' },
 };
 
 const INTERNAL_ACTIVATION_STYLE = { icon: '👥', color: '#60a5fa', label: 'Interna' };
