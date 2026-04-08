@@ -1,6 +1,8 @@
 import { fUSDT, fVES, inject } from './utils.js';
 import Chart from 'chart.js/auto';
 
+let cachedLedgerProfitSummary = null;
+
 function parseNumeric(value) {
     const n = Number(value);
     return Number.isFinite(n) ? n : 0;
@@ -24,67 +26,61 @@ function getSellFeesTotal(kpis = {}, bankInsights = []) {
     ), 0);
 }
 
-function updateProfitTooltip(kpis = {}, bankInsights = []) {
-    const critical = kpis.critical || {};
-    const hasCanonicalProfit = critical.profitTotalUSDT !== null
-        && critical.profitTotalUSDT !== undefined
-        && Number.isFinite(Number(critical.profitTotalUSDT));
+function updateProfitTooltip(kpis = {}, bankInsights = [], ledgerSummary = null) {
+    const hasLedgerSpreadsReady = Array.isArray(bankInsights) && bankInsights.some((bank) => bank?.ledgerSpreadReady);
+    if (!ledgerSummary && !hasLedgerSpreadsReady) {
+        cachedLedgerProfitSummary = null;
+    }
+    if (ledgerSummary && typeof ledgerSummary === 'object') {
+        cachedLedgerProfitSummary = ledgerSummary;
+    }
 
-    const hasLedgerSpreads = bankInsights && bankInsights.some(b => b.ledgerSpreadReady);
+    const critical = kpis.critical || {};
     const backendProfit = parseNumeric(critical.profitTotalUSDT);
     const judgeProfit = parseNumeric(kpis.judge?.completedCycles?.totalProfit);
     const sellFees = getSellFeesTotal(kpis, bankInsights);
     const fallbackJudgeProfit = judgeProfit - sellFees;
-    const displayedProfit = hasCanonicalProfit ? backendProfit : fallbackJudgeProfit;
+    const ledgerSpreadTotal = parseNumeric(cachedLedgerProfitSummary?.totalSpread);
+    const hasLedgerProfit = Number.isFinite(ledgerSpreadTotal) && (
+        ledgerSpreadTotal !== 0 || parseNumeric(cachedLedgerProfitSummary?.spreadCount) > 0
+    );
+    const displayedProfit = hasLedgerProfit ? (ledgerSpreadTotal - sellFees) : fallbackJudgeProfit;
 
-    if (hasLedgerSpreads) {
-        const spreadsTotal = (bankInsights || []).reduce((sum, b) => sum + parseNumeric(b.spreadProfitUsdt), 0);
-        const ledgerNetProfit = spreadsTotal - sellFees;
+    if (hasLedgerProfit) {
+        const ledgerNetProfit = ledgerSpreadTotal - sellFees;
 
         setText(
             'audit-profit-tooltip-summary',
-            hasCanonicalProfit
-                ? 'El valor visible se mantiene en el profit canonico del backend. El ledger se muestra abajo solo como referencia de contraste.'
-                : 'No llego profit canonico del backend. Se usa el fallback del judge y se muestra el ledger como referencia.'
+            'El valor visible se calcula con la suma total de spreads del ledger menos los fees de venta del rango.'
         );
         const formulaEl = document.getElementById('audit-profit-tooltip-formula');
-        if (formulaEl) {
-            formulaEl.innerHTML = hasCanonicalProfit
-                ? '<strong>Regla:</strong> Profit Operativo = critical.profitTotalUSDT'
-                : '<strong>Regla:</strong> Profit Operativo = judge.completedCycles.totalProfit - fees de venta';
-        }
+        if (formulaEl) formulaEl.innerHTML = '<strong>Regla:</strong> Profit Operativo = ledgerSummary.totalSpread - fees de venta';
 
         const judgeRow = document.getElementById('audit-profit-tooltip-judge');
         if (judgeRow && judgeRow.previousElementSibling) {
-            judgeRow.previousElementSibling.textContent = 'Judge ciclos cerrados';
+            judgeRow.previousElementSibling.textContent = 'Suma de spreads';
         }
 
         setText('audit-profit-tooltip-result', fUSDT(displayedProfit));
         setText('audit-profit-tooltip-backend', fUSDT(backendProfit));
-        setText('audit-profit-tooltip-judge', fUSDT(judgeProfit));
+        setText('audit-profit-tooltip-judge', fUSDT(ledgerSpreadTotal));
         setText('audit-profit-tooltip-sell-fees', fUSDT(sellFees));
 
-        setText('audit-profit-tooltip-fallback', fUSDT(ledgerNetProfit));
+        setText('audit-profit-tooltip-fallback', fUSDT(fallbackJudgeProfit));
         const fallbackLabel = document.getElementById('audit-profit-tooltip-fallback')?.previousElementSibling;
-        if (fallbackLabel) fallbackLabel.textContent = 'Referencia ledger';
+        if (fallbackLabel) fallbackLabel.textContent = 'Fallback judge';
 
         setText(
             'audit-profit-tooltip-note',
-            hasCanonicalProfit
-                ? 'Aunque el ledger recalcule spreads despues, el numero visible no debe pisar el profit canonico del backend.'
-                : 'No llego profit canonico del backend. La referencia ledger se deja visible solo para comparar contra el fallback.'
+            'El ledger usa el spread total real del rango. Abajo se deja el judge menos fees como referencia secundaria.'
         );
 
     } else {
         setText(
             'audit-profit-tooltip-summary',
-            hasCanonicalProfit
-                ? 'Se muestra el profit canonico entregado por el backend para el rango actual.'
-                : 'El backend no envio un profit canonico y la UI reconstruyo el valor mostrado.'
+            'Todavia no llego el resumen del ledger. Se usa judge ciclos cerrados menos fees de venta como fallback.'
         );
-        const formulaHtml = hasCanonicalProfit
-            ? '<strong>Regla:</strong> Profit Operativo = critical.profitTotalUSDT'
-            : '<strong>Regla:</strong> Profit Operativo = judge.completedCycles.totalProfit - fees de venta';
+        const formulaHtml = '<strong>Regla:</strong> Profit Operativo = judge.completedCycles.totalProfit - fees de venta';
         const formulaEl = document.getElementById('audit-profit-tooltip-formula');
         if (formulaEl) formulaEl.innerHTML = formulaHtml;
 
@@ -104,22 +100,20 @@ function updateProfitTooltip(kpis = {}, bankInsights = []) {
 
         setText(
             'audit-profit-tooltip-note',
-            hasCanonicalProfit
-                ? 'Referencia de respaldo: judge cerrado - fees de venta. El valor visible sigue siendo el canonico del backend.'
-                : 'La UI uso el fallback porque no llego critical.profitTotalUSDT desde el backend.'
+            'Cuando el ledger termina de recalcular, este valor debe coincidir con la suma de spreads menos fees de venta.'
         );
     }
 
     return displayedProfit;
 }
 
-export function updateProfitUI(kpis = {}, bankInsights = []) {
+export function updateProfitUI(kpis = {}, bankInsights = [], ledgerSummary = null) {
     const critical = kpis.critical || {};
     const operations = kpis.operations || {};
     const audit = kpis.audit || {};
     const dispersor = kpis.judge?.dispersor || kpis.dispersor || {};
 
-    const displayedProfit = updateProfitTooltip(kpis, bankInsights);
+    const displayedProfit = updateProfitTooltip(kpis, bankInsights, ledgerSummary);
 
     // This card must reflect Binance API balance only; never fall back to reconstructed totals.
     const realBinance = parseNumeric(audit.realBalance);

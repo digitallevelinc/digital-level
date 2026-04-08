@@ -839,7 +839,7 @@ export async function updateDashboard(API_BASE, token, alias, range = {}, opts =
             bankData,
             onBankDataUpdate: (updatedBankData, ledgerSummary) => {
                 updateSidebarMonitor(kpis, updatedBankData, ledgerSummary);
-                updateProfitUI(kpis, updatedBankData);
+                updateProfitUI(kpis, updatedBankData, ledgerSummary);
             },
         });
 
