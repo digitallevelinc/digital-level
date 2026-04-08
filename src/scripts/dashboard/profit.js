@@ -26,49 +26,56 @@ function getSellFeesTotal(kpis = {}, bankInsights = []) {
 
 function updateProfitTooltip(kpis = {}, bankInsights = []) {
     const critical = kpis.critical || {};
+    const hasCanonicalProfit = critical.profitTotalUSDT !== null
+        && critical.profitTotalUSDT !== undefined
+        && Number.isFinite(Number(critical.profitTotalUSDT));
 
     const hasLedgerSpreads = bankInsights && bankInsights.some(b => b.ledgerSpreadReady);
     const backendProfit = parseNumeric(critical.profitTotalUSDT);
     const judgeProfit = parseNumeric(kpis.judge?.completedCycles?.totalProfit);
     const sellFees = getSellFeesTotal(kpis, bankInsights);
-
-    let displayedProfit;
-    let fallbackProfit;
+    const fallbackJudgeProfit = judgeProfit - sellFees;
+    const displayedProfit = hasCanonicalProfit ? backendProfit : fallbackJudgeProfit;
 
     if (hasLedgerSpreads) {
         const spreadsTotal = (bankInsights || []).reduce((sum, b) => sum + parseNumeric(b.spreadProfitUsdt), 0);
-        fallbackProfit = spreadsTotal;
-        displayedProfit = spreadsTotal - sellFees;
+        const ledgerNetProfit = spreadsTotal - sellFees;
 
-        setText('audit-profit-tooltip-summary', 'Se muestra el profit canonico reconstruido sumando los spreads locales menos los fees de venta.');
+        setText(
+            'audit-profit-tooltip-summary',
+            hasCanonicalProfit
+                ? 'El valor visible se mantiene en el profit canonico del backend. El ledger se muestra abajo solo como referencia de contraste.'
+                : 'No llego profit canonico del backend. Se usa el fallback del judge y se muestra el ledger como referencia.'
+        );
         const formulaEl = document.getElementById('audit-profit-tooltip-formula');
-        if (formulaEl) formulaEl.innerHTML = '<strong>Regla:</strong> Profit Operativo = Suma(Spreads) - Fees de venta';
+        if (formulaEl) {
+            formulaEl.innerHTML = hasCanonicalProfit
+                ? '<strong>Regla:</strong> Profit Operativo = critical.profitTotalUSDT'
+                : '<strong>Regla:</strong> Profit Operativo = judge.completedCycles.totalProfit - fees de venta';
+        }
 
-        // Modificar label del judge para que muestre Suma de Spreads
         const judgeRow = document.getElementById('audit-profit-tooltip-judge');
         if (judgeRow && judgeRow.previousElementSibling) {
-            judgeRow.previousElementSibling.textContent = 'Suma de Spreads';
+            judgeRow.previousElementSibling.textContent = 'Judge ciclos cerrados';
         }
 
         setText('audit-profit-tooltip-result', fUSDT(displayedProfit));
         setText('audit-profit-tooltip-backend', fUSDT(backendProfit));
-        setText('audit-profit-tooltip-judge', fUSDT(spreadsTotal));
+        setText('audit-profit-tooltip-judge', fUSDT(judgeProfit));
         setText('audit-profit-tooltip-sell-fees', fUSDT(sellFees));
 
-        setText('audit-profit-tooltip-fallback', fUSDT(backendProfit));
+        setText('audit-profit-tooltip-fallback', fUSDT(ledgerNetProfit));
         const fallbackLabel = document.getElementById('audit-profit-tooltip-fallback')?.previousElementSibling;
-        if (fallbackLabel) fallbackLabel.textContent = 'Profit Backend';
+        if (fallbackLabel) fallbackLabel.textContent = 'Referencia ledger';
 
-        setText('audit-profit-tooltip-note', 'La UI utiliza los spreads exactos del ledger como fuente de la verdad para el profit canonico.');
+        setText(
+            'audit-profit-tooltip-note',
+            hasCanonicalProfit
+                ? 'Aunque el ledger recalcule spreads despues, el numero visible no debe pisar el profit canonico del backend.'
+                : 'No llego profit canonico del backend. La referencia ledger se deja visible solo para comparar contra el fallback.'
+        );
 
     } else {
-        const hasCanonicalProfit = critical.profitTotalUSDT !== null
-            && critical.profitTotalUSDT !== undefined
-            && Number.isFinite(Number(critical.profitTotalUSDT));
-
-        fallbackProfit = judgeProfit - sellFees;
-        displayedProfit = hasCanonicalProfit ? backendProfit : fallbackProfit;
-
         setText(
             'audit-profit-tooltip-summary',
             hasCanonicalProfit
@@ -90,7 +97,7 @@ function updateProfitTooltip(kpis = {}, bankInsights = []) {
         setText('audit-profit-tooltip-backend', fUSDT(backendProfit));
         setText('audit-profit-tooltip-judge', fUSDT(judgeProfit));
         setText('audit-profit-tooltip-sell-fees', fUSDT(sellFees));
-        setText('audit-profit-tooltip-fallback', fUSDT(fallbackProfit));
+        setText('audit-profit-tooltip-fallback', fUSDT(fallbackJudgeProfit));
 
         const fallbackLabel = document.getElementById('audit-profit-tooltip-fallback')?.previousElementSibling;
         if (fallbackLabel) fallbackLabel.textContent = 'Fallback visual';
