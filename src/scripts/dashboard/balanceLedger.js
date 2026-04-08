@@ -2228,7 +2228,9 @@ const renderRow = (tx, rowBalance, cycleData = undefined) => {
     const methodText = tx?.paymentMethod ? escapeHtml(String(tx.paymentMethod).toUpperCase()) : '';
     const directionLabel = signedAmount < 0 ? 'Salida' : 'Entrada';
     const spreadReferenceTrigger = renderSpreadReferenceTrigger(tx, cycleData);
-    const fiatText = formatFiat(tx);
+    const fiatText = spreadDetails?.isInterbank
+        ? `${formatNumber(spreadDetails.adjustedBuyFiat, 2)} ${getFiatLabel(tx)}`
+        : formatFiat(tx);
     const fiatAdjustmentHelpHtml = spreadDetails?.isInterbank
         ? `
             <div style="margin-top: 6px; display: inline-flex; position: relative; cursor: help;"
