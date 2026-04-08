@@ -1012,6 +1012,15 @@ const normalizeBankKey = (value) => {
     return raw.replace(/\s+/g, '');
 };
 
+const INTERBANK_FIAT_DISCOUNT_RATE = 0.003;
+
+const isInterbankPair = (buyBank, sellBank) => {
+    const buyKey = normalizeBankKey(buyBank);
+    const sellKey = normalizeBankKey(sellBank);
+    if (!buyKey || !sellKey) return false;
+    return buyKey !== sellKey;
+};
+
 const matchTxToBank = (tx) => {
     const txBankKey = normalizeBankKey(tx?.bankName || tx?.bank || tx?.paymentMethod);
     if (!txBankKey || !state.bankData.length) return null;
@@ -1453,11 +1462,17 @@ const computeTxSpread = (tx = {}, override = 0) => {
 
     // Fórmula de venta: se usan los VES de la COMPRA divididos por la tasa de la venta.
     // Así comparamos el mismo volumen fiat: cuánto costó comprarlo vs cuánto costaría venderlo.
-    const buyFiat = resolveFiatAmount(tx);
-    const sellFiatPortionBase = buyFiat > 0
-        ? buyFiat
-        : sellFiatPortionSource;
     const buyPaymentMethod = String(tx?.paymentMethod || tx?.bankName || tx?.bank || '').trim().toUpperCase();
+    const buyFiat = resolveFiatAmount(tx);
+    const interbankFiatDiscount = isInterbankPair(buyPaymentMethod, sellPaymentMethod) && buyFiat > 0
+        ? buyFiat * INTERBANK_FIAT_DISCOUNT_RATE
+        : 0;
+    const adjustedBuyFiat = buyFiat > 0
+        ? Math.max(0, buyFiat - interbankFiatDiscount)
+        : 0;
+    const sellFiatPortionBase = buyFiat > 0
+        ? adjustedBuyFiat
+        : sellFiatPortionSource;
     const sellGrossBase = sellFiatPortionBase > 0
         ? sellFiatPortionBase / sellRate
         : sellAmountSource; // fallback si no hay fiat de referencia
@@ -1501,6 +1516,9 @@ const computeTxSpread = (tx = {}, override = 0) => {
         val,
         details: {
             buyFiat,
+            adjustedBuyFiat,
+            interbankFiatDiscount,
+            isInterbank: interbankFiatDiscount > 0,
             sellRate,
             sellFiatPortionBase,
             sellGrossBase,
@@ -2106,14 +2124,15 @@ const renderRow = (tx, rowBalance, cycleData = undefined) => {
 
     const isCycleSell = isLedgerSellTarget(tx) && cycleData != null;
     const isCycleBuyOverride = normalizeTxType(tx) === 'P2P_BUY' && cycleData?.rateOverride > 0;
+    const spreadRet = isCycleBuyOverride
+        ? computeTxSpread(tx, cycleData?.sellContextOverride || cycleData.rateOverride)
+        : computeTxSpread(tx);
+    const spreadDetails = spreadRet.details;
 
     let spreadMetric;
     {
-        const spreadRet = isCycleBuyOverride
-            ? computeTxSpread(tx, cycleData?.sellContextOverride || cycleData.rateOverride)
-            : computeTxSpread(tx);
         const spreadValRaw = spreadRet.val;
-        const details = spreadRet.details;
+        const details = spreadDetails;
         const spreadVal = truncateTowardZero(spreadValRaw, 2);
         const spreadTone = spreadVal > 0
             ? 'ledger-metric-positive'
@@ -2124,6 +2143,9 @@ const renderRow = (tx, rowBalance, cycleData = undefined) => {
         let extraHtml = '';
         if (details) {
             const roleText = details.effectiveSellRole;
+            const stepInterbank = details.isInterbank
+                ? `${formatNumber(details.buyFiat, 2)} - ${formatNumber(details.interbankFiatDiscount, 2)} (0.3%) = ${formatNumber(details.adjustedBuyFiat, 2)}`
+                : '';
             const step1Base = `${formatNumber(details.sellFiatPortionBase ?? details.buyFiat, 2)} / ${formatNumber(details.sellRate, 2)} = ${formatNumber(details.sellGrossBase ?? details.sellGross, 4)}`;
             const stepOut = details.effectiveSellRole === 'TAKER' ? `${formatNumber(details.sellGross, 4)} + ${formatNumber(details.sellFee, 2)} = ${formatNumber(details.sellUsdtOut, 4)}` : '';
             const step2 = `${formatNumber(details.buyUsdtIn, 2)} - ${formatNumber(details.sellUsdtOut, 2)} = ${formatNumber(spreadValRaw, 4)}`;
@@ -2140,6 +2162,7 @@ const renderRow = (tx, rowBalance, cycleData = undefined) => {
                 </div>
                 <div class="formula-popover" style="display: none; position: absolute; bottom: 100%; right: 0; margin-bottom: 6px; padding: 12px 14px; background: #0f1923; border: 1px solid rgba(255, 255, 255, 0.12); border-radius: 12px; font-family: monospace; font-size: 11px; white-space: nowrap; color: rgba(255, 255, 255, 0.88); z-index: 50; box-shadow: 0 12px 32px rgba(0,0,0,0.4); text-align: left; line-height: 1.5; flex-direction: column; gap: 4px;">
                     <div style="color: #f7d774; font-weight: 700; margin-bottom: 2px;">${roleText}</div>
+                    ${stepInterbank ? `<div style="letter-spacing: 0.05em;">${stepInterbank}</div>` : ''}
                     <div style="letter-spacing: 0.05em;">${step1Base}</div>
                     ${stepOut ? `<div style="letter-spacing: 0.05em;">${stepOut}</div>` : ''}
                     <div style="color: #cbd5e0; margin-top: 4px; border-top: 1px solid rgba(255, 255, 255, 0.08); padding-top: 6px; font-weight: 600; letter-spacing: 0.05em;">${step2}</div>
@@ -2206,11 +2229,26 @@ const renderRow = (tx, rowBalance, cycleData = undefined) => {
     const directionLabel = signedAmount < 0 ? 'Salida' : 'Entrada';
     const spreadReferenceTrigger = renderSpreadReferenceTrigger(tx, cycleData);
     const fiatText = formatFiat(tx);
+    const fiatAdjustmentHelpHtml = spreadDetails?.isInterbank
+        ? `
+            <div style="margin-top: 6px; display: inline-flex; position: relative; cursor: help;"
+                 onmouseenter="const p=this.querySelector('.formula-popover');if(p)p.style.display='flex'"
+                 onmouseleave="const p=this.querySelector('.formula-popover');if(p)p.style.display='none'">
+                <div style="display: flex; align-items: center; justify-content: center; width: 18px; height: 18px; border-radius: 50%; border: 1.5px solid rgba(243, 186, 47, 0.35); background: rgba(243, 186, 47, 0.1); color: #f7d774; transition: all 0.2s ease; font-size: 11px; font-weight: 700;">
+                    ?
+                </div>
+                <div class="formula-popover" style="display: none; position: absolute; bottom: 100%; left: 0; margin-bottom: 6px; padding: 12px 14px; background: #0f1923; border: 1px solid rgba(255, 255, 255, 0.12); border-radius: 12px; font-family: monospace; font-size: 11px; white-space: nowrap; color: rgba(255, 255, 255, 0.88); z-index: 50; box-shadow: 0 12px 32px rgba(0,0,0,0.4); text-align: left; line-height: 1.5; flex-direction: column; gap: 4px;">
+                    <div style="color: #f7d774; font-weight: 700; margin-bottom: 2px;">Interbancario</div>
+                    <div style="letter-spacing: 0.05em;">${formatNumber(spreadDetails.buyFiat, 2)} - ${formatNumber(spreadDetails.interbankFiatDiscount, 2)} (0.3%) = ${formatNumber(spreadDetails.adjustedBuyFiat, 2)}</div>
+                </div>
+            </div>
+        `
+        : '';
     const fiatHtml = fiatText
-        ? `<div class="ledger-mobile-fiat">${escapeHtml(fiatText)}</div>`
+        ? `<div class="ledger-mobile-fiat">${escapeHtml(fiatText)}</div>${fiatAdjustmentHelpHtml}`
         : '';
     const fiatDesktopHtml = fiatText
-        ? `<div class="ledger-amount-fiat">${escapeHtml(fiatText)}</div>`
+        ? `<div class="ledger-amount-fiat">${escapeHtml(fiatText)}</div>${fiatAdjustmentHelpHtml}`
         : '';
 
     const isDispersorPending = String(tx?.type || '').toUpperCase() === 'DISPERSOR_PENDING';
