@@ -1469,9 +1469,9 @@ const computeTxSpread = (tx = {}, override = 0) => {
     // Fórmula de venta: se usan los VES de la COMPRA divididos por la tasa de la venta.
     // Así comparamos el mismo volumen fiat: cuánto costó comprarlo vs cuánto costaría venderlo.
     const buyFiat = resolveFiatAmount(tx);
-    const sellFiatPortionBase = sellFiatPortionSource > 0
-        ? sellFiatPortionSource
-        : buyFiat;
+    const sellFiatPortionBase = buyFiat > 0
+        ? buyFiat
+        : sellFiatPortionSource;
     const sellTotalFiatBase = sellTotalFiatSource > 0
         ? sellTotalFiatSource
         : sellFiatPortionBase;
