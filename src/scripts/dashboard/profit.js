@@ -110,8 +110,12 @@ export function updateProfitUI(kpis = {}, bankInsights = [], ledgerSummary = nul
 
     const displayedProfit = updateProfitTooltip(kpis, bankInsights, ledgerSummary);
 
-    // This card must reflect Binance API balance only; never fall back to reconstructed totals.
-    const realBinance = parseNumeric(audit.realBalance);
+    // Show the Binance API balance. If the real-time balance is unavailable
+    // (null), fall back to the theoretical balance from transfer history so
+    // the card never shows a misleading $0.00.
+    const realBinance = audit.realBalance != null
+        ? parseNumeric(audit.realBalance)
+        : parseNumeric(critical.balanceTotal ?? 0);
     inject('real-binance-balance', fUSDT(realBinance));
     inject('audit-total-profit-display', fUSDT(displayedProfit), true);
 
