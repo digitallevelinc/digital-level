@@ -147,7 +147,7 @@ export function updateProfitUI(kpis = {}, bankInsights = [], ledgerSummary = nul
 
     renderBankProfitList(bankInsights);
     initEvolutionToggle();
-    renderProfitChart(kpis.chartData);
+    renderProfitChart(kpis.chartData, displayedProfit);
 }
 
 function renderBankProfitList(bankInsights) {
@@ -169,6 +169,7 @@ function renderBankProfitList(bankInsights) {
 // --- EVOLUTION CHART TOGGLE ---
 let evolutionChartReady = false;
 let pendingChartData = null;
+let pendingChartTotalProfit = 0;
 
 function initEvolutionToggle() {
     const btn = document.getElementById('toggle-evolution-chart');
@@ -182,8 +183,9 @@ function initEvolutionToggle() {
         body.classList.toggle('hidden', isOpen);
         if (icon) icon.style.transform = isOpen ? '' : 'rotate(90deg)';
         if (!isOpen && pendingChartData) {
-            renderProfitChart(pendingChartData);
+            renderProfitChart(pendingChartData, pendingChartTotalProfit);
             pendingChartData = null;
+            pendingChartTotalProfit = 0;
         }
     });
 }
@@ -191,7 +193,7 @@ function initEvolutionToggle() {
 // --- CHART LOGIC ---
 let profitChartInstance = null;
 
-function renderProfitChart(chartData = []) {
+function renderProfitChart(chartData = [], totalProfit = 0) {
     const ctx = document.getElementById('profit-chart');
     if (!ctx) return;
 
@@ -199,6 +201,7 @@ function renderProfitChart(chartData = []) {
     const body = document.getElementById('evolution-chart-body');
     if (body && body.classList.contains('hidden')) {
         pendingChartData = chartData;
+        pendingChartTotalProfit = totalProfit;
         return;
     }
 
@@ -211,7 +214,30 @@ function renderProfitChart(chartData = []) {
         return;
     }
 
-    const sortedData = [...chartData].sort((a, b) => new Date(a.date) - new Date(b.date));
+    // If the backend returns all-zero profits but we know the real total profit
+    // (from Profit Operativo), distribute it proportionally by cycles so the
+    // chart always matches the KPI shown to the operator.
+    const profitSum = chartData.reduce((sum, d) => sum + (d.profit || 0), 0);
+    let normalizedData = chartData;
+    if (Math.abs(profitSum) < 0.001 && Math.abs(totalProfit) > 0.001) {
+        const totalCycles = chartData.reduce((sum, d) => sum + (d.cycles || 0), 0);
+        if (totalCycles > 0) {
+            normalizedData = chartData.map(d => ({
+                ...d,
+                profit: Math.round((totalProfit * ((d.cycles || 0) / totalCycles)) * 100) / 100
+            }));
+        } else {
+            // No cycle info — assign full profit to the last day with fees, or last day
+            const lastWithFees = [...chartData].reverse().findIndex(d => (d.fees || 0) > 0);
+            const targetIdx = chartData.length - 1 - (lastWithFees >= 0 ? lastWithFees : 0);
+            normalizedData = chartData.map((d, i) => ({
+                ...d,
+                profit: i === targetIdx ? totalProfit : 0
+            }));
+        }
+    }
+
+    const sortedData = [...normalizedData].sort((a, b) => new Date(a.date) - new Date(b.date));
 
     const labels = sortedData.map(d => {
         const date = new Date(d.date);

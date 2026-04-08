@@ -1012,6 +1012,13 @@ const normalizeBankKey = (value) => {
     return raw.replace(/\s+/g, '');
 };
 
+const banksMatch = (left, right) => {
+    const leftKey = normalizeBankKey(left);
+    const rightKey = normalizeBankKey(right);
+    if (!leftKey || !rightKey) return true;
+    return leftKey === rightKey;
+};
+
 const matchTxToBank = (tx) => {
     const txBankKey = normalizeBankKey(tx?.bankName || tx?.bank || tx?.paymentMethod);
     if (!txBankKey || !state.bankData.length) return null;
@@ -1214,6 +1221,7 @@ const getNearestSellForBuy = (buyTx) => {
 // Used ONLY to infer the sell role when bank matching was skipped (e.g. generic 'BANK').
 // Never used for rate — rate comes from getPageAvgRateForBank / getPageAvgRate.
 const MAX_SELL_ROLE_LOOKUP_MS = 4 * 60 * 60 * 1000; // 4h window
+const CROSS_BANK_SELL_DISCOUNT_RATE = 0.003;
 const getNearestSellRoleForBuy = (buyTx) => {
     // Search the full cache (all visited pages) so sells on page 2 are found when browsing page 1.
     const searchPool = state.transfersCache.size > 0
@@ -1249,6 +1257,7 @@ const getNearestSellRoleForBuy = (buyTx) => {
                 fee: fee > 0 && (!feeCurrency || feeCurrency === 'USDT') ? fee : 0,
                 amount: getTxUsdtVolume(tx),
                 isPromise: Boolean(getPromiseMeta(tx)?.promiseUsdt > 0),
+                paymentMethod: String(tx?.paymentMethod || tx?.bankName || tx?.bank || '').trim().toUpperCase(),
             };
         }
     }
@@ -1334,6 +1343,7 @@ const buildJudgeSellContextFromVerdict = (verdict = {}, existing = {}) => {
                 ? Number(verdict.saleAmount)
                 : getTxUsdtVolume(saleTx || {}),
             isPromise: Boolean(Number(verdict?.expectedRebuyUsdt || 0) > 0),
+            paymentMethod: String(saleTx?.paymentMethod || saleTx?.bankName || saleTx?.bank || '').trim().toUpperCase(),
             // Only promise-style verdicts must inherit the sale role.
             forceSellRole: Boolean(Number(verdict?.expectedRebuyUsdt || 0) > 0),
         },
@@ -1411,7 +1421,7 @@ const computeTxSpread = (tx = {}, override = 0) => {
     // Si no hay una venta pairable en la página actual (p.ej. la página 1 tiene compras
     // cuyas ventas correspondientes están en la página 2), usamos la tasa de referencia
     // global del KPI para estimar igualmente el spread en vez de devolver 0.
-    let sellRate, sellRoleSource, sellFeeSource, sellAmountSource, sellIsPromise = false, forceSellRole = false;
+    let sellRate, sellRoleSource, sellFeeSource, sellAmountSource, sellIsPromise = false, forceSellRole = false, sellPaymentMethod = '';
     if (overrideRate > 0) {
         // Cuando el ciclo ya resolvió qué venta(s) consumió este BUY, respetamos
         // la tasa/volumen de referencia. El rol del BUY solo debe ser pisado
@@ -1422,12 +1432,14 @@ const computeTxSpread = (tx = {}, override = 0) => {
         sellAmountSource = Number(overrideContext?.amount || 0) || nearestSell?.amount || buyUsdtIn;
         sellIsPromise = Boolean(overrideContext?.isPromise ?? nearestSell?.isPromise);
         forceSellRole = Boolean(overrideContext?.forceSellRole);
+        sellPaymentMethod = String(overrideContext?.paymentMethod || nearestSell?.paymentMethod || '').trim().toUpperCase();
     } else if (nearestSell && nearestSell.rate > 0) {
         sellRate = nearestSell.rate;
         sellRoleSource = nearestSell.role;
         sellFeeSource = nearestSell.fee;
         sellAmountSource = nearestSell.amount;
         sellIsPromise = Boolean(nearestSell.isPromise);
+        sellPaymentMethod = String(nearestSell.paymentMethod || '').trim().toUpperCase();
     } else {
         sellRate = getFallbackSellReferenceRate();
         if (sellRate <= 0) return 0;
@@ -1438,14 +1450,23 @@ const computeTxSpread = (tx = {}, override = 0) => {
         sellFeeSource = nearestSellRole?.fee || 0;
         sellAmountSource = nearestSellRole?.amount || buyUsdtIn;
         sellIsPromise = Boolean(nearestSellRole?.isPromise);
+        sellPaymentMethod = String(nearestSellRole?.paymentMethod || '').trim().toUpperCase();
     }
 
     // Fórmula de venta: se usan los VES de la COMPRA divididos por la tasa de la venta.
     // Así comparamos el mismo volumen fiat: cuánto costó comprarlo vs cuánto costaría venderlo.
     const buyFiat = resolveFiatAmount(tx);
-    const sellGross = buyFiat > 0
+    const sellGrossBase = buyFiat > 0
         ? buyFiat / sellRate
         : sellAmountSource; // fallback si no hay fiat en la compra
+    const buyPaymentMethod = String(tx?.paymentMethod || tx?.bankName || tx?.bank || '').trim().toUpperCase();
+    const applyCrossBankDiscount = buyFiat > 0
+        && !sellIsPromise
+        && !banksMatch(buyPaymentMethod, sellPaymentMethod);
+    const crossBankDiscount = applyCrossBankDiscount
+        ? sellGrossBase * CROSS_BANK_SELL_DISCOUNT_RATE
+        : 0;
+    const sellGross = Math.max(0, sellGrossBase - crossBankDiscount);
 
     // Las promesas internas sí deben usar el rol de la VENTA. Para compras P2P
     // normales, el cálculo visible del spread debe respetar el rol del BUY.
@@ -1481,7 +1502,19 @@ const computeTxSpread = (tx = {}, override = 0) => {
     const val = buyUsdtIn - sellUsdtOut;
     return {
         val,
-        details: { buyFiat, sellRate, sellGross, effectiveSellRole, buyUsdtIn, sellUsdtOut, sellFee: sellUsdtOut - sellGross }
+        details: {
+            buyFiat,
+            sellRate,
+            sellGrossBase,
+            crossBankDiscount,
+            sellGross,
+            effectiveSellRole,
+            buyUsdtIn,
+            sellUsdtOut,
+            sellFee: sellUsdtOut - sellGross,
+            buyPaymentMethod,
+            sellPaymentMethod,
+        }
     };
 };
 
@@ -1623,6 +1656,7 @@ const computeCycleSpreads = (transfers) => {
                                 : 0,
                             amount: getTxUsdtVolume(singleConsumedSell),
                             isPromise: Boolean(getPromiseMeta(singleConsumedSell)?.promiseUsdt > 0),
+                            paymentMethod: String(singleConsumedSell?.paymentMethod || singleConsumedSell?.bankName || singleConsumedSell?.bank || '').trim().toUpperCase(),
                             forceSellRole: Boolean(getPromiseMeta(singleConsumedSell)?.promiseUsdt > 0),
                         }
                         : existing.sellContextOverride,
@@ -2091,7 +2125,10 @@ const renderRow = (tx, rowBalance, cycleData = undefined) => {
         let extraHtml = '';
         if (details) {
             const roleText = details.effectiveSellRole;
-            const step1 = `${formatNumber(details.buyFiat, 2)} / ${formatNumber(details.sellRate, 2)} = ${formatNumber(details.sellGross, 4)}`;
+            const step1Base = `${formatNumber(details.buyFiat, 2)} / ${formatNumber(details.sellRate, 2)} = ${formatNumber(details.sellGrossBase ?? details.sellGross, 4)}`;
+            const step1Discount = details.crossBankDiscount > 0
+                ? `${formatNumber(details.sellGrossBase, 4)} - ${formatNumber(details.crossBankDiscount, 4)} (0.3%) = ${formatNumber(details.sellGross, 4)}`
+                : '';
             const stepOut = details.effectiveSellRole === 'TAKER' ? `${formatNumber(details.sellGross, 4)} + ${formatNumber(details.sellFee, 2)} = ${formatNumber(details.sellUsdtOut, 4)}` : '';
             const step2 = `${formatNumber(details.buyUsdtIn, 2)} - ${formatNumber(details.sellUsdtOut, 2)} = ${formatNumber(spreadValRaw, 4)}`;
 
@@ -2107,7 +2144,8 @@ const renderRow = (tx, rowBalance, cycleData = undefined) => {
                 </div>
                 <div class="formula-popover" style="display: none; position: absolute; bottom: 100%; right: 0; margin-bottom: 6px; padding: 12px 14px; background: #0f1923; border: 1px solid rgba(255, 255, 255, 0.12); border-radius: 12px; font-family: monospace; font-size: 11px; white-space: nowrap; color: rgba(255, 255, 255, 0.88); z-index: 50; box-shadow: 0 12px 32px rgba(0,0,0,0.4); text-align: left; line-height: 1.5; flex-direction: column; gap: 4px;">
                     <div style="color: #f7d774; font-weight: 700; margin-bottom: 2px;">${roleText}</div>
-                    <div style="letter-spacing: 0.05em;">${step1}</div>
+                    <div style="letter-spacing: 0.05em;">${step1Base}</div>
+                    ${step1Discount ? `<div style="letter-spacing: 0.05em;">${step1Discount}</div>` : ''}
                     ${stepOut ? `<div style="letter-spacing: 0.05em;">${stepOut}</div>` : ''}
                     <div style="color: #cbd5e0; margin-top: 4px; border-top: 1px solid rgba(255, 255, 255, 0.08); padding-top: 6px; font-weight: 600; letter-spacing: 0.05em;">${step2}</div>
                 </div>
