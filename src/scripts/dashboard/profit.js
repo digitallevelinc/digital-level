@@ -11,6 +11,55 @@ function setText(id, value) {
     if (el) el.textContent = value;
 }
 
+function getSellFeesTotal(kpis = {}, bankInsights = []) {
+    const sellFeesFromOps = Number(kpis.operations?.totalFeesSell);
+    if (Number.isFinite(sellFeesFromOps)) {
+        return sellFeesFromOps;
+    }
+
+    return (bankInsights || []).reduce((sum, bank) => (
+        sum
+        + Number(bank?.trf?.sellFee || 0)
+        + Number(bank?.pm?.sellFee || 0)
+    ), 0);
+}
+
+function updateProfitTooltip(kpis = {}, bankInsights = []) {
+    const critical = kpis.critical || {};
+    const hasCanonicalProfit = critical.profitTotalUSDT !== null
+        && critical.profitTotalUSDT !== undefined
+        && Number.isFinite(Number(critical.profitTotalUSDT));
+    const backendProfit = parseNumeric(critical.profitTotalUSDT);
+    const judgeProfit = parseNumeric(kpis.judge?.completedCycles?.totalProfit);
+    const sellFees = getSellFeesTotal(kpis, bankInsights);
+    const fallbackProfit = judgeProfit - sellFees;
+    const displayedProfit = hasCanonicalProfit ? backendProfit : fallbackProfit;
+
+    setText(
+        'audit-profit-tooltip-summary',
+        hasCanonicalProfit
+            ? 'Se muestra el profit canonico entregado por el backend para el rango actual.'
+            : 'El backend no envio un profit canonico y la UI reconstruyo el valor mostrado.'
+    );
+    const formulaHtml = hasCanonicalProfit
+        ? '<strong>Regla:</strong> Profit Operativo = critical.profitTotalUSDT'
+        : '<strong>Regla:</strong> Profit Operativo = judge.completedCycles.totalProfit - fees de venta';
+    const formulaEl = document.getElementById('audit-profit-tooltip-formula');
+    if (formulaEl) formulaEl.innerHTML = formulaHtml;
+
+    setText('audit-profit-tooltip-result', fUSDT(displayedProfit));
+    setText('audit-profit-tooltip-backend', fUSDT(backendProfit));
+    setText('audit-profit-tooltip-judge', fUSDT(judgeProfit));
+    setText('audit-profit-tooltip-sell-fees', fUSDT(sellFees));
+    setText('audit-profit-tooltip-fallback', fUSDT(fallbackProfit));
+    setText(
+        'audit-profit-tooltip-note',
+        hasCanonicalProfit
+            ? 'Referencia de respaldo: judge cerrado - fees de venta. El valor visible sigue siendo el canonico del backend.'
+            : 'La UI uso el fallback porque no llego critical.profitTotalUSDT desde el backend.'
+    );
+}
+
 export function updateProfitUI(kpis = {}, bankInsights = []) {
     const critical = kpis.critical || {};
     const operations = kpis.operations || {};
@@ -23,6 +72,7 @@ export function updateProfitUI(kpis = {}, bankInsights = []) {
     const realBinance = parseNumeric(audit.realBalance);
     inject('real-binance-balance', fUSDT(realBinance));
     inject('audit-total-profit-display', fUSDT(totalProfitUSDT), true);
+    updateProfitTooltip(kpis, bankInsights);
 
     inject('audit-total-volume', fUSDT(parseFloat(operations.totalVolumeUSDT || 0)));
     inject('audit-total-fees', fUSDT(parseFloat(operations.totalFeesPaid || 0)));

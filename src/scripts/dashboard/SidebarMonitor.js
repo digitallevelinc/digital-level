@@ -770,6 +770,7 @@ function buildLatestCycleByBank(kpis = {}, bankInsights = []) {
 function buildBankVesLimitLabel(bank, _config = {}, vesControlSummaryByBank = new Map()) {
     const key = normalizeBankLimitKey(bank);
     const dynamicSummary = vesControlSummaryByBank.get(key);
+    const fallbackActiveVerdicts = Math.max(0, Number(bank?.activeVerdictsCount || 0));
     const fallbackAvailable = Math.max(
         0,
         Number(bank?.currentCycleFiatRemaining || 0),
@@ -788,6 +789,17 @@ function buildBankVesLimitLabel(bank, _config = {}, vesControlSummaryByBank = ne
     );
     const hasFallbackCycleSnapshot =
         fallbackAvailable > 0.00001 || fallbackConsumed > 0.00001 || fallbackInflow > 0.00001;
+    const buildVesMeta = (available, effectiveCap, activeVerdicts = 0) => {
+        const normalizedActiveVerdicts = Math.max(0, Number(activeVerdicts || 0));
+        if (normalizedActiveVerdicts > 0) {
+            return `${formatPlain(normalizedActiveVerdicts, 0)} FIAT`;
+        }
+
+        const burned = Math.max(0, effectiveCap - available);
+        if (burned <= 0.01) return 'Barra llena';
+        if (available <= 0.01) return 'Lote quemado';
+        return `${fVESInline(burned)} quemado`;
+    };
 
     const hasDynamic = Boolean(dynamicSummary);
     if (!hasDynamic) {
@@ -804,15 +816,10 @@ function buildBankVesLimitLabel(bank, _config = {}, vesControlSummaryByBank = ne
 
         const effectiveCap = Math.max(0, fallbackInflow, fallbackAvailable + fallbackConsumed);
         const progress = fallbackAvailable <= 0 ? 0 : clampPercent((fallbackAvailable / effectiveCap) * 100);
-        const burned = Math.max(0, effectiveCap - fallbackAvailable);
 
         return {
             value: `${fVESInline(fallbackAvailable)} / ${fVESInline(effectiveCap)}`,
-            meta: burned <= 0.01
-                ? 'Barra llena'
-                : fallbackAvailable <= 0.01
-                    ? 'Lote quemado'
-                    : `${fVESInline(burned)} quemado`,
+            meta: buildVesMeta(fallbackAvailable, effectiveCap, fallbackActiveVerdicts),
             progress,
             limit: effectiveCap,
             current: fallbackAvailable,
@@ -823,6 +830,10 @@ function buildBankVesLimitLabel(bank, _config = {}, vesControlSummaryByBank = ne
     const available = Number(dynamicSummary.availableFiat || 0);
     const consumed = Number(dynamicSummary.consumedFiat || 0);
     const inflowFiat = Number(dynamicSummary.inflowFiat || 0);
+    const activeVerdicts = Math.max(
+        0,
+        Number(dynamicSummary.activeVerdicts || fallbackActiveVerdicts || 0)
+    );
     const inferredCapFromFlow = Math.max(0, inflowFiat, available + consumed);
     let effectiveCap = Math.max(0, inferredCapFromFlow);
 
@@ -858,15 +869,10 @@ function buildBankVesLimitLabel(bank, _config = {}, vesControlSummaryByBank = ne
         }
 
         const progress = fallbackAvailable <= 0 ? 0 : clampPercent((fallbackAvailable / effectiveCap) * 100);
-        const burned = Math.max(0, effectiveCap - fallbackAvailable);
 
         return {
             value: `${fVESInline(fallbackAvailable)} / ${fVESInline(effectiveCap)}`,
-            meta: burned <= 0.01
-                ? 'Barra llena'
-                : fallbackAvailable <= 0.01
-                    ? 'Lote quemado'
-                    : `${fVESInline(burned)} quemado`,
+            meta: buildVesMeta(fallbackAvailable, effectiveCap, activeVerdicts),
             progress,
             limit: effectiveCap,
             current: fallbackAvailable,
@@ -875,15 +881,10 @@ function buildBankVesLimitLabel(bank, _config = {}, vesControlSummaryByBank = ne
     }
 
     const progress = available <= 0 ? 0 : clampPercent((available / effectiveCap) * 100);
-    const burned = Math.max(0, effectiveCap - available);
 
     return {
         value: `${fVESInline(available)} / ${fVESInline(effectiveCap)}`,
-        meta: burned <= 0.01
-            ? 'Barra llena'
-            : available <= 0.01
-                ? 'Lote quemado'
-                : `${fVESInline(burned)} quemado`,
+        meta: buildVesMeta(available, effectiveCap, activeVerdicts),
         progress,
         limit: effectiveCap,
         current: available,
