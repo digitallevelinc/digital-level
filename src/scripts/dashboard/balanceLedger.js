@@ -1813,8 +1813,8 @@ const getEffectiveCoverageRange = () => {
     };
 };
 
-const buildActiveFiatCoverageCountByBank = (transfers = [], cycleSpreads = new Map()) => {
-    const counts = new Map();
+const buildActiveFiatCoverageSummaryByBank = (transfers = [], cycleSpreads = new Map()) => {
+    const summary = new Map();
     const { effectiveFrom, effectiveTo } = getEffectiveCoverageRange();
 
     for (const tx of transfers) {
@@ -1829,10 +1829,21 @@ const buildActiveFiatCoverageCountByBank = (transfers = [], cycleSpreads = new M
         const bankKey = normalizeBankKey(tx?.bankName || tx?.bank || tx?.paymentMethod);
         if (!bankKey) continue;
 
-        counts.set(bankKey, (counts.get(bankKey) || 0) + 1);
+        const totalFiat = Math.max(0, Number(cycleData.totalSellFiat || 0));
+        const remainingFiat = Math.max(0, Number(totalFiat - Number(cycleData.recoveredFiat || 0)));
+        const bucket = summary.get(bankKey) || {
+            activeCount: 0,
+            totalFiat: 0,
+            remainingFiat: 0,
+        };
+
+        bucket.activeCount += 1;
+        bucket.totalFiat += totalFiat;
+        bucket.remainingFiat += remainingFiat;
+        summary.set(bankKey, bucket);
     }
 
-    return counts;
+    return summary;
 };
 
 const updateCoverageBadge = (transfers = [], cycleSpreads = new Map()) => {
@@ -2573,7 +2584,7 @@ const prefetchSellContextPages = async () => {
     let totalSpread = 0;
     let spreadCount = 0;
     const ledgerSpreadByBank = new Map(); // bankKey → spread sum
-    const activeFiatCoverageCountByBank = buildActiveFiatCoverageCountByBank(allScoped, allCycleSpreads);
+    const activeFiatCoverageSummaryByBank = buildActiveFiatCoverageSummaryByBank(allScoped, allCycleSpreads);
     for (const tx of allScoped) {
         const txDateStr = new Date(getTxTimestampMs(tx)).toLocaleDateString('en-CA', { timeZone: CARACAS_TZ });
         if (txDateStr < _effectiveFrom || txDateStr > _effectiveTo) continue;
@@ -2613,10 +2624,13 @@ const prefetchSellContextPages = async () => {
 
             injectedKeys.add(key);
             const ledgerSpread = truncateTowardZero(ledgerSpreadByBank.get(key) || 0, 2);
+            const coverageSummary = activeFiatCoverageSummaryByBank.get(key) || {};
             return {
                 ...bank,
                 spreadProfitUsdt: ledgerSpread,
-                coverageActiveFiatCount: Number(activeFiatCoverageCountByBank.get(key) || 0),
+                coverageActiveFiatCount: Number(coverageSummary.activeCount || 0),
+                coveragePendingFiat: Number(coverageSummary.remainingFiat || 0),
+                coverageTotalFiat: Number(coverageSummary.totalFiat || 0),
                 ledgerSpreadReady: true,
             };
         });

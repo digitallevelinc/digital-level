@@ -361,6 +361,8 @@ function mergeBankInsightsByAlias(bankInsights = []) {
             weightedAvgSellRate: mergeWeightedMetric(current.weightedAvgSellRate, currentSellWeight, entry.weightedAvgSellRate, entrySellWeight),
             activeVerdictsCount: toNumber(current.activeVerdictsCount) + toNumber(entry.activeVerdictsCount),
             coverageActiveFiatCount: toNumber(current.coverageActiveFiatCount) + toNumber(entry.coverageActiveFiatCount),
+            coveragePendingFiat: toNumber(current.coveragePendingFiat) + toNumber(entry.coveragePendingFiat),
+            coverageTotalFiat: toNumber(current.coverageTotalFiat) + toNumber(entry.coverageTotalFiat),
             currentCycleSaleUSDT: toNumber(current.currentCycleSaleUSDT) + toNumber(entry.currentCycleSaleUSDT),
             currentCycleProgress: mergeWeightedMetric(current.currentCycleProgress, currentCycleWeight, entry.currentCycleProgress, entryCycleWeight),
             currentCycleFiatRemaining: toNumber(current.currentCycleFiatRemaining) + toNumber(entry.currentCycleFiatRemaining),
@@ -771,8 +773,8 @@ function buildLatestCycleByBank(kpis = {}, bankInsights = []) {
 function buildBankVesLimitLabel(bank, _config = {}, vesControlSummaryByBank = new Map()) {
     const key = normalizeBankLimitKey(bank);
     const dynamicSummary = vesControlSummaryByBank.get(key);
-    const fallbackCoverageCount = Math.max(0, Number(bank?.coverageActiveFiatCount || 0));
-    const fallbackActiveVerdicts = Math.max(0, Number(bank?.activeVerdictsCount || 0));
+    const fallbackCoveragePendingFiat = Math.max(0, Number(bank?.coveragePendingFiat || 0));
+    const fallbackCoverageTotalFiat = Math.max(0, Number(bank?.coverageTotalFiat || 0));
     const fallbackAvailable = Math.max(
         0,
         Number(bank?.currentCycleFiatRemaining || 0),
@@ -791,17 +793,25 @@ function buildBankVesLimitLabel(bank, _config = {}, vesControlSummaryByBank = ne
     );
     const hasFallbackCycleSnapshot =
         fallbackAvailable > 0.00001 || fallbackConsumed > 0.00001 || fallbackInflow > 0.00001;
-    const buildVesMeta = (available, effectiveCap, activeVerdicts = 0) => {
-        const normalizedActiveVerdicts = Math.max(0, Number(activeVerdicts || 0));
-        if (normalizedActiveVerdicts > 0) {
-            return `${formatPlain(normalizedActiveVerdicts, 0)} FIAT`;
-        }
+    const buildVesLabel = (remainingFiat, effectiveCap) => {
+        const total = Math.max(0, Number(effectiveCap || 0));
+        const remaining = Math.min(total, Math.max(0, Number(remainingFiat || 0)));
+        const covered = Math.max(0, total - remaining);
+        const progress = total > 0 ? clampPercent((covered / total) * 100) : 0;
 
-        const burned = Math.max(0, effectiveCap - available);
-        if (burned <= 0.01) return 'Barra llena';
-        if (available <= 0.01) return 'Lote quemado';
-        return `${fVESInline(burned)} quemado`;
+        return {
+            value: `${fVESInline(covered)} / ${fVESInline(total)}`,
+            meta: remaining <= 0.01 ? 'Barra llena' : `${formatPlain(remaining, 0)} FIAT`,
+            progress,
+            limit: total,
+            current: covered,
+            hasFlow: total > 0,
+        };
     };
+
+    if (fallbackCoverageTotalFiat > 0.00001) {
+        return buildVesLabel(fallbackCoveragePendingFiat, fallbackCoverageTotalFiat);
+    }
 
     const hasDynamic = Boolean(dynamicSummary);
     if (!hasDynamic) {
@@ -817,29 +827,12 @@ function buildBankVesLimitLabel(bank, _config = {}, vesControlSummaryByBank = ne
         }
 
         const effectiveCap = Math.max(0, fallbackInflow, fallbackAvailable + fallbackConsumed);
-        const progress = fallbackAvailable <= 0 ? 0 : clampPercent((fallbackAvailable / effectiveCap) * 100);
-
-        return {
-            value: `${fVESInline(fallbackAvailable)} / ${fVESInline(effectiveCap)}`,
-            meta: buildVesMeta(
-                fallbackAvailable,
-                effectiveCap,
-                fallbackCoverageCount || fallbackActiveVerdicts
-            ),
-            progress,
-            limit: effectiveCap,
-            current: fallbackAvailable,
-            hasFlow: true,
-        };
+        return buildVesLabel(fallbackAvailable, effectiveCap);
     }
 
     const available = Number(dynamicSummary.availableFiat || 0);
     const consumed = Number(dynamicSummary.consumedFiat || 0);
     const inflowFiat = Number(dynamicSummary.inflowFiat || 0);
-    const activeVerdicts = Math.max(
-        0,
-        Number(fallbackCoverageCount || dynamicSummary.activeVerdicts || fallbackActiveVerdicts || 0)
-    );
     const inferredCapFromFlow = Math.max(0, inflowFiat, available + consumed);
     let effectiveCap = Math.max(0, inferredCapFromFlow);
 
@@ -874,28 +867,10 @@ function buildBankVesLimitLabel(bank, _config = {}, vesControlSummaryByBank = ne
             };
         }
 
-        const progress = fallbackAvailable <= 0 ? 0 : clampPercent((fallbackAvailable / effectiveCap) * 100);
-
-        return {
-            value: `${fVESInline(fallbackAvailable)} / ${fVESInline(effectiveCap)}`,
-            meta: buildVesMeta(fallbackAvailable, effectiveCap, activeVerdicts),
-            progress,
-            limit: effectiveCap,
-            current: fallbackAvailable,
-            hasFlow: true,
-        };
+        return buildVesLabel(fallbackAvailable, effectiveCap);
     }
 
-    const progress = available <= 0 ? 0 : clampPercent((available / effectiveCap) * 100);
-
-    return {
-        value: `${fVESInline(available)} / ${fVESInline(effectiveCap)}`,
-        meta: buildVesMeta(available, effectiveCap, activeVerdicts),
-        progress,
-        limit: effectiveCap,
-        current: available,
-        hasFlow: true,
-    };
+    return buildVesLabel(available, effectiveCap);
 }
 
 export function updateSidebarMonitor(kpis = {}, bankInsights = [], ledgerSummary = null) {
