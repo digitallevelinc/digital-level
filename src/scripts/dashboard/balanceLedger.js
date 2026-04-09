@@ -26,6 +26,15 @@ const state = {
     typeFilter: 'ALL',
     currentTransfers: [],
     transfersCache: new Map(),
+    // Auxiliary cache for transfers outside the current filter range but still
+    // relevant for cross-day cycle resolution. Typically populated with the
+    // "recovery window" (from the day after state.range.to up to today) whenever
+    // the user is viewing a historical range — this lets computeCycleSpreads see
+    // today's recovery purchases that close yesterday's sells, without those rows
+    // leaking into the rendered table or the search pool.
+    auxiliaryTransfersCache: new Map(),
+    auxiliarySeq: 0,
+    auxiliaryRangeKey: '',
     pageNetByPage: new Map(),
     prefetchedPages: new Set(),
     bankData: [],
@@ -921,6 +930,28 @@ const matchesSearch = (tx, searchTerm) => {
 const getCachedScopedTransfers = () => Array.from(state.transfersCache.values())
     .sort((a, b) => getTxTimestampMs(b) - getTxTimestampMs(a))
     .filter((tx) => isLedgerChannelAllowed(tx));
+
+// Returns the merged transfer list used for cross-day cycle computation:
+// the visible cache (filtered range) plus the auxiliary recovery window
+// (transfers from after range.to up to today) that is fetched silently so
+// today's P2P_BUYs can close yesterday's P2P_SELLs.
+const getCycleComputationTransfers = () => {
+    const visible = Array.from(state.transfersCache.values());
+    const auxiliary = Array.from(state.auxiliaryTransfersCache.values())
+        .filter((tx) => !state.transfersCache.has(getTransferKey(tx)));
+    const combined = visible.concat(auxiliary);
+    return combined
+        .sort((a, b) => getTxTimestampMs(b) - getTxTimestampMs(a))
+        .filter((tx) => isLedgerChannelAllowed(tx));
+};
+
+const clearAuxiliaryTransfersCache = () => {
+    state.auxiliarySeq += 1;
+    state.auxiliaryRangeKey = '';
+    if (state.auxiliaryTransfersCache.size > 0) {
+        state.auxiliaryTransfersCache.clear();
+    }
+};
 
 const buildRowsWithBalance = (transfers = []) => {
     let rows = Array.isArray(transfers) ? [...transfers] : [];
@@ -2469,9 +2500,13 @@ const renderTransfers = (transfers = [], options = {}) => {
 
     const rowsWithBalance = buildRowsWithBalance(scopedTransfers);
 
-    // Los ciclos se calculan sobre TODO el caché (para que compras de págs previas sumen al spread)
+    // Los ciclos se calculan sobre TODO el caché (para que compras de págs previas sumen al spread).
+    // Además incluimos las transferencias de la "ventana de recuperación" (después de range.to
+    // y hasta hoy) para que compras de hoy puedan cerrar ventas de ayer cuando el usuario
+    // filtra un rango histórico. Esto evita que la cobertura P2P se quede "activa" por stale.
     const cachedScopedTransfers = getCachedScopedTransfers();
-    const cycleSpreads = computeCycleSpreads(cachedScopedTransfers);
+    const cycleComputationTransfers = getCycleComputationTransfers();
+    const cycleSpreads = computeCycleSpreads(cycleComputationTransfers);
 
     // Cross-day cycle fix: inject rateOverride for P2P_BUY entries that the judge has
     // already linked to an open cycle whose sell happened on the previous day.
@@ -2489,49 +2524,6 @@ const renderTransfers = (transfers = [], options = {}) => {
                 if (exactSellContext) {
                     cycleSpreads.set(key, exactSellContext);
                 }
-            }
-        }
-    }
-
-    // Reverse cross-day cycle fix: when the user views a historical range, the
-    // recovery purchases that closed a sell from that range may live OUTSIDE the
-    // cache (e.g. yesterday's sell was covered by today's buy, but only yesterday
-    // is in the cache). The local ledger therefore reports the sell as still
-    // incomplete, leaking a stale "cobertura activa" badge and an incorrect
-    // "Faltan X FIAT" sub-label on the row. Trust the judge: if a P2P_SELL is
-    // recent enough that the judge would still cache it, but it is no longer in
-    // openVerdicts, then it has been closed → mark its cycleData as complete.
-    {
-        const judgeOpenVerdicts = Array.isArray(state.kpis?.judge?.openVerdicts)
-            ? state.kpis.judge.openVerdicts : null;
-        if (judgeOpenVerdicts) {
-            const openSaleIds = new Set(
-                judgeOpenVerdicts
-                    .filter((v) => {
-                        const s = String(v?.status || '').toUpperCase();
-                        return !s.startsWith('CLOS') && !s.startsWith('CANCEL') && !s.startsWith('COMPLET');
-                    })
-                    .map((v) => String(v?.saleTransferId || v?.saleId || ''))
-                    .filter(Boolean)
-            );
-            // Judge prunes verdicts older than 7 days (DEFAULT_MAX_VERDICT_AGE_DAYS),
-            // so its absence is only authoritative within that window.
-            const JUDGE_CACHE_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
-            const nowMs = Date.now();
-            for (const tx of cachedScopedTransfers) {
-                if (normalizeTxType(tx) !== 'P2P_SELL') continue;
-                const txTs = getTxTimestampMs(tx);
-                if (txTs <= 0 || (nowMs - txTs) > JUDGE_CACHE_WINDOW_MS) continue;
-                const key = getTransferKey(tx);
-                const existing = cycleSpreads.get(key);
-                if (!existing || existing.complete) continue;
-                if (openSaleIds.has(key)) continue;
-                cycleSpreads.set(key, {
-                    ...existing,
-                    complete: true,
-                    recoveredFiat: existing.totalSellFiat,
-                    recoveredPct: 100,
-                });
             }
         }
     }
@@ -2711,6 +2703,8 @@ const fetchTransfersPage = async (page = 1, options = {}) => {
             resetScroll: showLoading,
         });
 
+        void fetchRecoveryAugmentation();
+
         // Silently prefetch subsequent pages to populate sell context for spread calculation.
         // This ensures page 1 buys can find their matching sells even on first visit.
         void prefetchSellContextPages();
@@ -2726,6 +2720,118 @@ const fetchTransfersPage = async (page = 1, options = {}) => {
         if (requestSeq === state.requestSeq) {
             state.abortController = null;
         }
+    }
+};
+
+// When the user is viewing a historical range (range.to strictly before today),
+// the regular fetch misses today's recovery purchases — so the local ledger
+// wrongly reports yesterday's sells as "cobertura activa". This helper
+// silently loads the post-range window [range.to + 1d, today] into
+// state.auxiliaryTransfersCache so computeCycleSpreads can close those sells.
+const fetchRecoveryAugmentation = async () => {
+    if (!state.apiBase || !state.token) return;
+
+    const rangeTo = sanitizeDateValue(state.range?.to);
+    if (!rangeTo) {
+        // No upper bound → the visible cache already extends through today.
+        if (state.auxiliaryTransfersCache.size > 0) {
+            clearAuxiliaryTransfersCache();
+            if (state.currentTransfers.length > 0) {
+                renderTransfers(state.currentTransfers, { resetScroll: false });
+            }
+        }
+        return;
+    }
+
+    const todayStr = new Intl.DateTimeFormat('en-CA', {
+        timeZone: CARACAS_TZ, year: 'numeric', month: '2-digit', day: '2-digit',
+    }).format(new Date());
+
+    if (rangeTo >= todayStr) {
+        // The current filter already includes today → no augmentation needed.
+        if (state.auxiliaryTransfersCache.size > 0) {
+            clearAuxiliaryTransfersCache();
+            if (state.currentTransfers.length > 0) {
+                renderTransfers(state.currentTransfers, { resetScroll: false });
+            }
+        }
+        return;
+    }
+
+    // Compute the day AFTER range.to as the augmentation floor.
+    const rangeToDate = new Date(`${rangeTo}T00:00:00`);
+    rangeToDate.setDate(rangeToDate.getDate() + 1);
+    const augFrom = new Intl.DateTimeFormat('en-CA', {
+        timeZone: CARACAS_TZ, year: 'numeric', month: '2-digit', day: '2-digit',
+    }).format(rangeToDate);
+
+    const auxRangeKey = `${augFrom}::${todayStr}`;
+    if (state.auxiliaryRangeKey === auxRangeKey && state.auxiliaryTransfersCache.size > 0) {
+        // Already cached for this window.
+        return;
+    }
+
+    const seq = ++state.auxiliarySeq;
+    const auxRange = { from: augFrom, to: todayStr };
+    let needsRerender = false;
+    const freshCache = new Map();
+
+    try {
+        const firstUrl = buildTransfersUrl(state.apiBase, auxRange, 1, state.limit, true);
+        const firstRes = await fetch(firstUrl, {
+            headers: { 'Authorization': `Bearer ${state.token}` },
+            cache: 'no-store',
+        });
+        if (seq !== state.auxiliarySeq) return;
+        if (!firstRes.ok) return;
+
+        const firstPayload = await firstRes.json();
+        if (seq !== state.auxiliarySeq) return;
+
+        const firstTransfers = Array.isArray(firstPayload?.transfers) ? firstPayload.transfers : [];
+        firstTransfers.forEach((tx) => {
+            const key = getTransferKey(tx);
+            if (!key) return;
+            freshCache.set(key, tx);
+        });
+        const pagination = firstPayload?.pagination || {};
+        const totalPages = Math.max(1, Number(pagination.totalPages || 1));
+
+        for (let p = 2; p <= totalPages; p++) {
+            if (seq !== state.auxiliarySeq) return;
+            try {
+                const res = await fetch(
+                    buildTransfersUrl(state.apiBase, auxRange, p, state.limit, true),
+                    { headers: { 'Authorization': `Bearer ${state.token}` }, cache: 'no-store' }
+                );
+                if (seq !== state.auxiliarySeq) return;
+                if (!res.ok) continue;
+                const payload = await res.json();
+                if (seq !== state.auxiliarySeq) return;
+                const transfers = Array.isArray(payload?.transfers) ? payload.transfers : [];
+                transfers.forEach((tx) => {
+                    const key = getTransferKey(tx);
+                    if (!key) return;
+                    freshCache.set(key, tx);
+                });
+            } catch {
+                // Silent failure — augmentation is best-effort.
+            }
+        }
+    } catch {
+        return;
+    }
+
+    if (seq !== state.auxiliarySeq) return;
+
+    // Replace the auxiliary cache atomically.
+    state.auxiliaryTransfersCache = freshCache;
+    state.auxiliaryRangeKey = auxRangeKey;
+    needsRerender = freshCache.size > 0;
+
+    if (needsRerender && state.currentTransfers.length > 0) {
+        renderTransfers(state.currentTransfers, { resetScroll: false });
+        void prefetchSellContextPages();
     }
 };
 
@@ -2769,9 +2875,9 @@ const prefetchSellContextPages = async () => {
     // Compute total spread sum scoped to the current date range.
     // allScoped (full history) is needed so computeCycleSpreads can detect cross-day cycle rates,
     // but we only SUM spreads for transactions within the selected range.
-    const allCached = Array.from(state.transfersCache.values()).sort((a, b) => getTxTimestampMs(b) - getTxTimestampMs(a));
-    const allScoped = allCached.filter(isLedgerChannelAllowed);
-    const allCycleSpreads = computeCycleSpreads(allScoped);
+    const allVisibleCached = Array.from(state.transfersCache.values()).sort((a, b) => getTxTimestampMs(b) - getTxTimestampMs(a));
+    const allScoped = allVisibleCached.filter(isLedgerChannelAllowed);
+    const allCycleSpreads = computeCycleSpreads(getCycleComputationTransfers());
 
     // Inject judge rateOverrides for cross-day buys (same logic as in renderTransfers)
     {
@@ -2957,6 +3063,7 @@ const bindEventsOnce = () => {
         }
         state.pageNetByPage.clear();
         state.transfersCache.clear();
+        clearAuxiliaryTransfersCache();
         state.prefetchedPages.clear();
         state.closingBalance = null;
         state.total = 0;
@@ -3010,6 +3117,7 @@ export const updateBalanceLedgerUI = (kpis = {}, context = {}) => {
         }
         state.pageNetByPage.clear();
         state.transfersCache.clear();
+        clearAuxiliaryTransfersCache();
         state.prefetchedPages.clear();
         state.closingBalance = null;
         state.needsRefresh = true;
@@ -3030,6 +3138,7 @@ export const updateBalanceLedgerUI = (kpis = {}, context = {}) => {
         }
         state.pageNetByPage.clear();
         state.transfersCache.clear();
+        clearAuxiliaryTransfersCache();
         state.prefetchedPages.clear();
         state.closingBalance = null;
         state.needsRefresh = true;
