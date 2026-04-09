@@ -2145,7 +2145,7 @@ const updateCoverageBadge = (transfers = [], cycleSpreads = new Map()) => {
     }
 
     badge.style.display = '';
-    label.textContent = `${active.length} cobertura${active.length !== 1 ? 's' : ''} activa${active.length !== 1 ? 's' : ''}`;
+    label.textContent = 'Cobertura activa';
 
     // Aggregate all active coverages into a single global view
     let globalTotalFiat = 0;
