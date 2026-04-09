@@ -1066,7 +1066,7 @@ export function updateSidebarMonitor(kpis = {}, bankInsights = [], ledgerSummary
                 </div>
                 <div class="flex items-start gap-3 shrink-0">
                     <div class="text-right">
-                        <span class="text-[1rem] font-mono font-black ${bankProfitFiat >= 0 ? 'text-emerald-400' : 'text-rose-500'} tracking-tight">${bankProfitFiat >= 0 ? '+' : ''}${fVESInline(bankProfitFiat)} FIAT</span>
+                        <span class="text-[1rem] font-mono font-black ${bankProfit >= 0 ? 'text-emerald-400' : 'text-rose-500'} tracking-tight">${formatSignedUsdt(bankProfit)}</span>
                         <span class="text-[9px] text-gray-500 block font-black uppercase tracking-wider">Profit Neto</span>
                     </div>
                     <span data-bank-toggle-icon class="text-[#F3BA2F] text-[14px] leading-none mt-0.5">${isCollapsed ? '&#9656;' : '&#9662;'}</span>
