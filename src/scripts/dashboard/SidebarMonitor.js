@@ -163,6 +163,7 @@ function getBankMonitorSummary(kpis = {}, bankInsights = []) {
 }
 
 const _memoizedSpreads = new Map();
+const _memoizedCoverage = new Map(); // bankKey → { totalFiat, pendingFiat }
 
 function getLedgerSpreadProfit(bank = {}) {
     const key = String(bank?.bank || bank?.bankName || '').toLowerCase().trim();
@@ -182,6 +183,25 @@ function getLedgerSpreadProfitFiat(bank = {}) {
         return val;
     }
     return key && _memoizedSpreads.has(key + '_fiat') ? _memoizedSpreads.get(key + '_fiat') : 0;
+}
+
+function getLedgerCoverage(bank = {}) {
+    const key = String(bank?.bank || bank?.bankName || '').toLowerCase().trim();
+    if (bank?.ledgerSpreadReady === true) {
+        const totalFiat = toNumber(bank.coverageTotalFiat);
+        const pendingFiat = toNumber(bank.coveragePendingFiat);
+        if (key && totalFiat > 0) {
+            _memoizedCoverage.set(key, { totalFiat, pendingFiat });
+        } else if (key && totalFiat === 0) {
+            // Ledger explicitly found no active cycle → clear memo
+            _memoizedCoverage.delete(key);
+        }
+        return { totalFiat, pendingFiat };
+    }
+    if (key && _memoizedCoverage.has(key)) {
+        return _memoizedCoverage.get(key);
+    }
+    return { totalFiat: toNumber(bank.coverageTotalFiat), pendingFiat: toNumber(bank.coveragePendingFiat) };
 }
 
 function buildPagoMovilLabel(bank, config = {}) {
@@ -791,8 +811,11 @@ function buildLatestCycleByBank(kpis = {}, bankInsights = []) {
 function buildBankVesLimitLabel(bank, _config = {}, vesControlSummaryByBank = new Map()) {
     const key = normalizeBankLimitKey(bank);
     const dynamicSummary = vesControlSummaryByBank.get(key);
-    const fallbackCoveragePendingFiat = Math.max(0, Number(bank?.coveragePendingFiat || 0));
-    const fallbackCoverageTotalFiat = Math.max(0, Number(bank?.coverageTotalFiat || 0));
+    // Use memoized ledger coverage to survive dashboard poll resets that wipe
+    // injected values with stale backend data before the ledger can re-inject.
+    const ledgerCov = getLedgerCoverage(bank);
+    const fallbackCoveragePendingFiat = Math.max(0, ledgerCov.pendingFiat);
+    const fallbackCoverageTotalFiat = Math.max(0, ledgerCov.totalFiat);
     const fallbackAvailable = Math.max(
         0,
         Number(bank?.currentCycleFiatRemaining || 0),

@@ -2957,8 +2957,11 @@ const prefetchSellContextPages = async () => {
                 spreadProfitUsdt: ledgerSpread !== 0 ? ledgerSpread : bank.spreadProfitUsdt,
                 spreadProfitFiat: ledgerSpreadFiat !== 0 ? ledgerSpreadFiat : bank.spreadProfitFiat,
                 coverageActiveFiatCount: coverageSummary.activeCount > 0 ? coverageSummary.activeCount : bank.coverageActiveFiatCount,
-                coveragePendingFiat: coverageSummary.remainingFiat > 0 ? coverageSummary.remainingFiat : bank.coveragePendingFiat,
-                coverageTotalFiat: coverageSummary.totalFiat > 0 ? coverageSummary.totalFiat : bank.coverageTotalFiat,
+                // Always write ledger-computed coverage so the sidebar memo can
+                // detect when no active cycle exists (totalFiat === 0) and clear itself,
+                // instead of falling back to stale backend values.
+                coveragePendingFiat: Number(coverageSummary.remainingFiat ?? 0),
+                coverageTotalFiat: Number(coverageSummary.totalFiat ?? 0),
                 ledgerSpreadReady: true,
             };
         });
