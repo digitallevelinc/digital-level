@@ -1577,12 +1577,11 @@ const computeTxSpread = (tx = {}, override = 0) => {
 
 // Cobertura basada en recuperación de bolívares:
 // Cada P2P_SELL / PAY_SENT prometido conserva su propio avance de cobertura.
-// Los P2P_BUY posteriores consumen los VES pendientes en orden cronológico (FIFO).
-// Si hay varias ventas abiertas a la vez, el BUY puede seguir usando una referencia
-// ponderada combinada para su spread, pero sin sobrescribir el progreso individual
-// de cada venta. Esto evita que varias coberturas terminen mostrando el mismo valor.
-// Si el gap entre ventas consecutivas supera CYCLE_MAX_SELL_GAP_MS, se cierran como
-// incompletas para evitar que páginas históricas prefetcheadas contaminen ventas recientes.
+// Cada P2P_SELL abre su propio ciclo de cobertura.
+// Cuando aparece una nueva venta, cerramos la anterior como incompleta y las
+// compras posteriores pasan a cubrir exclusivamente la venta más reciente.
+// Esto evita repartir una misma compra entre dos ventas abiertas y mantiene la
+// cobertura alineada con la secuencia visual del ledger.
 // Returns Map<txKey, { complete, totalSellFiat, recoveredFiat, recoveredPct, rateOverride?, spreadReference? }>.
 const CYCLE_MAX_SELL_GAP_MS = 6 * 60 * 60 * 1000; // 6 horas
 const computeCycleSpreads = (transfers) => {
@@ -1624,17 +1623,18 @@ const computeCycleSpreads = (transfers) => {
         const type = normalizeTxType(tx);
 
         if (isLedgerSellTarget(tx)) {
-            // Una venta agrega VES al pool de recuperación (se acumulan).
+            // Una venta inicia un nuevo ciclo.
             // Para PAY_SENT promesa: usar el fiat prometido (rate × usdt), no el
             // fiat real de la micro-activación ($0.01 × rate = 6.63 VES), que es
             // incorrecto para el seguimiento del ciclo (promesa real = 66.300 VES).
             const sellType = normalizeTxType(tx);
             const sellTs = getTxTimestampMs(tx);
 
-            // Si hay un ciclo abierto pero el gap con la última venta es demasiado grande
-            // (ej. páginas históricas traídas por el prefetch), cerramos el ciclo anterior
-            // antes de iniciar uno nuevo. Esto evita que ventas de días distintos compartan pool.
-            if (openSells.length > 0 && lastSellTs > 0 && sellTs > 0) {
+            // No dejamos dos ventas P2P activas en el mismo ciclo.
+            // La siguiente venta empieza un ciclo nuevo y la anterior queda con su faltante.
+            if (openSells.length > 0) {
+                closeOpenSells(false);
+            } else if (lastSellTs > 0 && sellTs > 0) {
                 const gap = Math.abs(sellTs - lastSellTs);
                 if (gap > CYCLE_MAX_SELL_GAP_MS) {
                     closeOpenSells(false);
