@@ -1003,25 +1003,25 @@ const buildRowsWithBalance = (transfers = []) => {
     const knownNetBefore = getKnownNetBeforePage(state.page);
     let runningBalance = anchorBalance - Number(knownNetBefore || 0);
     let prevDisplayBalance = runningBalance;
+    let negativeTriggered = false;
 
     return rows.map((tx) => {
+        // All rows after the first negative show $0.00 — no ! icon, no cascade
+        if (negativeTriggered) {
+            return { tx, balance: 0, balanceNegativeInfo: null };
+        }
+
         const realBalance = runningBalance;
-        const isNegative = realBalance < 0;
-        const displayBalance = isNegative ? 0 : realBalance;
 
-        const row = {
-            tx,
-            balance: realBalance,
-            // When negative: flag so the row shows the ! icon and resets cascade
-            balanceNegativeInfo: isNegative
-                ? { realBalance, prevDisplayBalance }
-                : null,
-        };
+        if (realBalance < 0) {
+            negativeTriggered = true;
+            // Show real negative on this row + ! icon; rows below will show $0.00
+            return { tx, balance: realBalance, balanceNegativeInfo: { realBalance, prevDisplayBalance } };
+        }
 
-        prevDisplayBalance = displayBalance;
-        // Clamp running balance to 0 so the negativity doesn't cascade to older rows
-        runningBalance = displayBalance - getSignedAmount(tx);
-        return row;
+        prevDisplayBalance = realBalance;
+        runningBalance = realBalance - getSignedAmount(tx);
+        return { tx, balance: realBalance, balanceNegativeInfo: null };
     });
 };
 
@@ -1032,23 +1032,23 @@ const buildRowsWithRangeBalance = (transfers = []) => {
 
     let runningBalance = getLedgerAnchorBalance(state.kpis);
     let prevDisplayBalance = runningBalance;
+    let negativeTriggered = false;
 
     return rows.map((tx) => {
+        if (negativeTriggered) {
+            return { tx, balance: 0, balanceNegativeInfo: null };
+        }
+
         const realBalance = runningBalance;
-        const isNegative = realBalance < 0;
-        const displayBalance = isNegative ? 0 : realBalance;
 
-        const row = {
-            tx,
-            balance: displayBalance,
-            balanceNegativeInfo: isNegative
-                ? { realBalance, prevDisplayBalance }
-                : null,
-        };
+        if (realBalance < 0) {
+            negativeTriggered = true;
+            return { tx, balance: realBalance, balanceNegativeInfo: { realBalance, prevDisplayBalance } };
+        }
 
-        prevDisplayBalance = displayBalance;
-        runningBalance = displayBalance - getSignedAmount(tx);
-        return row;
+        prevDisplayBalance = realBalance;
+        runningBalance = realBalance - getSignedAmount(tx);
+        return { tx, balance: realBalance, balanceNegativeInfo: null };
     });
 };
 
@@ -2335,11 +2335,11 @@ const renderRow = (tx, rowBalance, cycleData = undefined, balanceNegativeInfo = 
     const hasPromiseTooltip = promiseMetaForBalance && promiseMetaForBalance.promiseUsdt > 0;
 
     const negativeAlertHtml = balanceNegativeInfo ? `
-        <div style="position: absolute; top: 6px; right: 6px; cursor: help;"
+        <div style="position: absolute; top: 6px; left: 6px; cursor: help;"
              onmouseenter="const p=this.querySelector('.formula-popover');if(p)p.style.display='flex'"
              onmouseleave="const p=this.querySelector('.formula-popover');if(p)p.style.display='none'">
             <div style="display:flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:50%;background:rgba(239,68,68,0.15);border:1.5px solid rgba(239,68,68,0.5);color:#f87171;font-size:11px;font-weight:900;line-height:1;">!</div>
-            <div class="formula-popover" style="display:none;position:absolute;top:100%;right:0;margin-top:4px;padding:10px 12px;background:#0f1923;border:1px solid rgba(239,68,68,0.3);border-radius:10px;font-family:monospace;font-size:11px;white-space:nowrap;color:rgba(255,255,255,0.88);z-index:60;box-shadow:0 12px 32px rgba(0,0,0,0.5);text-align:left;line-height:1.6;flex-direction:column;gap:2px;">
+            <div class="formula-popover" style="display:none;position:absolute;top:100%;left:0;margin-top:4px;padding:10px 12px;background:#0f1923;border:1px solid rgba(239,68,68,0.3);border-radius:10px;font-family:monospace;font-size:11px;white-space:nowrap;color:rgba(255,255,255,0.88);z-index:60;box-shadow:0 12px 32px rgba(0,0,0,0.5);text-align:left;line-height:1.6;flex-direction:column;gap:2px;">
                 <div style="color:#f87171;font-weight:700;margin-bottom:4px;">Balance negativo detectado</div>
                 <div>Saldo previo: <span style="color:#f7d774;">${escapeHtml(formatUsd(balanceNegativeInfo.prevDisplayBalance))}</span></div>
                 <div>Resultado real: <span style="color:#f87171;">-${escapeHtml(formatUsd(Math.abs(balanceNegativeInfo.realBalance)))}</span></div>
