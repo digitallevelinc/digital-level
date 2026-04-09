@@ -193,6 +193,21 @@ function initEvolutionToggle() {
 // --- CHART LOGIC ---
 let profitChartInstance = null;
 
+function parseChartDateKey(value) {
+    if (value instanceof Date) {
+        return value;
+    }
+
+    const raw = String(value || '').trim();
+    const match = raw.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (!match) {
+        return new Date(value);
+    }
+
+    const [, year, month, day] = match;
+    return new Date(Number(year), Number(month) - 1, Number(day), 12, 0, 0, 0);
+}
+
 function renderProfitChart(chartData = [], totalProfit = 0) {
     const ctx = document.getElementById('profit-chart');
     if (!ctx) return;
@@ -238,10 +253,12 @@ function renderProfitChart(chartData = [], totalProfit = 0) {
         normalizedData = chartData.map(d => ({ ...d, profit: 0 }));
     }
 
-    const sortedData = [...normalizedData].sort((a, b) => new Date(a.date) - new Date(b.date));
+    const sortedData = [...normalizedData].sort((a, b) => (
+        parseChartDateKey(a.date) - parseChartDateKey(b.date)
+    ));
 
     const labels = sortedData.map(d => {
-        const date = new Date(d.date);
+        const date = parseChartDateKey(d.date);
         return date.toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric' });
     });
 
