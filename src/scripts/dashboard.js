@@ -687,6 +687,33 @@ export async function updateDashboard(API_BASE, token, alias, range = {}, opts =
             return;
         }
 
+        // --- CHECK COBERTURA 8 HORAS ---
+        try {
+            const isOperatorMode = sessionStorage.getItem('admin_impersonation') !== 'true';
+            if (isOperatorMode && Array.isArray(kpis?.judge?.openVerdicts)) {
+                const now = Date.now();
+                const COVERAGE_8H_MS = 8 * 60 * 60 * 1000;
+                let hasStaleCoverage = false;
+                
+                for (const verdict of kpis.judge.openVerdicts) {
+                    if (Number(verdict.remainingFiat || 0) <= 0) continue;
+                    const ageMs = now - new Date(verdict.createdAt || verdict.timestamp || 0).getTime();
+                    if (ageMs >= COVERAGE_8H_MS) {
+                        hasStaleCoverage = true;
+                        break;
+                    }
+                }
+
+                if (hasStaleCoverage && typeof window.showCoverageAlertModal === 'function') {
+                    window.showCoverageAlertModal();
+                } else if (!hasStaleCoverage && typeof window.hideCoverageAlertModal === 'function') {
+                    window.hideCoverageAlertModal();
+                }
+            }
+        } catch (_err) {
+            console.error("Error evaluating stale coverage:", _err);
+        }
+
         // --- PREPARACIÓN DE DATOS (API V2 - Source of Truth) ---
         const metrics = kpis.metrics || {};
 
