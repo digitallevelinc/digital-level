@@ -1653,11 +1653,12 @@ const computeTxSpread = (tx = {}, override = 0) => {
 
 // Cobertura basada en recuperación de bolívares:
 // Cada P2P_SELL / PAY_SENT prometido conserva su propio avance de cobertura.
-// Cada P2P_SELL abre su propio ciclo de cobertura.
-// Cuando aparece una nueva venta, cerramos la anterior como incompleta y las
-// compras posteriores pasan a cubrir exclusivamente la venta más reciente.
-// Esto evita repartir una misma compra entre dos ventas abiertas y mantiene la
-// cobertura alineada con la secuencia visual del ledger.
+// Cada P2P_SELL abre su propio tramo dentro del ciclo de cobertura.
+// Si hay varias ventas abiertas, las compras cubren primero la venta mas
+// reciente y, si sobra FIAT, el remanente cae hacia las ventas anteriores.
+// Esto replica la operativa real: la venta nueva tiene prioridad inmediata,
+// pero cuando queda cubierta las compras restantes deben volver a sumar a la
+// venta previa en vez de dejarla congelada.
 // Returns Map<txKey, { complete, totalSellFiat, recoveredFiat, recoveredPct, rateOverride?, spreadReference? }>.
 const CYCLE_MAX_SELL_GAP_MS = 6 * 60 * 60 * 1000; // 6 horas
 const computeCycleSpreads = (transfers) => {
@@ -1709,11 +1710,10 @@ const computeCycleSpreads = (transfers) => {
             const sellType = normalizeTxType(tx);
             const sellTs = getTxTimestampMs(tx);
 
-            // No dejamos dos ventas P2P activas en el mismo ciclo.
-            // La siguiente venta empieza un ciclo nuevo y la anterior queda con su faltante.
-            if (openSells.length > 0) {
-                closeOpenSells(false);
-            } else if (lastSellTs > 0 && sellTs > 0) {
+            // Si entre ventas consecutivas hay una brecha muy grande, cortamos
+            // el ciclo para evitar que una venta antigua absorba compras de un
+            // bloque operativo completamente distinto.
+            if (lastSellTs > 0 && sellTs > 0) {
                 const gap = Math.abs(sellTs - lastSellTs);
                 if (gap > CYCLE_MAX_SELL_GAP_MS) {
                     closeOpenSells(false);
@@ -1750,7 +1750,8 @@ const computeCycleSpreads = (transfers) => {
 
             if (buyFiat > 0) {
                 let remainingBuyFiat = buyFiat;
-                for (const entry of openSells) {
+                for (let sellIdx = openSells.length - 1; sellIdx >= 0; sellIdx -= 1) {
+                    const entry = openSells[sellIdx];
                     if (remainingBuyFiat <= COVERAGE_COMPLETION_TOLERANCE_FIAT) break;
                     if (entry.remainingFiat <= COVERAGE_COMPLETION_TOLERANCE_FIAT) continue;
 
