@@ -1660,11 +1660,9 @@ const computeTxSpread = (tx = {}, override = 0) => {
 // pero cuando queda cubierta las compras restantes deben volver a sumar a la
 // venta previa en vez de dejarla congelada.
 // Returns Map<txKey, { complete, totalSellFiat, recoveredFiat, recoveredPct, rateOverride?, spreadReference? }>.
-const CYCLE_MAX_SELL_GAP_MS = 6 * 60 * 60 * 1000; // 6 horas
 const computeCycleSpreads = (transfers) => {
     const result = new Map();
     let openSells = [];
-    let lastSellTs = 0;
 
     const upsertSellCoverage = (entry, forceComplete = null) => {
         const totalSellFiat = Number(entry?.totalSellFiat || 0);
@@ -1694,7 +1692,6 @@ const computeCycleSpreads = (transfers) => {
             upsertSellCoverage(entry, forceComplete ? true : null);
         }
         openSells = [];
-        lastSellTs = 0;
     };
 
     // Recorrer de más antiguo a más reciente (el array viene newest-first)
@@ -1708,18 +1705,6 @@ const computeCycleSpreads = (transfers) => {
             // fiat real de la micro-activación ($0.01 × rate = 6.63 VES), que es
             // incorrecto para el seguimiento del ciclo (promesa real = 66.300 VES).
             const sellType = normalizeTxType(tx);
-            const sellTs = getTxTimestampMs(tx);
-
-            // Si entre ventas consecutivas hay una brecha muy grande, cortamos
-            // el ciclo para evitar que una venta antigua absorba compras de un
-            // bloque operativo completamente distinto.
-            if (lastSellTs > 0 && sellTs > 0) {
-                const gap = Math.abs(sellTs - lastSellTs);
-                if (gap > CYCLE_MAX_SELL_GAP_MS) {
-                    closeOpenSells(false);
-                }
-            }
-
             // PAY_SENT promesas NO entran al pool de ciclos P2P.
             // Su volumen VES (tasa × USDT prometido) es órdenes de magnitud mayor que un
             // P2P_SELL y dominaría el rateOverride ponderado → spreads incorrectos.
@@ -1738,7 +1723,6 @@ const computeCycleSpreads = (transfers) => {
                     debugRecoveries: [],
                 });
                 upsertSellCoverage(openSells[openSells.length - 1], false);
-                if (sellTs > 0) lastSellTs = sellTs;
             }
         } else if (type === 'P2P_BUY' && openSells.length > 0) {
             // Una compra consume VES del pool y aporta su spread
@@ -1841,11 +1825,6 @@ const computeCycleSpreads = (transfers) => {
                         }
                         : existing.spreadReference,
                 });
-            }
-
-            // ¿Se recuperaron todos los VES? → ciclo cerrado
-            if (openSells.length === 0) {
-                lastSellTs = 0;
             }
         }
         // Compras sin ciclo abierto se ignoran para acumulación de ciclo
