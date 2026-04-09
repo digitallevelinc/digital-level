@@ -2428,32 +2428,6 @@ const renderTransfers = (transfers = [], options = {}) => {
                     cycleSpreads.set(key, exactSellContext);
                 }
             }
-
-            // Inject Judge coverage for the sale so COBERTURA column uses
-            // backend data (which tracks all purchases across all pages).
-            const saleKey = String(verdict.saleTransferId || verdict.saleId || '');
-            if (saleKey && !isPromiseVerdict(verdict)) {
-                const localCycle = cycleSpreads.get(saleKey);
-                const judgeFiatReceived = Number(verdict.fiatReceived || 0);
-                const judgeConsumedFiat = Number(verdict.consumedRebuyFiat || 0);
-                if (judgeFiatReceived > 0 && judgeConsumedFiat > 0) {
-                    const totalSellFiat = localCycle?.totalSellFiat || judgeFiatReceived;
-                    const judgeRecoveredFiat = Math.min(totalSellFiat, judgeConsumedFiat);
-                    const localRecoveredFiat = Number(localCycle?.recoveredFiat || 0);
-                    if (judgeRecoveredFiat > localRecoveredFiat) {
-                        const remainingFiat = Math.max(0, totalSellFiat - judgeRecoveredFiat);
-                        const pct = totalSellFiat > 0 ? Math.min(100, (judgeRecoveredFiat / totalSellFiat) * 100) : 0;
-                        cycleSpreads.set(saleKey, {
-                            ...(localCycle || {}),
-                            totalSellFiat,
-                            recoveredFiat: judgeRecoveredFiat,
-                            remainingFiat,
-                            recoveredPct: pct,
-                            complete: remainingFiat <= COVERAGE_COMPLETION_TOLERANCE_FIAT,
-                        });
-                    }
-                }
-            }
         }
     }
 
