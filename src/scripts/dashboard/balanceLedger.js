@@ -1002,13 +1002,25 @@ const buildRowsWithBalance = (transfers = []) => {
     const anchorBalance = getLedgerAnchorBalance(state.kpis);
     const knownNetBefore = getKnownNetBeforePage(state.page);
     let runningBalance = anchorBalance - Number(knownNetBefore || 0);
+    let prevDisplayBalance = runningBalance;
 
     return rows.map((tx) => {
+        const realBalance = runningBalance;
+        const isNegative = realBalance < 0;
+        const displayBalance = isNegative ? 0 : realBalance;
+
         const row = {
             tx,
-            balance: runningBalance,
+            balance: displayBalance,
+            // When negative: preserve real value and prev balance for the ! tooltip
+            balanceNegativeInfo: isNegative
+                ? { realBalance, prevDisplayBalance }
+                : null,
         };
-        runningBalance -= getSignedAmount(tx);
+
+        prevDisplayBalance = displayBalance;
+        // Clamp running balance to 0 so the negativity doesn't cascade to older rows
+        runningBalance = displayBalance - getSignedAmount(tx);
         return row;
     });
 };
@@ -1019,13 +1031,23 @@ const buildRowsWithRangeBalance = (transfers = []) => {
         : [];
 
     let runningBalance = getLedgerAnchorBalance(state.kpis);
+    let prevDisplayBalance = runningBalance;
 
     return rows.map((tx) => {
+        const realBalance = runningBalance;
+        const isNegative = realBalance < 0;
+        const displayBalance = isNegative ? 0 : realBalance;
+
         const row = {
             tx,
-            balance: runningBalance,
+            balance: displayBalance,
+            balanceNegativeInfo: isNegative
+                ? { realBalance, prevDisplayBalance }
+                : null,
         };
-        runningBalance -= getSignedAmount(tx);
+
+        prevDisplayBalance = displayBalance;
+        runningBalance = displayBalance - getSignedAmount(tx);
         return row;
     });
 };
@@ -2232,7 +2254,7 @@ const renderCoverageDebugTrigger = (cycleData = {}, fiatLabel = 'FIAT') => {
         </div>`;
 };
 
-const renderRow = (tx, rowBalance, cycleData = undefined) => {
+const renderRow = (tx, rowBalance, cycleData = undefined, balanceNegativeInfo = null) => {
     const isSettlement = isSettlementTransfer(tx);
     const category = isSettlement ? 'LIQUID' : getCategory(tx.type);
     const signedAmount = getSignedAmount(tx);
@@ -2311,28 +2333,44 @@ const renderRow = (tx, rowBalance, cycleData = undefined) => {
     }
     const promiseMetaForBalance = getPromiseMeta(tx);
     const hasPromiseTooltip = promiseMetaForBalance && promiseMetaForBalance.promiseUsdt > 0;
+
+    const negativeAlertHtml = balanceNegativeInfo ? `
+        <div style="position: absolute; top: 6px; right: 6px; cursor: help;"
+             onmouseenter="const p=this.querySelector('.formula-popover');if(p)p.style.display='flex'"
+             onmouseleave="const p=this.querySelector('.formula-popover');if(p)p.style.display='none'">
+            <div style="display:flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:50%;background:rgba(239,68,68,0.15);border:1.5px solid rgba(239,68,68,0.5);color:#f87171;font-size:11px;font-weight:900;line-height:1;">!</div>
+            <div class="formula-popover" style="display:none;position:absolute;top:100%;right:0;margin-top:4px;padding:10px 12px;background:#0f1923;border:1px solid rgba(239,68,68,0.3);border-radius:10px;font-family:monospace;font-size:11px;white-space:nowrap;color:rgba(255,255,255,0.88);z-index:60;box-shadow:0 12px 32px rgba(0,0,0,0.5);text-align:left;line-height:1.6;flex-direction:column;gap:2px;">
+                <div style="color:#f87171;font-weight:700;margin-bottom:4px;">Balance negativo detectado</div>
+                <div>Saldo previo: <span style="color:#f7d774;">${escapeHtml(formatUsd(balanceNegativeInfo.prevDisplayBalance))}</span></div>
+                <div>Resultado real: <span style="color:#f87171;">-${escapeHtml(formatUsd(Math.abs(balanceNegativeInfo.realBalance)))}</span></div>
+                <div style="margin-top:4px;padding-top:4px;border-top:1px solid rgba(255,255,255,0.08);">Ajustado a: <span style="color:#a3e635;">$0.00</span></div>
+            </div>
+        </div>` : '';
+
     let balanceMetric;
     if (hasPromiseTooltip) {
         const senderName = escapeHtml(tx?.counterpartyName || tx?.internalCounterpartyAlias || '--');
         const receiverName = escapeHtml(tx?.internalCounterpartyAlias || tx?.notes || '--');
         balanceMetric = `
-    <div class="ledger-metric-card ${rowBalance < 0 ? 'ledger-metric-negative' : 'ledger-metric-balance'} ledger-metric-has-tooltip">
+    <div class="ledger-metric-card ledger-metric-balance ledger-metric-has-tooltip" style="position:relative;">
         <span class="ledger-metric-label">Balance</span>
-        <span class="ledger-metric-value">${escapeHtml(`${rowBalance < 0 ? '-' : ''}${formatUsd(Math.abs(rowBalance))}`)}</span>
-        <span class="ledger-metric-sub">${escapeHtml(rowBalance < 0 ? 'Balance comprometido' : 'Balance disponible')}</span>
+        <span class="ledger-metric-value">${escapeHtml(formatUsd(rowBalance))}</span>
+        <span class="ledger-metric-sub">Balance disponible</span>
         <div class="ledger-balance-tooltip">
-            <div class="ledger-balance-tooltip-row"><span>Balance total</span><span>${escapeHtml(`${rowBalance < 0 ? '-' : ''}${formatUsd(Math.abs(rowBalance))}`)}</span></div>
+            <div class="ledger-balance-tooltip-row"><span>Balance total</span><span>${escapeHtml(formatUsd(rowBalance))}</span></div>
             <div class="ledger-balance-tooltip-row"><span>Promesa</span><span>${escapeHtml(formatUsd(promiseMetaForBalance.promiseUsdt))} USDT</span></div>
             <div class="ledger-balance-tooltip-row"><span>Enviado por</span><span>${senderName}</span></div>
             ${promiseMetaForBalance.isReceiver ? `<div class="ledger-balance-tooltip-row"><span>Recibido por</span><span>${receiverName}</span></div>` : ''}
         </div>
+        ${negativeAlertHtml}
     </div>`;
     } else {
         balanceMetric = renderMetricCard({
             label: 'Balance',
-            value: `${rowBalance < 0 ? '-' : ''}${formatUsd(Math.abs(rowBalance))}`,
-            sub: rowBalance < 0 ? 'Balance comprometido' : 'Balance disponible',
-            tone: rowBalance < 0 ? 'ledger-metric-negative' : 'ledger-metric-balance'
+            value: formatUsd(rowBalance),
+            sub: 'Balance disponible',
+            tone: 'ledger-metric-balance',
+            extraHtml: negativeAlertHtml,
         });
     }
 
@@ -2575,7 +2613,7 @@ const renderTransfers = (transfers = [], options = {}) => {
         return;
     }
 
-    body.innerHTML = filteredRows.map(({ tx, balance }) => renderRow(tx, balance, cycleSpreads.get(getTransferKey(tx)))).join('');
+    body.innerHTML = filteredRows.map(({ tx, balance, balanceNegativeInfo }) => renderRow(tx, balance, cycleSpreads.get(getTransferKey(tx)), balanceNegativeInfo)).join('');
 
     // Actualizar badge de coberturas activas
     updateCoverageBadge(cachedScopedTransfers, cycleSpreads);
