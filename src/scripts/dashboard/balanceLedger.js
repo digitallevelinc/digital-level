@@ -1002,26 +1002,23 @@ const buildRowsWithBalance = (transfers = []) => {
     const anchorBalance = getLedgerAnchorBalance(state.kpis);
     const knownNetBefore = getKnownNetBeforePage(state.page);
     let runningBalance = anchorBalance - Number(knownNetBefore || 0);
-    let prevDisplayBalance = runningBalance;
-    let negativeTriggered = false;
+    let prevBalance = runningBalance;
+    let firstNegativeFlagged = false;
 
     return rows.map((tx) => {
-        // All rows after the first negative show $0.00 — no ! icon, no cascade
-        if (negativeTriggered) {
-            return { tx, balance: 0, balanceNegativeInfo: null };
-        }
+        const balance = runningBalance;
+        const isFirstNegative = !firstNegativeFlagged && balance < 0;
+        if (isFirstNegative) firstNegativeFlagged = true;
 
-        const realBalance = runningBalance;
+        const row = {
+            tx,
+            balance,
+            balanceNegativeInfo: isFirstNegative ? { realBalance: balance, prevDisplayBalance: prevBalance } : null,
+        };
 
-        if (realBalance < 0) {
-            negativeTriggered = true;
-            // Show real negative on this row + ! icon; rows below will show $0.00
-            return { tx, balance: realBalance, balanceNegativeInfo: { realBalance, prevDisplayBalance } };
-        }
-
-        prevDisplayBalance = realBalance;
-        runningBalance = realBalance - getSignedAmount(tx);
-        return { tx, balance: realBalance, balanceNegativeInfo: null };
+        prevBalance = balance;
+        runningBalance = balance - getSignedAmount(tx);
+        return row;
     });
 };
 
@@ -1031,24 +1028,23 @@ const buildRowsWithRangeBalance = (transfers = []) => {
         : [];
 
     let runningBalance = getLedgerAnchorBalance(state.kpis);
-    let prevDisplayBalance = runningBalance;
-    let negativeTriggered = false;
+    let prevBalance = runningBalance;
+    let firstNegativeFlagged = false;
 
     return rows.map((tx) => {
-        if (negativeTriggered) {
-            return { tx, balance: 0, balanceNegativeInfo: null };
-        }
+        const balance = runningBalance;
+        const isFirstNegative = !firstNegativeFlagged && balance < 0;
+        if (isFirstNegative) firstNegativeFlagged = true;
 
-        const realBalance = runningBalance;
+        const row = {
+            tx,
+            balance,
+            balanceNegativeInfo: isFirstNegative ? { realBalance: balance, prevDisplayBalance: prevBalance } : null,
+        };
 
-        if (realBalance < 0) {
-            negativeTriggered = true;
-            return { tx, balance: realBalance, balanceNegativeInfo: { realBalance, prevDisplayBalance } };
-        }
-
-        prevDisplayBalance = realBalance;
-        runningBalance = realBalance - getSignedAmount(tx);
-        return { tx, balance: realBalance, balanceNegativeInfo: null };
+        prevBalance = balance;
+        runningBalance = balance - getSignedAmount(tx);
+        return row;
     });
 };
 
