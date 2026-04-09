@@ -250,31 +250,9 @@ function renderProfitChart(chartData = [], totalProfit = 0) {
         return;
     }
 
-    // The chart profit MUST always match the Profit Operativo KPI.
-    // Distribute totalProfit (= displayedProfit) across days proportionally
-    // by cycle count so the sum of chart bars equals the KPI exactly.
-    let normalizedData = chartData;
-    if (Math.abs(totalProfit) > 0.001) {
-        const totalCycles = chartData.reduce((sum, d) => sum + (d.cycles || 0), 0);
-        if (totalCycles > 0) {
-            normalizedData = chartData.map(d => ({
-                ...d,
-                profit: Math.round((totalProfit * ((d.cycles || 0) / totalCycles)) * 100) / 100
-            }));
-        } else {
-            // No cycle info — assign full profit to the last day with fees, or last day
-            const lastWithFees = [...chartData].reverse().findIndex(d => (d.fees || 0) > 0);
-            const targetIdx = chartData.length - 1 - (lastWithFees >= 0 ? lastWithFees : 0);
-            normalizedData = chartData.map((d, i) => ({
-                ...d,
-                profit: i === targetIdx ? totalProfit : 0
-            }));
-        }
-    } else {
-        normalizedData = chartData.map(d => ({ ...d, profit: 0 }));
-    }
-
-    const sortedData = [...normalizedData].sort((a, b) => (
+    // The backend now provides real daily profit/fee/capital/cycle values for
+    // the selected range. Do not redistribute the total KPI across days here.
+    const sortedData = [...chartData].sort((a, b) => (
         parseChartDateKey(a.date) - parseChartDateKey(b.date)
     ));
 
