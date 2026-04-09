@@ -2681,34 +2681,6 @@ const prefetchSellContextPages = async () => {
                     allCycleSpreads.set(key, exactSellContext);
                 }
             }
-
-            // Inject Judge coverage data for the sale so the COBERTURA column
-            // reflects all purchases tracked by the backend, not just those
-            // present in the local page cache.
-            const saleKey = String(verdict.saleTransferId || verdict.saleId || '');
-            if (saleKey && !isPromiseVerdict(verdict)) {
-                const localCycle = allCycleSpreads.get(saleKey);
-                const judgeFiatReceived = Number(verdict.fiatReceived || 0);
-                const judgeConsumedFiat = Number(verdict.consumedRebuyFiat || 0);
-                if (judgeFiatReceived > 0 && judgeConsumedFiat > 0) {
-                    const totalSellFiat = localCycle?.totalSellFiat || judgeFiatReceived;
-                    const judgeRecoveredFiat = Math.min(totalSellFiat, judgeConsumedFiat);
-                    const localRecoveredFiat = Number(localCycle?.recoveredFiat || 0);
-                    // Use whichever source has more coverage (Judge sees all pages)
-                    if (judgeRecoveredFiat > localRecoveredFiat) {
-                        const remainingFiat = Math.max(0, totalSellFiat - judgeRecoveredFiat);
-                        const pct = totalSellFiat > 0 ? Math.min(100, (judgeRecoveredFiat / totalSellFiat) * 100) : 0;
-                        allCycleSpreads.set(saleKey, {
-                            ...(localCycle || {}),
-                            totalSellFiat,
-                            recoveredFiat: judgeRecoveredFiat,
-                            remainingFiat,
-                            recoveredPct: pct,
-                            complete: remainingFiat <= COVERAGE_COMPLETION_TOLERANCE_FIAT,
-                        });
-                    }
-                }
-            }
         }
     }
 
