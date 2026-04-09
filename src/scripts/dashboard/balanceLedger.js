@@ -2146,57 +2146,48 @@ const updateCoverageBadge = (transfers = [], cycleSpreads = new Map()) => {
 
     badge.style.display = '';
     label.textContent = `${active.length} cobertura${active.length !== 1 ? 's' : ''} activa${active.length !== 1 ? 's' : ''}`;
-    tooltip.innerHTML = active.map((entry) => {
-        if (entry.kind === 'cycle') {
-            const complete = entry.remainingFiat <= COVERAGE_COMPLETION_TOLERANCE_FIAT;
-            const progressText = formatCoveragePercent(entry.pct, complete);
-            return `
-        <div class="ledger-coverage-tooltip-item">
-            <div class="ledger-coverage-tooltip-head">
-                <span class="ledger-coverage-tooltip-name">${escapeHtml(entry.name)}</span>
-                <span class="ledger-coverage-tooltip-state ${complete ? 'is-complete' : 'is-active'}">${complete ? 'Completado' : 'En progreso'}</span>
-            </div>
-            <div class="ledger-coverage-tooltip-stats">
-                <div class="ledger-coverage-stat">
-                    <span class="ledger-coverage-stat-label">Llevas</span>
-                    <span class="ledger-coverage-stat-value">${formatNumber(entry.recoveredFiat, 2)} ${escapeHtml(entry.fiatLabel)}</span>
-                </div>
-                <div class="ledger-coverage-stat">
-                    <span class="ledger-coverage-stat-label">Falta</span>
-                    <span class="ledger-coverage-stat-value ${complete ? 'is-complete' : ''}">${complete ? `0,00 ${escapeHtml(entry.fiatLabel)}` : `${formatNumber(entry.remainingFiat, 2)} ${escapeHtml(entry.fiatLabel)}`}</span>
-                </div>
-                <div class="ledger-coverage-stat ledger-coverage-stat-progress">
-                    <span class="ledger-coverage-stat-label">Progreso</span>
-                    <span class="ledger-coverage-stat-value">${progressText}</span>
-                </div>
-            </div>
-        </div>`;
-        }
 
-        const complete = entry.pendingUsdt <= 0.009;
-        const progressText = formatCoveragePercent(entry.pct, complete);
-        return `
+    // Aggregate all active coverages into a single global view
+    let globalTotalFiat = 0;
+    let globalRecoveredFiat = 0;
+    let globalRemainingFiat = 0;
+    const fiatLabel = active[0]?.fiatLabel || 'FIAT';
+    for (const entry of active) {
+        if (entry.kind === 'cycle') {
+            globalRecoveredFiat += entry.recoveredFiat;
+            globalRemainingFiat += entry.remainingFiat;
+            globalTotalFiat += entry.recoveredFiat + entry.remainingFiat;
+        } else {
+            globalRecoveredFiat += entry.actualFiat;
+            globalRemainingFiat += entry.pendingFiat;
+            globalTotalFiat += entry.actualFiat + entry.pendingFiat;
+        }
+    }
+    const globalPct = globalTotalFiat > 0 ? Math.min(100, (globalRecoveredFiat / globalTotalFiat) * 100) : 0;
+    const globalComplete = globalRemainingFiat <= COVERAGE_COMPLETION_TOLERANCE_FIAT;
+    const globalProgressText = formatCoveragePercent(globalPct, globalComplete);
+
+    tooltip.innerHTML = `
         <div class="ledger-coverage-tooltip-item">
             <div class="ledger-coverage-tooltip-head">
-                <span class="ledger-coverage-tooltip-name">${escapeHtml(entry.name)}</span>
-                <span class="ledger-coverage-tooltip-state ${complete ? 'is-complete' : 'is-active'}">${complete ? 'Completado' : 'En progreso'}</span>
+                <span class="ledger-coverage-tooltip-name">${active.length} venta${active.length !== 1 ? 's' : ''} activa${active.length !== 1 ? 's' : ''}</span>
+                <span class="ledger-coverage-tooltip-state ${globalComplete ? 'is-complete' : 'is-active'}">${globalComplete ? 'Completado' : 'En progreso'}</span>
             </div>
             <div class="ledger-coverage-tooltip-stats">
                 <div class="ledger-coverage-stat">
                     <span class="ledger-coverage-stat-label">Llevas</span>
-                    <span class="ledger-coverage-stat-value">${formatPromiseUsdt(entry.actualUsdt)}<small>${formatNumber(entry.actualFiat, 2)} ${escapeHtml(entry.fiatLabel)}</small></span>
+                    <span class="ledger-coverage-stat-value">${formatNumber(globalRecoveredFiat, 2)} ${escapeHtml(fiatLabel)}</span>
                 </div>
                 <div class="ledger-coverage-stat">
                     <span class="ledger-coverage-stat-label">Falta</span>
-                    <span class="ledger-coverage-stat-value ${complete ? 'is-complete' : ''}">${complete ? '0.00 USDT' : formatPromiseUsdt(entry.pendingUsdt)}<small>${complete ? `0,00 ${escapeHtml(entry.fiatLabel)}` : `${formatNumber(entry.pendingFiat, 2)} ${escapeHtml(entry.fiatLabel)}`}</small></span>
+                    <span class="ledger-coverage-stat-value ${globalComplete ? 'is-complete' : ''}">${globalComplete ? `0,00 ${escapeHtml(fiatLabel)}` : `${formatNumber(globalRemainingFiat, 2)} ${escapeHtml(fiatLabel)}`}</span>
                 </div>
                 <div class="ledger-coverage-stat ledger-coverage-stat-progress">
                     <span class="ledger-coverage-stat-label">Progreso</span>
-                    <span class="ledger-coverage-stat-value">${progressText}</span>
+                    <span class="ledger-coverage-stat-value">${globalProgressText}</span>
                 </div>
             </div>
         </div>`;
-    }).join('');
 };
 
 const renderCoverageDebugTrigger = (cycleData = {}, fiatLabel = 'FIAT') => {
