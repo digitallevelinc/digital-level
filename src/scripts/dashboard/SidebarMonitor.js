@@ -167,6 +167,11 @@ function getLedgerSpreadProfit(bank = {}) {
     return toNumber(bank.spreadProfitUsdt);
 }
 
+function getLedgerSpreadProfitFiat(bank = {}) {
+    if (bank?.ledgerSpreadReady !== true) return 0;
+    return toNumber(bank.spreadProfitFiat);
+}
+
 function buildPagoMovilLabel(bank, config = {}) {
     const limits = config?.bankPagoMovilLimitsVes && typeof config.bankPagoMovilLimitsVes === 'object'
         ? config.bankPagoMovilLimitsVes
@@ -226,7 +231,7 @@ function readSidebarBankCollapseState() {
 function writeSidebarBankCollapseState(nextState) {
     try {
         localStorage.setItem(SIDEBAR_BANK_COLLAPSE_KEY, JSON.stringify(nextState));
-    } catch (_error) {}
+    } catch (_error) { }
 }
 
 function isSidebarBankCollapsed(bankKey) {
@@ -348,6 +353,7 @@ function mergeBankInsightsByAlias(bankInsights = []) {
             spreadBuyUsdt: toNumber(current.spreadBuyUsdt) + toNumber(entry.spreadBuyUsdt),
             spreadSellUsdt: toNumber(current.spreadSellUsdt) + toNumber(entry.spreadSellUsdt),
             spreadProfitUsdt: toNumber(current.spreadProfitUsdt) + toNumber(entry.spreadProfitUsdt),
+            spreadProfitFiat: toNumber(current.spreadProfitFiat) + toNumber(entry.spreadProfitFiat),
             transactionCount: toNumber(current.transactionCount) + toNumber(entry.transactionCount),
             monthlyTransactionCount: toNumber(current.monthlyTransactionCount) + toNumber(entry.monthlyTransactionCount),
             avgBuyRate: mergeWeightedMetric(current.avgBuyRate, currentBuyWeight, entry.avgBuyRate, entryBuyWeight),
@@ -999,6 +1005,7 @@ export function updateSidebarMonitor(kpis = {}, bankInsights = [], ledgerSummary
         // no del profit agregado del backend/judge. balanceLedger.js inyecta ese
         // valor por banco cuando termina de recalcular los spreads del rango actual.
         const bankProfit = getLedgerSpreadProfit(bank);
+        const bankProfitFiat = getLedgerSpreadProfitFiat(bank);
         const vesControl = buildBankVesLimitLabel(bank, kpis.config || {}, vesControlSummaryByBank);
         const bankCeiling = Number(vesControl.limit || 0);
 
@@ -1011,6 +1018,7 @@ export function updateSidebarMonitor(kpis = {}, bankInsights = [], ledgerSummary
             cyclesCompleted,
             bankCeiling,
             bankProfit,
+            bankProfitFiat,
         };
     });
 
@@ -1021,7 +1029,7 @@ export function updateSidebarMonitor(kpis = {}, bankInsights = [], ledgerSummary
         `Nivel ${String(bankSummary.levelLabel || 'Sin nivel').toUpperCase()} | ${formatPlain(bankSummary.verificationPercent)}%`
     );
 
-    bankCards.forEach(({ bank, ops, vesControl, pagoMovil, cyclesCompleted, bankProfit }) => {
+    bankCards.forEach(({ bank, ops, vesControl, pagoMovil, cyclesCompleted, bankProfit, bankProfitFiat }) => {
         const performancePercent = Number(bank.profitPercent ?? bank.margin ?? 0);
         const hasReliablePerformanceBase = (
             Math.abs(Number(bank.spreadSellUsdt || 0)) > 0.0001
@@ -1058,7 +1066,7 @@ export function updateSidebarMonitor(kpis = {}, bankInsights = [], ledgerSummary
                 </div>
                 <div class="flex items-start gap-3 shrink-0">
                     <div class="text-right">
-                        <span class="text-[1rem] font-mono font-black ${bankProfit >= 0 ? 'text-emerald-400' : 'text-rose-500'} tracking-tight">${formatSignedUsdt(bankProfit)}</span>
+                        <span class="text-[1rem] font-mono font-black ${bankProfitFiat >= 0 ? 'text-emerald-400' : 'text-rose-500'} tracking-tight">${bankProfitFiat >= 0 ? '+' : ''}${fVESInline(bankProfitFiat)} FIAT</span>
                         <span class="text-[9px] text-gray-500 block font-black uppercase tracking-wider">Profit Neto</span>
                     </div>
                     <span data-bank-toggle-icon class="text-[#F3BA2F] text-[14px] leading-none mt-0.5">${isCollapsed ? '&#9656;' : '&#9662;'}</span>

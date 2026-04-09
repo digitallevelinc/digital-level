@@ -1521,12 +1521,12 @@ const computeTxSpread = (tx = {}, override = 0) => {
         adjustedFiat: adjustedBuyFiat,
         isInterbank,
     } = forcedInterbank
-        ? {
-            discountFiat: buyFiat > 0 ? buyFiat * INTERBANK_FIAT_DISCOUNT_RATE : 0,
-            adjustedFiat: buyFiat > 0 ? Math.max(0, buyFiat - (buyFiat * INTERBANK_FIAT_DISCOUNT_RATE)) : 0,
-            isInterbank: buyFiat > 0,
-        }
-        : applyInterbankFiatDiscount(buyFiat, buyPaymentMethod, sellPaymentMethod);
+            ? {
+                discountFiat: buyFiat > 0 ? buyFiat * INTERBANK_FIAT_DISCOUNT_RATE : 0,
+                adjustedFiat: buyFiat > 0 ? Math.max(0, buyFiat - (buyFiat * INTERBANK_FIAT_DISCOUNT_RATE)) : 0,
+                isInterbank: buyFiat > 0,
+            }
+            : applyInterbankFiatDiscount(buyFiat, buyPaymentMethod, sellPaymentMethod);
 
     // If no sell rate is available, return early but still include interbank details
     // so the UI can display the fiat adjustment even when spread is incalculable.
@@ -2909,7 +2909,8 @@ const prefetchSellContextPages = async () => {
 
     let totalSpread = 0;
     let spreadCount = 0;
-    const ledgerSpreadByBank = new Map(); // bankKey → spread sum
+    const ledgerSpreadByBank = new Map(); // bankKey → spread sum (USDT)
+    const ledgerSpreadFiatByBank = new Map(); // bankKey → spread sum (FIAT)
     const activeFiatCoverageSummaryByBank = buildActiveFiatCoverageSummaryByBank(allScoped, allCycleSpreads);
     for (const tx of allScoped) {
         const txDateStr = new Date(getTxTimestampMs(tx)).toLocaleDateString('en-CA', { timeZone: CARACAS_TZ });
@@ -2923,6 +2924,9 @@ const prefetchSellContextPages = async () => {
             const bankKey = normalizeBankKey(tx?.paymentMethod || tx?.bankName || tx?.bank || '');
             if (bankKey) {
                 ledgerSpreadByBank.set(bankKey, (ledgerSpreadByBank.get(bankKey) || 0) + txSpread);
+                const sellRate = Number(txSpreadRet.details?.sellRate || 0);
+                const fiatSpread = sellRate > 0 ? truncateTowardZero(txSpread * sellRate, 2) : 0;
+                ledgerSpreadFiatByBank.set(bankKey, (ledgerSpreadFiatByBank.get(bankKey) || 0) + fiatSpread);
             }
         }
         totalSpread += txSpread;
@@ -2944,16 +2948,19 @@ const prefetchSellContextPages = async () => {
                 return {
                     ...bank,
                     spreadProfitUsdt: 0,
+                    spreadProfitFiat: 0,
                     ledgerSpreadReady: true,
                 };
             }
 
             injectedKeys.add(key);
             const ledgerSpread = truncateTowardZero(ledgerSpreadByBank.get(key) || 0, 2);
+            const ledgerSpreadFiat = truncateTowardZero(ledgerSpreadFiatByBank.get(key) || 0, 2);
             const coverageSummary = activeFiatCoverageSummaryByBank.get(key) || {};
             return {
                 ...bank,
                 spreadProfitUsdt: ledgerSpread,
+                spreadProfitFiat: ledgerSpreadFiat,
                 coverageActiveFiatCount: Number(coverageSummary.activeCount || 0),
                 coveragePendingFiat: Number(coverageSummary.remainingFiat || 0),
                 coverageTotalFiat: Number(coverageSummary.totalFiat || 0),
