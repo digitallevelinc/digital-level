@@ -142,8 +142,13 @@ export async function handleWithdrawalByOrder(API_BASE, token, orderNumber) {
   const input = qs('payroll-withdrawal-order');
 
   const order = String(orderNumber || '').trim();
+  const normalizedOrder = order.replace(/^ORD[\s:#-]*/i, '').trim();
   if (!order) {
-    setFeedback('Pega un Numero de Orden.', 'err');
+    setFeedback('Pega una referencia ORD o un numero de orden.', 'err');
+    return;
+  }
+  if (!/^\d{6,}$/.test(normalizedOrder)) {
+    setFeedback('La referencia debe contener un numero de orden valido.', 'err');
     return;
   }
 
