@@ -30,6 +30,8 @@ let dashboardBootstrapHydrationTimer = null;
 let dashboardRequestSeq = 0;
 let kpiLoadingRequestSeq = 0;
 let authRedirecting = false;
+const COVERAGE_MODAL_FIAT_TOLERANCE = 1;
+const COVERAGE_MODAL_STALE_MS = 8 * 60 * 60 * 1000;
 
 function updateSidebarRangeLabel(range = {}) {
     const el = document.getElementById('side-range-label');
@@ -199,6 +201,81 @@ function bankLabelFromKey(bankKey) {
             return compact.charAt(0).toUpperCase() + compact.slice(1);
         }
     }
+}
+
+function toggleCoverageAlertModal(isVisible) {
+    if (isVisible) {
+        if (typeof window.showCoverageAlertModal === 'function') {
+            window.showCoverageAlertModal();
+        }
+        return;
+    }
+    if (typeof window.hideCoverageAlertModal === 'function') {
+        window.hideCoverageAlertModal();
+    }
+}
+
+function getActiveLedgerCoverageBankKeys(bankData = []) {
+    const activeKeys = new Set();
+    let ledgerCoverageResolved = false;
+
+    (Array.isArray(bankData) ? bankData : []).forEach((bank) => {
+        if (bank?.ledgerSpreadReady === true) {
+            ledgerCoverageResolved = true;
+        }
+
+        const totalFiat = Number(bank?.coverageTotalFiat || 0);
+        const pendingFiat = Number(bank?.coveragePendingFiat || 0);
+        if (totalFiat <= COVERAGE_MODAL_FIAT_TOLERANCE || pendingFiat <= COVERAGE_MODAL_FIAT_TOLERANCE) {
+            return;
+        }
+
+        const key = normalizeBankKey(bank?.bank || bank?.bankName);
+        if (key) activeKeys.add(key);
+    });
+
+    return { ledgerCoverageResolved, activeKeys };
+}
+
+function syncCoverageAlertModal(kpis = {}, bankData = []) {
+    const isOperatorMode = sessionStorage.getItem('admin_impersonation') !== 'true';
+    if (!isOperatorMode) {
+        toggleCoverageAlertModal(false);
+        return;
+    }
+
+    const { ledgerCoverageResolved, activeKeys } = getActiveLedgerCoverageBankKeys(bankData);
+    if (ledgerCoverageResolved && activeKeys.size === 0) {
+        toggleCoverageAlertModal(false);
+        return;
+    }
+
+    const verdicts = Array.isArray(kpis?.judge?.openVerdicts) ? kpis.judge.openVerdicts : [];
+    if (verdicts.length === 0) {
+        toggleCoverageAlertModal(false);
+        return;
+    }
+
+    const now = Date.now();
+    const hasStaleCoverage = verdicts.some((verdict) => {
+        const remainingFiat = Number(verdict?.remainingFiat || 0);
+        if (remainingFiat <= COVERAGE_MODAL_FIAT_TOLERANCE) return false;
+
+        const status = String(verdict?.status || '').toUpperCase();
+        if (status.startsWith('CLOS') || status.startsWith('COMPLET') || status.startsWith('CANCEL')) {
+            return false;
+        }
+
+        if (ledgerCoverageResolved) {
+            const bankKey = normalizeBankKey(verdict?.paymentMethod);
+            if (!bankKey || !activeKeys.has(bankKey)) return false;
+        }
+
+        const ageMs = now - new Date(verdict?.createdAt || verdict?.timestamp || 0).getTime();
+        return ageMs >= COVERAGE_MODAL_STALE_MS;
+    });
+
+    toggleCoverageAlertModal(hasStaleCoverage);
 }
 
 function getRequiredBankKeys(kpis = {}) {
@@ -687,32 +764,9 @@ export async function updateDashboard(API_BASE, token, alias, range = {}, opts =
             return;
         }
 
-        // --- CHECK COBERTURA 8 HORAS ---
-        try {
-            const isOperatorMode = sessionStorage.getItem('admin_impersonation') !== 'true';
-            if (isOperatorMode && Array.isArray(kpis?.judge?.openVerdicts)) {
-                const now = Date.now();
-                const COVERAGE_8H_MS = 8 * 60 * 60 * 1000;
-                let hasStaleCoverage = false;
-                
-                for (const verdict of kpis.judge.openVerdicts) {
-                    if (Number(verdict.remainingFiat || 0) <= 0) continue;
-                    const ageMs = now - new Date(verdict.createdAt || verdict.timestamp || 0).getTime();
-                    if (ageMs >= COVERAGE_8H_MS) {
-                        hasStaleCoverage = true;
-                        break;
-                    }
-                }
-
-                if (hasStaleCoverage && typeof window.showCoverageAlertModal === 'function') {
-                    window.showCoverageAlertModal();
-                } else if (!hasStaleCoverage && typeof window.hideCoverageAlertModal === 'function') {
-                    window.hideCoverageAlertModal();
-                }
-            }
-        } catch (_err) {
-            console.error("Error evaluating stale coverage:", _err);
-        }
+        // Mientras el ledger recalcula la cobertura real, no mostramos el modal
+        // basados unicamente en judge.openVerdicts porque puede venir stale.
+        syncCoverageAlertModal(kpis, []);
 
         // --- PREPARACIÓN DE DATOS (API V2 - Source of Truth) ---
         const metrics = kpis.metrics || {};
@@ -865,6 +919,7 @@ export async function updateDashboard(API_BASE, token, alias, range = {}, opts =
             onBankDataUpdate: (updatedBankData, ledgerSummary) => {
                 updateSidebarMonitor(kpis, updatedBankData, ledgerSummary);
                 updateProfitUI(kpis, updatedBankData, ledgerSummary);
+                syncCoverageAlertModal(kpis, updatedBankData);
             },
         });
 
