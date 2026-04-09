@@ -1011,8 +1011,8 @@ const buildRowsWithBalance = (transfers = []) => {
 
         const row = {
             tx,
-            balance: displayBalance,
-            // When negative: preserve real value and prev balance for the ! tooltip
+            balance: realBalance,
+            // When negative: flag so the row shows the ! icon and resets cascade
             balanceNegativeInfo: isNegative
                 ? { realBalance, prevDisplayBalance }
                 : null,
@@ -2347,17 +2347,21 @@ const renderRow = (tx, rowBalance, cycleData = undefined, balanceNegativeInfo = 
             </div>
         </div>` : '';
 
+    const balanceTone = rowBalance < 0 ? 'ledger-metric-negative' : 'ledger-metric-balance';
+    const balanceSub = rowBalance < 0 ? 'Balance comprometido' : 'Balance disponible';
+    const balanceValueStr = `${rowBalance < 0 ? '-' : ''}${formatUsd(Math.abs(rowBalance))}`;
+
     let balanceMetric;
     if (hasPromiseTooltip) {
         const senderName = escapeHtml(tx?.counterpartyName || tx?.internalCounterpartyAlias || '--');
         const receiverName = escapeHtml(tx?.internalCounterpartyAlias || tx?.notes || '--');
         balanceMetric = `
-    <div class="ledger-metric-card ledger-metric-balance ledger-metric-has-tooltip" style="position:relative;">
+    <div class="ledger-metric-card ${balanceTone} ledger-metric-has-tooltip" style="position:relative;">
         <span class="ledger-metric-label">Balance</span>
-        <span class="ledger-metric-value">${escapeHtml(formatUsd(rowBalance))}</span>
-        <span class="ledger-metric-sub">Balance disponible</span>
+        <span class="ledger-metric-value">${escapeHtml(balanceValueStr)}</span>
+        <span class="ledger-metric-sub">${escapeHtml(balanceSub)}</span>
         <div class="ledger-balance-tooltip">
-            <div class="ledger-balance-tooltip-row"><span>Balance total</span><span>${escapeHtml(formatUsd(rowBalance))}</span></div>
+            <div class="ledger-balance-tooltip-row"><span>Balance total</span><span>${escapeHtml(balanceValueStr)}</span></div>
             <div class="ledger-balance-tooltip-row"><span>Promesa</span><span>${escapeHtml(formatUsd(promiseMetaForBalance.promiseUsdt))} USDT</span></div>
             <div class="ledger-balance-tooltip-row"><span>Enviado por</span><span>${senderName}</span></div>
             ${promiseMetaForBalance.isReceiver ? `<div class="ledger-balance-tooltip-row"><span>Recibido por</span><span>${receiverName}</span></div>` : ''}
@@ -2367,9 +2371,9 @@ const renderRow = (tx, rowBalance, cycleData = undefined, balanceNegativeInfo = 
     } else {
         balanceMetric = renderMetricCard({
             label: 'Balance',
-            value: formatUsd(rowBalance),
-            sub: 'Balance disponible',
-            tone: 'ledger-metric-balance',
+            value: balanceValueStr,
+            sub: balanceSub,
+            tone: balanceTone,
             extraHtml: negativeAlertHtml,
         });
     }
