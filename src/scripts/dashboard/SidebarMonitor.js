@@ -162,14 +162,26 @@ function getBankMonitorSummary(kpis = {}, bankInsights = []) {
     };
 }
 
+const _memoizedSpreads = new Map();
+
 function getLedgerSpreadProfit(bank = {}) {
-    if (bank?.ledgerSpreadReady !== true) return 0;
-    return toNumber(bank.spreadProfitUsdt);
+    const key = String(bank?.bank || bank?.bankName || '').toLowerCase().trim();
+    if (bank?.ledgerSpreadReady === true) {
+        const val = toNumber(bank.spreadProfitUsdt);
+        if (key) _memoizedSpreads.set(key + '_usdt', val);
+        return val;
+    }
+    return key && _memoizedSpreads.has(key + '_usdt') ? _memoizedSpreads.get(key + '_usdt') : 0;
 }
 
 function getLedgerSpreadProfitFiat(bank = {}) {
-    if (bank?.ledgerSpreadReady !== true) return 0;
-    return toNumber(bank.spreadProfitFiat);
+    const key = String(bank?.bank || bank?.bankName || '').toLowerCase().trim();
+    if (bank?.ledgerSpreadReady === true) {
+        const val = toNumber(bank.spreadProfitFiat);
+        if (key) _memoizedSpreads.set(key + '_fiat', val);
+        return val;
+    }
+    return key && _memoizedSpreads.has(key + '_fiat') ? _memoizedSpreads.get(key + '_fiat') : 0;
 }
 
 function buildPagoMovilLabel(bank, config = {}) {
