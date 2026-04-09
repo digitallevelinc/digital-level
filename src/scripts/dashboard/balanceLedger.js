@@ -2032,6 +2032,42 @@ const buildActiveFiatCoverageSummaryByBank = (transfers = [], cycleSpreads = new
     return summary;
 };
 
+const buildLatestFiatCycleSummaryByBank = (transfers = [], cycleSpreads = new Map()) => {
+    const summary = new Map();
+    const { effectiveFrom, effectiveTo } = getEffectiveCoverageRange();
+
+    for (const tx of transfers) {
+        if (normalizeTxType(tx) !== 'P2P_SELL') continue;
+
+        const txDateStr = new Date(getTxTimestampMs(tx)).toLocaleDateString('en-CA', { timeZone: CARACAS_TZ });
+        if (txDateStr < effectiveFrom || txDateStr > effectiveTo) continue;
+
+        const cycleData = cycleSpreads.get(getTransferKey(tx));
+        if (!cycleData) continue;
+
+        const bankKey = normalizeBankKey(tx?.bankName || tx?.bank || tx?.paymentMethod);
+        if (!bankKey) continue;
+
+        const totalFiat = Math.max(0, Number(cycleData.totalSellFiat || 0));
+        if (totalFiat <= 0) continue;
+
+        const recoveredFiat = Math.min(totalFiat, Math.max(0, Number(cycleData.recoveredFiat || 0)));
+        const remainingFiat = Math.max(0, totalFiat - recoveredFiat);
+        const txTimestamp = getTxTimestampMs(tx);
+        const current = summary.get(bankKey);
+        if (current && Number(current.timestamp || 0) > txTimestamp) continue;
+
+        summary.set(bankKey, {
+            timestamp: txTimestamp,
+            totalFiat,
+            remainingFiat,
+            consumedFiat: recoveredFiat,
+        });
+    }
+
+    return summary;
+};
+
 const updateCoverageBadge = (transfers = [], cycleSpreads = new Map()) => {
     const badge = document.getElementById('balance-ledger-coverage-badge');
     const label = document.getElementById('balance-ledger-coverage-label');
@@ -2954,6 +2990,7 @@ const prefetchSellContextPages = async () => {
     const ledgerSpreadByBank = new Map(); // bankKey → spread sum (USDT)
     const ledgerSpreadFiatByBank = new Map(); // bankKey → spread sum (FIAT)
     const activeFiatCoverageSummaryByBank = buildActiveFiatCoverageSummaryByBank(allScoped, allCycleSpreads);
+    const latestFiatCycleSummaryByBank = buildLatestFiatCycleSummaryByBank(allScoped, allCycleSpreads);
     for (const tx of allScoped) {
         const txDateStr = new Date(getTxTimestampMs(tx)).toLocaleDateString('en-CA', { timeZone: CARACAS_TZ });
         if (txDateStr < _effectiveFrom || txDateStr > _effectiveTo) continue;
@@ -2997,6 +3034,7 @@ const prefetchSellContextPages = async () => {
             const ledgerSpread = truncateTowardZero(ledgerSpreadByBank.get(key) || 0, 2);
             const ledgerSpreadFiat = truncateTowardZero(ledgerSpreadFiatByBank.get(key) || 0, 2);
             const coverageSummary = activeFiatCoverageSummaryByBank.get(key) || {};
+            const latestCycleSummary = latestFiatCycleSummaryByBank.get(key) || {};
             return {
                 ...bank,
                 spreadProfitUsdt: ledgerSpread !== 0 ? ledgerSpread : bank.spreadProfitUsdt,
@@ -3007,6 +3045,12 @@ const prefetchSellContextPages = async () => {
                 // instead of falling back to stale backend values.
                 coveragePendingFiat: Number(coverageSummary.remainingFiat ?? 0),
                 coverageTotalFiat: Number(coverageSummary.totalFiat ?? 0),
+                // Always mirror the latest cycle snapshot from the ledger, even
+                // when it is already complete, so the sidebar Control FIAT keeps
+                // showing the real bank cycle instead of stale backend values.
+                currentCycleFiatRemaining: Number(latestCycleSummary.remainingFiat ?? 0),
+                currentCycleTotalFiat: Number(latestCycleSummary.totalFiat ?? 0),
+                currentCycleFiatSpent: Number(latestCycleSummary.consumedFiat ?? 0),
                 ledgerSpreadReady: true,
             };
         });

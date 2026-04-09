@@ -816,6 +816,13 @@ function buildBankVesLimitLabel(bank, _config = {}, vesControlSummaryByBank = ne
     const ledgerCov = getLedgerCoverage(bank);
     const fallbackCoveragePendingFiat = Math.max(0, ledgerCov.pendingFiat);
     const fallbackCoverageTotalFiat = Math.max(0, ledgerCov.totalFiat);
+    const ledgerCycleRemaining = Math.max(0, Number(bank?.currentCycleFiatRemaining || 0));
+    const ledgerCycleConsumed = Math.max(0, Number(bank?.currentCycleFiatSpent || 0));
+    const ledgerCycleTotal = Math.max(
+        0,
+        Number(bank?.currentCycleTotalFiat || 0),
+        ledgerCycleRemaining + ledgerCycleConsumed
+    );
     const fallbackAvailable = Math.max(
         0,
         Number(bank?.currentCycleFiatRemaining || 0),
@@ -849,6 +856,25 @@ function buildBankVesLimitLabel(bank, _config = {}, vesControlSummaryByBank = ne
             hasFlow: total > 0,
         };
     };
+
+    if (bank?.ledgerSpreadReady === true) {
+        if (fallbackCoverageTotalFiat > 0.00001) {
+            return buildVesLabel(fallbackCoveragePendingFiat, fallbackCoverageTotalFiat);
+        }
+
+        if (ledgerCycleTotal > 0.00001) {
+            return buildVesLabel(ledgerCycleRemaining, ledgerCycleTotal);
+        }
+
+        return {
+            value: '0.00 / 0.00',
+            meta: 'Sin flujo activo',
+            progress: 0,
+            limit: 0,
+            current: 0,
+            hasFlow: false,
+        };
+    }
 
     if (fallbackCoverageTotalFiat > 0.00001) {
         return buildVesLabel(fallbackCoveragePendingFiat, fallbackCoverageTotalFiat);
