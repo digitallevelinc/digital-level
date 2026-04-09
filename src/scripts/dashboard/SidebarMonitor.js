@@ -164,6 +164,7 @@ function getBankMonitorSummary(kpis = {}, bankInsights = []) {
 
 const _memoizedSpreads = new Map();
 const _memoizedCoverage = new Map(); // bankKey → { totalFiat, pendingFiat }
+const _memoizedFiatCycles = new Map(); // bankKey → { totalFiat, remainingFiat, consumedFiat }
 
 function getLedgerSpreadProfit(bank = {}) {
     const key = String(bank?.bank || bank?.bankName || '').toLowerCase().trim();
@@ -202,6 +203,32 @@ function getLedgerCoverage(bank = {}) {
         return _memoizedCoverage.get(key);
     }
     return { totalFiat: toNumber(bank.coverageTotalFiat), pendingFiat: toNumber(bank.coveragePendingFiat) };
+}
+
+function getLedgerFiatCycle(bank = {}) {
+    const key = String(bank?.bank || bank?.bankName || '').toLowerCase().trim();
+    if (bank?.ledgerSpreadReady === true) {
+        const remainingFiat = toNumber(bank.currentCycleFiatRemaining);
+        const consumedFiat = toNumber(bank.currentCycleFiatSpent);
+        const totalFiat = Math.max(toNumber(bank.currentCycleTotalFiat), remainingFiat + consumedFiat);
+
+        if (key && totalFiat > 0) {
+            _memoizedFiatCycles.set(key, { totalFiat, remainingFiat, consumedFiat });
+        } else if (key && totalFiat === 0) {
+            _memoizedFiatCycles.delete(key);
+        }
+
+        return { totalFiat, remainingFiat, consumedFiat };
+    }
+
+    if (key && _memoizedFiatCycles.has(key)) {
+        return _memoizedFiatCycles.get(key);
+    }
+
+    const remainingFiat = toNumber(bank.currentCycleFiatRemaining);
+    const consumedFiat = toNumber(bank.currentCycleFiatSpent);
+    const totalFiat = Math.max(toNumber(bank.currentCycleTotalFiat), remainingFiat + consumedFiat);
+    return { totalFiat, remainingFiat, consumedFiat };
 }
 
 function buildPagoMovilLabel(bank, config = {}) {
@@ -816,11 +843,12 @@ function buildBankVesLimitLabel(bank, _config = {}, vesControlSummaryByBank = ne
     const ledgerCov = getLedgerCoverage(bank);
     const fallbackCoveragePendingFiat = Math.max(0, ledgerCov.pendingFiat);
     const fallbackCoverageTotalFiat = Math.max(0, ledgerCov.totalFiat);
-    const ledgerCycleRemaining = Math.max(0, Number(bank?.currentCycleFiatRemaining || 0));
-    const ledgerCycleConsumed = Math.max(0, Number(bank?.currentCycleFiatSpent || 0));
+    const ledgerCycle = getLedgerFiatCycle(bank);
+    const ledgerCycleRemaining = Math.max(0, Number(ledgerCycle?.remainingFiat || 0));
+    const ledgerCycleConsumed = Math.max(0, Number(ledgerCycle?.consumedFiat || 0));
     const ledgerCycleTotal = Math.max(
         0,
-        Number(bank?.currentCycleTotalFiat || 0),
+        Number(ledgerCycle?.totalFiat || 0),
         ledgerCycleRemaining + ledgerCycleConsumed
     );
     const fallbackAvailable = Math.max(
@@ -874,6 +902,10 @@ function buildBankVesLimitLabel(bank, _config = {}, vesControlSummaryByBank = ne
             current: 0,
             hasFlow: false,
         };
+    }
+
+    if (ledgerCycleTotal > 0.00001) {
+        return buildVesLabel(ledgerCycleRemaining, ledgerCycleTotal);
     }
 
     if (fallbackCoverageTotalFiat > 0.00001) {
