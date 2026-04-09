@@ -1623,8 +1623,11 @@ const computeCycleSpreads = (transfers) => {
     const upsertSellCoverage = (entry, forceComplete = null) => {
         const totalSellFiat = Number(entry?.totalSellFiat || 0);
         const recoveredFiat = Math.min(totalSellFiat, Math.max(0, Number(entry?.recoveredFiat || 0)));
-        const remainingFiat = Math.max(0, totalSellFiat - recoveredFiat);
-        const complete = forceComplete ?? (remainingFiat <= COVERAGE_COMPLETION_TOLERANCE_FIAT);
+        // Completion tracks gross coverage (entry.remainingFiat), so an interbank
+        // buy that matches the sell gross-wise still closes the cycle even though
+        // the 0.3% commission leaves recoveredFiat slightly below totalSellFiat.
+        const grossRemainingFiat = Math.max(0, Number(entry?.remainingFiat || 0));
+        const complete = forceComplete ?? (grossRemainingFiat <= COVERAGE_COMPLETION_TOLERANCE_FIAT);
         const pct = totalSellFiat > 0
             ? Math.min(100, (recoveredFiat / totalSellFiat) * 100)
             : 0;
@@ -1723,11 +1726,14 @@ const computeCycleSpreads = (transfers) => {
                             snapshot: buildSpreadSellSnapshot(entry.tx, { consumedFiat: effectiveConsumedFiat }),
                         });
                     }
-                    // Coverage tracks the NET fiat that actually reaches the sell
-                    // after the 0.3% interbank commission is deducted. The commission
-                    // is a real loss, so only the effective amount counts as recovered.
+                    // recoveredFiat shows the NET fiat that actually reaches the sell
+                    // after the 0.3% interbank commission is deducted — this is what
+                    // the user sees in Cobertura/debug/sidebar as "recuperado".
+                    // remainingFiat tracks the GROSS coverage progress so the cycle
+                    // can complete when the buy has matched the sell fiat, regardless
+                    // of the commission carved out by interbank pairings.
                     entry.recoveredFiat += effectiveConsumedFiat;
-                    entry.remainingFiat = Math.max(0, entry.remainingFiat - effectiveConsumedFiat);
+                    entry.remainingFiat = Math.max(0, entry.remainingFiat - consumedFiat);
                     entry.debugRecoveries.push({
                         buyKey: getTransferKey(tx),
                         buyTimestamp: getTxTimestampMs(tx),
