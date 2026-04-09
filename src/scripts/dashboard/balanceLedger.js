@@ -1003,23 +1003,36 @@ const buildRowsWithBalance = (transfers = []) => {
     const knownNetBefore = getKnownNetBeforePage(state.page);
     let runningBalance = anchorBalance - Number(knownNetBefore || 0);
     let prevBalance = runningBalance;
-    let firstNegativeFlagged = false;
 
-    return rows.map((tx) => {
+    // First pass: compute all balances
+    const computed = rows.map((tx) => {
         const balance = runningBalance;
-        const isFirstNegative = !firstNegativeFlagged && balance < 0;
-        if (isFirstNegative) firstNegativeFlagged = true;
-
-        const row = {
-            tx,
-            balance,
-            balanceNegativeInfo: isFirstNegative ? { realBalance: balance, prevDisplayBalance: prevBalance } : null,
-        };
-
+        const entry = { tx, balance, prevBalance };
         prevBalance = balance;
         runningBalance = balance - getSignedAmount(tx);
-        return row;
+        return entry;
     });
+
+    // Find last (oldest) negative row — root cause
+    let lastNegativeIdx = -1;
+    for (let i = computed.length - 1; i >= 0; i--) {
+        if (computed[i].balance < 0) { lastNegativeIdx = i; break; }
+    }
+
+    // Find the last positive balance before the negative sequence began (from top)
+    let lastPositiveBalance = 0;
+    for (let i = 0; i < computed.length; i++) {
+        if (computed[i].balance >= 0) lastPositiveBalance = computed[i].balance;
+        else break;
+    }
+
+    return computed.map(({ tx, balance }, i) => ({
+        tx,
+        balance,
+        balanceNegativeInfo: i === lastNegativeIdx
+            ? { realBalance: balance, prevDisplayBalance: lastPositiveBalance }
+            : null,
+    }));
 };
 
 const buildRowsWithRangeBalance = (transfers = []) => {
@@ -1029,23 +1042,33 @@ const buildRowsWithRangeBalance = (transfers = []) => {
 
     let runningBalance = getLedgerAnchorBalance(state.kpis);
     let prevBalance = runningBalance;
-    let firstNegativeFlagged = false;
 
-    return rows.map((tx) => {
+    const computed = rows.map((tx) => {
         const balance = runningBalance;
-        const isFirstNegative = !firstNegativeFlagged && balance < 0;
-        if (isFirstNegative) firstNegativeFlagged = true;
-
-        const row = {
-            tx,
-            balance,
-            balanceNegativeInfo: isFirstNegative ? { realBalance: balance, prevDisplayBalance: prevBalance } : null,
-        };
-
+        const entry = { tx, balance, prevBalance };
         prevBalance = balance;
         runningBalance = balance - getSignedAmount(tx);
-        return row;
+        return entry;
     });
+
+    let lastNegativeIdx = -1;
+    for (let i = computed.length - 1; i >= 0; i--) {
+        if (computed[i].balance < 0) { lastNegativeIdx = i; break; }
+    }
+
+    let lastPositiveBalance = 0;
+    for (let i = 0; i < computed.length; i++) {
+        if (computed[i].balance >= 0) lastPositiveBalance = computed[i].balance;
+        else break;
+    }
+
+    return computed.map(({ tx, balance }, i) => ({
+        tx,
+        balance,
+        balanceNegativeInfo: i === lastNegativeIdx
+            ? { realBalance: balance, prevDisplayBalance: lastPositiveBalance }
+            : null,
+    }));
 };
 
 const normalizeBankKey = (value) => {
