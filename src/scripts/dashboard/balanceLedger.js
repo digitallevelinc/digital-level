@@ -2947,8 +2947,6 @@ const prefetchSellContextPages = async () => {
             if (injectedKeys.has(key)) {
                 return {
                     ...bank,
-                    spreadProfitUsdt: 0,
-                    spreadProfitFiat: 0,
                     ledgerSpreadReady: true,
                 };
             }
@@ -2959,11 +2957,11 @@ const prefetchSellContextPages = async () => {
             const coverageSummary = activeFiatCoverageSummaryByBank.get(key) || {};
             return {
                 ...bank,
-                spreadProfitUsdt: ledgerSpread,
-                spreadProfitFiat: ledgerSpreadFiat,
-                coverageActiveFiatCount: Number(coverageSummary.activeCount || 0),
-                coveragePendingFiat: Number(coverageSummary.remainingFiat || 0),
-                coverageTotalFiat: Number(coverageSummary.totalFiat || 0),
+                spreadProfitUsdt: ledgerSpread !== 0 ? ledgerSpread : bank.spreadProfitUsdt,
+                spreadProfitFiat: ledgerSpreadFiat !== 0 ? ledgerSpreadFiat : bank.spreadProfitFiat,
+                coverageActiveFiatCount: coverageSummary.activeCount > 0 ? coverageSummary.activeCount : bank.coverageActiveFiatCount,
+                coveragePendingFiat: coverageSummary.remainingFiat > 0 ? coverageSummary.remainingFiat : bank.coveragePendingFiat,
+                coverageTotalFiat: coverageSummary.totalFiat > 0 ? coverageSummary.totalFiat : bank.coverageTotalFiat,
                 ledgerSpreadReady: true,
             };
         });
