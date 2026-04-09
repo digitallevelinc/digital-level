@@ -245,7 +245,16 @@ function syncCoverageAlertModal(kpis = {}, bankData = []) {
     }
 
     const { ledgerCoverageResolved, activeKeys } = getActiveLedgerCoverageBankKeys(bankData);
-    if (ledgerCoverageResolved && activeKeys.size === 0) {
+    // The modal must only react to ledger-confirmed coverage state.
+    // judge.openVerdicts can remain stale for a poll or two after coverage is
+    // completed, so if the ledger has not resolved yet we prefer to keep the
+    // modal hidden instead of flashing a false alert.
+    if (!ledgerCoverageResolved) {
+        toggleCoverageAlertModal(false);
+        return;
+    }
+
+    if (activeKeys.size === 0) {
         toggleCoverageAlertModal(false);
         return;
     }
