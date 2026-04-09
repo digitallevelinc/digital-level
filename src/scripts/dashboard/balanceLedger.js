@@ -2493,6 +2493,49 @@ const renderTransfers = (transfers = [], options = {}) => {
         }
     }
 
+    // Reverse cross-day cycle fix: when the user views a historical range, the
+    // recovery purchases that closed a sell from that range may live OUTSIDE the
+    // cache (e.g. yesterday's sell was covered by today's buy, but only yesterday
+    // is in the cache). The local ledger therefore reports the sell as still
+    // incomplete, leaking a stale "cobertura activa" badge and an incorrect
+    // "Faltan X FIAT" sub-label on the row. Trust the judge: if a P2P_SELL is
+    // recent enough that the judge would still cache it, but it is no longer in
+    // openVerdicts, then it has been closed → mark its cycleData as complete.
+    {
+        const judgeOpenVerdicts = Array.isArray(state.kpis?.judge?.openVerdicts)
+            ? state.kpis.judge.openVerdicts : null;
+        if (judgeOpenVerdicts) {
+            const openSaleIds = new Set(
+                judgeOpenVerdicts
+                    .filter((v) => {
+                        const s = String(v?.status || '').toUpperCase();
+                        return !s.startsWith('CLOS') && !s.startsWith('CANCEL') && !s.startsWith('COMPLET');
+                    })
+                    .map((v) => String(v?.saleTransferId || v?.saleId || ''))
+                    .filter(Boolean)
+            );
+            // Judge prunes verdicts older than 7 days (DEFAULT_MAX_VERDICT_AGE_DAYS),
+            // so its absence is only authoritative within that window.
+            const JUDGE_CACHE_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
+            const nowMs = Date.now();
+            for (const tx of cachedScopedTransfers) {
+                if (normalizeTxType(tx) !== 'P2P_SELL') continue;
+                const txTs = getTxTimestampMs(tx);
+                if (txTs <= 0 || (nowMs - txTs) > JUDGE_CACHE_WINDOW_MS) continue;
+                const key = getTransferKey(tx);
+                const existing = cycleSpreads.get(key);
+                if (!existing || existing.complete) continue;
+                if (openSaleIds.has(key)) continue;
+                cycleSpreads.set(key, {
+                    ...existing,
+                    complete: true,
+                    recoveredFiat: existing.totalSellFiat,
+                    recoveredPct: 100,
+                });
+            }
+        }
+    }
+
     if (searchActive && !areAllPagesCached() && !state.searchPending) {
         state.searchPending = true;
         updatePaginationUI();
