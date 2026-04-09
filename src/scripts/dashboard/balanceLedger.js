@@ -1604,6 +1604,9 @@ const computeCycleSpreads = (transfers) => {
             totalSellFiat,
             recoveredFiat,
             recoveredPct: pct,
+            debugRecoveries: Array.isArray(entry?.debugRecoveries)
+                ? entry.debugRecoveries.map((item) => ({ ...item }))
+                : [],
         });
     };
 
@@ -1653,6 +1656,7 @@ const computeCycleSpreads = (transfers) => {
                     totalSellFiat: sellFiat,
                     recoveredFiat: 0,
                     remainingFiat: sellFiat,
+                    debugRecoveries: [],
                 });
                 upsertSellCoverage(openSells[openSells.length - 1], false);
                 if (sellTs > 0) lastSellTs = sellTs;
@@ -1673,7 +1677,11 @@ const computeCycleSpreads = (transfers) => {
 
                     const consumedFiat = Math.min(entry.remainingFiat, remainingBuyFiat);
                     const sellPaymentMethod = String(entry.tx?.paymentMethod || entry.tx?.bankName || entry.tx?.bank || '').trim().toUpperCase();
-                    const { adjustedFiat: effectiveConsumedFiat } = applyInterbankFiatDiscount(consumedFiat, buyPaymentMethod, sellPaymentMethod);
+                    const {
+                        adjustedFiat: effectiveConsumedFiat,
+                        discountFiat: interbankDiscountFiat,
+                        isInterbank,
+                    } = applyInterbankFiatDiscount(consumedFiat, buyPaymentMethod, sellPaymentMethod);
                     const sellRate = getTxRate(entry.tx);
                     if (effectiveConsumedFiat > COVERAGE_COMPLETION_TOLERANCE_FIAT && sellRate > 0) {
                         consumedTotalFiat += effectiveConsumedFiat;
@@ -1686,6 +1694,17 @@ const computeCycleSpreads = (transfers) => {
                     }
                     entry.recoveredFiat += effectiveConsumedFiat;
                     entry.remainingFiat = Math.max(0, entry.remainingFiat - effectiveConsumedFiat);
+                    entry.debugRecoveries.push({
+                        buyKey: getTransferKey(tx),
+                        buyTimestamp: getTxTimestampMs(tx),
+                        buyCounterparty: tx?.counterpartyName || tx?.internalCounterpartyAlias || 'Sin nombre',
+                        buyBank: buyPaymentMethod,
+                        sellBank: sellPaymentMethod,
+                        rawConsumedFiat: consumedFiat,
+                        effectiveConsumedFiat,
+                        interbankDiscountFiat,
+                        isInterbank,
+                    });
                     remainingBuyFiat = Math.max(0, remainingBuyFiat - consumedFiat);
                     upsertSellCoverage(entry);
                 }
@@ -2140,6 +2159,48 @@ const updateCoverageBadge = (transfers = [], cycleSpreads = new Map()) => {
     }).join('');
 };
 
+const renderCoverageDebugTrigger = (cycleData = {}, fiatLabel = 'FIAT') => {
+    const totalSellFiat = Number(cycleData?.totalSellFiat || 0);
+    const recoveredFiat = Number(cycleData?.recoveredFiat || 0);
+    const remainingFiat = Math.max(0, totalSellFiat - recoveredFiat);
+    const steps = Array.isArray(cycleData?.debugRecoveries) ? cycleData.debugRecoveries : [];
+
+    const stepLines = steps.length > 0
+        ? steps.map((step, index) => {
+            const bank = step?.buyBank || 'SIN BANCO';
+            const label = `Compra ${index + 1} · ${bank}`;
+            if (step?.isInterbank) {
+                return `
+                    <div style="margin-top: 6px;">
+                        <div style="color: #f7d774; font-weight: 700;">${escapeHtml(label)}</div>
+                        <div>${formatNumber(step.rawConsumedFiat, 2)} - ${formatNumber(step.interbankDiscountFiat, 2)} = ${formatNumber(step.effectiveConsumedFiat, 2)}</div>
+                    </div>`;
+            }
+            return `
+                <div style="margin-top: 6px;">
+                    <div style="color: #f7d774; font-weight: 700;">${escapeHtml(label)}</div>
+                    <div>${formatNumber(step.effectiveConsumedFiat, 2)} ${escapeHtml(fiatLabel)}</div>
+                </div>`;
+        }).join('')
+        : '<div style="margin-top: 6px; color: rgba(255,255,255,0.72);">Sin compras aplicadas al ciclo.</div>';
+
+    return `
+        <div style="position: absolute; bottom: 8px; left: 8px; cursor: help;"
+             onmouseenter="const p=this.querySelector('.formula-popover');if(p)p.style.display='flex'"
+             onmouseleave="const p=this.querySelector('.formula-popover');if(p)p.style.display='none'">
+            <div style="display: flex; align-items: center; justify-content: center; width: 22px; height: 22px; border-radius: 50%; border: 1.5px solid rgba(243, 186, 47, 0.35); background: rgba(243, 186, 47, 0.1); color: #f7d774; transition: all 0.2s ease; font-weight: 700;">
+                ?
+            </div>
+            <div class="formula-popover" style="display: none; position: absolute; bottom: 100%; right: 0; margin-bottom: 6px; padding: 12px 14px; background: #0f1923; border: 1px solid rgba(255, 255, 255, 0.12); border-radius: 12px; font-family: monospace; font-size: 11px; white-space: nowrap; color: rgba(255, 255, 255, 0.88); z-index: 50; box-shadow: 0 12px 32px rgba(0,0,0,0.4); text-align: left; line-height: 1.5; flex-direction: column; gap: 4px;">
+                <div style="color: #f7d774; font-weight: 700; margin-bottom: 2px;">Cobertura Debug</div>
+                <div>Venta: ${formatNumber(totalSellFiat, 2)} ${escapeHtml(fiatLabel)}</div>
+                ${stepLines}
+                <div style="margin-top: 6px; border-top: 1px solid rgba(255,255,255,0.08); padding-top: 6px;">Recuperado: ${formatNumber(recoveredFiat, 2)} ${escapeHtml(fiatLabel)}</div>
+                <div>Faltante: ${formatNumber(remainingFiat, 2)} ${escapeHtml(fiatLabel)}</div>
+            </div>
+        </div>`;
+};
+
 const renderRow = (tx, rowBalance, cycleData = undefined) => {
     const isSettlement = isSettlementTransfer(tx);
     const category = isSettlement ? 'LIQUID' : getCategory(tx.type);
@@ -2257,6 +2318,7 @@ const renderRow = (tx, rowBalance, cycleData = undefined) => {
                 ? `${formatNumber(totalSellFiat, 0)} FIAT cubierto`
                 : `Faltan ${formatNumber(remaining, 0)} FIAT`,
             tone: complete ? 'ledger-metric-positive' : 'ledger-metric-warning',
+            extraHtml: renderCoverageDebugTrigger(cycleData, getFiatLabel(tx)),
         });
     } else {
         promiseMetric = renderPromiseColumnMeta(tx);
