@@ -899,7 +899,8 @@ export function updateSidebarMonitor(kpis = {}, bankInsights = [], ledgerSummary
     const audit = kpis.audit || {};
     const critical = kpis.critical || {};
     const completedCycles = kpis.judge?.completedCycles || {};
-    const normalizedBankInsights = mergeBankInsightsByAlias(Array.isArray(bankInsights) ? bankInsights : []);
+    const normalizedBankInsights = mergeBankInsightsByAlias(Array.isArray(bankInsights) ? bankInsights : [])
+        .filter(b => normalizeBankName(b.bankName || b.bank) !== 'fiat');
 
     const capitalInicial = parseFloat(critical.capitalInicial || kpis.capitalInicial || audit.initialCapital || 0);
     const profit = parseFloat(critical.profitTotalUSDT || summary.totalProfit || 0);
