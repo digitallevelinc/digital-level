@@ -192,6 +192,7 @@ function initEvolutionToggle() {
 
 // --- CHART LOGIC ---
 let profitChartInstance = null;
+const CHART_DATE_TZ = 'America/Caracas';
 
 function parseChartDateKey(value) {
     if (value instanceof Date) {
@@ -206,6 +207,26 @@ function parseChartDateKey(value) {
 
     const [, year, month, day] = match;
     return new Date(Number(year), Number(month) - 1, Number(day), 12, 0, 0, 0);
+}
+
+function formatChartAxisDate(value) {
+    const date = parseChartDateKey(value);
+    return date.toLocaleDateString('es-ES', {
+        timeZone: CHART_DATE_TZ,
+        day: 'numeric',
+        month: 'short',
+    });
+}
+
+function formatChartTooltipDate(value) {
+    const date = parseChartDateKey(value);
+    return date.toLocaleDateString('es-ES', {
+        timeZone: CHART_DATE_TZ,
+        weekday: 'long',
+        day: 'numeric',
+        month: 'short',
+        year: 'numeric',
+    });
 }
 
 function renderProfitChart(chartData = [], totalProfit = 0) {
@@ -257,10 +278,7 @@ function renderProfitChart(chartData = [], totalProfit = 0) {
         parseChartDateKey(a.date) - parseChartDateKey(b.date)
     ));
 
-    const labels = sortedData.map(d => {
-        const date = parseChartDateKey(d.date);
-        return date.toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric' });
-    });
+    const labels = sortedData.map(d => formatChartAxisDate(d.date));
 
     const profitData = sortedData.map(d => d.profit);
     const feesData = sortedData.map(d => d.fees);
@@ -323,6 +341,13 @@ function renderProfitChart(chartData = [], totalProfit = 0) {
             plugins: {
                 tooltip: {
                     callbacks: {
+                        title: function (items) {
+                            const index = items?.[0]?.dataIndex;
+                            if (typeof index !== 'number' || !sortedData[index]) {
+                                return '';
+                            }
+                            return formatChartTooltipDate(sortedData[index].date);
+                        },
                         label: function (context) {
                             let label = context.dataset.label || '';
                             if (label) label += ': ';
