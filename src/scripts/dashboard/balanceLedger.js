@@ -254,12 +254,16 @@ const getLedgerAnchorBalance = (kpis = {}) => {
     const rangeTo = sanitizeDateValue(state.range?.to);
     const isLiveRange = !rangeTo || rangeTo === todayKey || (!rangeFrom && !rangeTo);
 
-    if (isLiveRange && Number.isFinite(verifiedWalletBalance)) {
-        return verifiedWalletBalance;
-    }
-
+    // The transfers endpoint can be fresher than the KPI payload right after a
+    // trade lands. If we anchor the ledger to a stale KPI balance while the
+    // rows already include the new transfers, the reconstructed balances drift
+    // negative even though the closing balance is correct.
     if (Number.isFinite(payloadClosingBalance)) {
         return payloadClosingBalance;
+    }
+
+    if (isLiveRange && Number.isFinite(verifiedWalletBalance)) {
+        return verifiedWalletBalance;
     }
 
     const premiumLedgerBalance = Number(kpis?.premiumLedgerBalance);
