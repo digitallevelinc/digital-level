@@ -1723,11 +1723,11 @@ const computeCycleSpreads = (transfers) => {
                             snapshot: buildSpreadSellSnapshot(entry.tx, { consumedFiat: effectiveConsumedFiat }),
                         });
                     }
-                    // Coverage must track the original fiat consumed by the buy.
-                    // The interbank 0.3% discount only affects spread math, not
-                    // how much of the sell's fiat shortage gets covered.
-                    entry.recoveredFiat += consumedFiat;
-                    entry.remainingFiat = Math.max(0, entry.remainingFiat - consumedFiat);
+                    // Coverage tracks the NET fiat that actually reaches the sell
+                    // after the 0.3% interbank commission is deducted. The commission
+                    // is a real loss, so only the effective amount counts as recovered.
+                    entry.recoveredFiat += effectiveConsumedFiat;
+                    entry.remainingFiat = Math.max(0, entry.remainingFiat - effectiveConsumedFiat);
                     entry.debugRecoveries.push({
                         buyKey: getTransferKey(tx),
                         buyTimestamp: getTxTimestampMs(tx),
