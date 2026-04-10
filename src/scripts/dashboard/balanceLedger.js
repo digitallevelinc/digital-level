@@ -105,6 +105,17 @@ const getCoverageTransferKey = (tx = {}) => {
     const key = getTransferKey(tx);
     return key ? `transfer:${key}` : '';
 };
+const selectCurrentActiveCoverages = (coverages = []) => {
+    if (!Array.isArray(coverages) || coverages.length <= 1) return coverages;
+
+    const latestCreatedAtMs = coverages.reduce(
+        (latest, coverage) => Math.max(latest, Number(coverage?.createdAtMs || 0)),
+        0
+    );
+    if (latestCreatedAtMs <= 0) return coverages;
+
+    return coverages.filter((coverage) => Number(coverage?.createdAtMs || 0) === latestCreatedAtMs);
+};
 const getTxTimestampMs = (tx = {}) => {
     const raw = tx?.timestamp;
     const direct = Number(raw);
@@ -2186,6 +2197,7 @@ const updateCoverageBadge = (transfers = [], cycleSpreads = new Map()) => {
             remainingFiat,
             pct: Number(cycleData.recoveredPct || 0),
             fiatLabel: getFiatLabel(tx),
+            createdAtMs: getTxTimestampMs(tx),
         });
     }
 
@@ -2234,6 +2246,7 @@ const updateCoverageBadge = (transfers = [], cycleSpreads = new Map()) => {
                     pendingFiat,
                     pct: expectedUsdt > 0 ? Math.min(100, (boundedConsumedUsdt / expectedUsdt) * 100) : 0,
                     fiatLabel: 'FIAT',
+                    createdAtMs: new Date(verdict?.createdAt || verdict?.timestamp || 0).getTime() || 0,
                 });
             } else if (!activeByKey.has(key)) {
                 // P2P cycle verdict: only used as fallback when the cycle loop
@@ -2262,6 +2275,7 @@ const updateCoverageBadge = (transfers = [], cycleSpreads = new Map()) => {
                     remainingFiat,
                     pct: totalSellFiat > 0 ? Math.min(100, (recoveredFiat / totalSellFiat) * 100) : 0,
                     fiatLabel: 'FIAT',
+                    createdAtMs: new Date(verdict?.createdAt || verdict?.timestamp || 0).getTime() || 0,
                 });
             }
         }
@@ -2286,12 +2300,13 @@ const updateCoverageBadge = (transfers = [], cycleSpreads = new Map()) => {
                         ? Math.min(100, (Number(promiseMeta.actualUsdt || 0) / Number(promiseMeta.promiseUsdt || 0)) * 100)
                         : 0,
                     fiatLabel: getFiatLabel(tx),
+                    createdAtMs: getTxTimestampMs(tx),
                 });
                 continue;
             }
         }
     }
-    const active = Array.from(activeByKey.values());
+    const active = selectCurrentActiveCoverages(Array.from(activeByKey.values()));
 
     if (active.length === 0) {
         badge.style.display = 'none';
