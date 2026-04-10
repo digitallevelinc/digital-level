@@ -2991,6 +2991,17 @@ const prefetchSellContextPages = async () => {
     const ledgerSpreadFiatByBank = new Map(); // bankKey → spread sum (FIAT)
     const activeFiatCoverageSummaryByBank = buildActiveFiatCoverageSummaryByBank(allScoped, allCycleSpreads);
     const latestFiatCycleSummaryByBank = buildLatestFiatCycleSummaryByBank(allScoped, allCycleSpreads);
+
+    // Count completed cycles per bank from the local ledger (P2P_SELL entries marked complete)
+    const ledgerCompletedCyclesByBank = new Map(); // bankKey → count
+    for (const tx of allScoped) {
+        if (normalizeTxType(tx) !== 'P2P_SELL') continue;
+        const cycleData = allCycleSpreads.get(getTransferKey(tx));
+        if (!cycleData?.complete) continue;
+        const bankKey = normalizeBankKey(tx?.paymentMethod || tx?.bankName || tx?.bank || '');
+        if (!bankKey) continue;
+        ledgerCompletedCyclesByBank.set(bankKey, (ledgerCompletedCyclesByBank.get(bankKey) || 0) + 1);
+    }
     for (const tx of allScoped) {
         const txDateStr = new Date(getTxTimestampMs(tx)).toLocaleDateString('en-CA', { timeZone: CARACAS_TZ });
         if (txDateStr < _effectiveFrom || txDateStr > _effectiveTo) continue;
@@ -3035,6 +3046,7 @@ const prefetchSellContextPages = async () => {
             const ledgerSpreadFiat = truncateTowardZero(ledgerSpreadFiatByBank.get(key) || 0, 2);
             const coverageSummary = activeFiatCoverageSummaryByBank.get(key) || {};
             const latestCycleSummary = latestFiatCycleSummaryByBank.get(key) || {};
+            const ledgerCompleted = ledgerCompletedCyclesByBank.get(key) || 0;
             return {
                 ...bank,
                 spreadProfitUsdt: ledgerSpread !== 0 ? ledgerSpread : bank.spreadProfitUsdt,
@@ -3051,6 +3063,9 @@ const prefetchSellContextPages = async () => {
                 currentCycleFiatRemaining: Number(latestCycleSummary.remainingFiat ?? 0),
                 currentCycleTotalFiat: Number(latestCycleSummary.totalFiat ?? 0),
                 currentCycleFiatSpent: Number(latestCycleSummary.consumedFiat ?? 0),
+                // Ledger-counted completed cycles — used by the sidebar if greater than
+                // whatever the backend reports, so the CICLOS counter is always up-to-date.
+                ledgerCompletedCycles: ledgerCompleted,
                 ledgerSpreadReady: true,
             };
         });

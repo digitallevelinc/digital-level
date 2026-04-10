@@ -1094,7 +1094,8 @@ export function updateSidebarMonitor(kpis = {}, bankInsights = [], ledgerSummary
         const latestCycle = latestCycleByBank.get(bankKey) || {};
         const completedByJudge = Number(judgeBank.completedCycles || 0);
         const completedByInsight = Number(bank.completedCycles || 0);
-        const cyclesCompleted = Math.max(completedByJudge, completedByInsight, 0);
+        const completedByLedger = Number(bank.ledgerCompletedCycles || 0);
+        const cyclesCompleted = Math.max(completedByJudge, completedByInsight, completedByLedger, 0);
         // PROFIT NETO del monitor lateral debe salir del ledger del Balance General,
         // no del profit agregado del backend/judge. balanceLedger.js inyecta ese
         // valor por banco cuando termina de recalcular los spreads del rango actual.
