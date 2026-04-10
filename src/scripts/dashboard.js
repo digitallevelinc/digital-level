@@ -30,6 +30,7 @@ let dashboardBootstrapHydrationTimer = null;
 let dashboardRequestSeq = 0;
 let kpiLoadingRequestSeq = 0;
 let authRedirecting = false;
+let cachedLedgerBankData = [];
 const COVERAGE_MODAL_FIAT_TOLERANCE = 1;
 const COVERAGE_MODAL_STALE_MS = 8 * 60 * 60 * 1000;
 
@@ -780,9 +781,15 @@ export async function updateDashboard(API_BASE, token, alias, range = {}, opts =
             return;
         }
 
-        // Mientras el ledger recalcula la cobertura real, no mostramos el modal
-        // basados unicamente en judge.openVerdicts porque puede venir stale.
-        syncCoverageAlertModal(kpis, [], mainRange);
+        // Si es una carga explícita (cambio de filtro), ocultamos el modal.
+        // Si no (background refresh), usamos la caché del ledger actual,
+        // ya que el balanceLedger UI no volverá a llamar a onBankDataUpdate si no tiene data nueva.
+        if (showLoading) {
+            cachedLedgerBankData = [];
+            syncCoverageAlertModal(kpis, [], mainRange);
+        } else {
+            syncCoverageAlertModal(kpis, cachedLedgerBankData, mainRange);
+        }
 
         // --- PREPARACIÓN DE DATOS (API V2 - Source of Truth) ---
         const metrics = kpis.metrics || {};
@@ -933,6 +940,7 @@ export async function updateDashboard(API_BASE, token, alias, range = {}, opts =
             onAuthError: handleExpiredSession,
             bankData,
             onBankDataUpdate: (updatedBankData, ledgerSummary) => {
+                cachedLedgerBankData = updatedBankData;
                 updateSidebarMonitor(kpis, updatedBankData, ledgerSummary);
                 updateProfitUI(kpis, updatedBankData, ledgerSummary);
                 syncCoverageAlertModal(kpis, updatedBankData, mainRange);
