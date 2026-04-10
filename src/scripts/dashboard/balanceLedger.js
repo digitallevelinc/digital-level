@@ -2125,6 +2125,7 @@ const updateCoverageBadge = (transfers = [], cycleSpreads = new Map()) => {
         : null;
 
     const activeByKey = new Map();
+    const localCycleStatusByKey = new Map();
 
     // Las coberturas P2P activas deben salir del ciclo local del ledger,
     // porque es la vista que incorpora de inmediato las compras manuales
@@ -2137,11 +2138,20 @@ const updateCoverageBadge = (transfers = [], cycleSpreads = new Map()) => {
 
         const key = getTransferKey(tx);
         const cycleData = cycleSpreads.get(key);
-        if (!cycleData || cycleData.complete) continue;
+        if (!cycleData) continue;
 
         const totalSellFiat = Number(cycleData.totalSellFiat || 0);
         const recoveredFiat = Number(cycleData.recoveredFiat || 0);
         const remainingFiat = Math.max(0, totalSellFiat - recoveredFiat);
+        localCycleStatusByKey.set(key, {
+            complete: Boolean(cycleData.complete) || remainingFiat <= COVERAGE_COMPLETION_TOLERANCE_FIAT,
+            totalSellFiat,
+            recoveredFiat,
+            remainingFiat,
+        });
+
+        if (cycleData.complete) continue;
+
         if (remainingFiat <= COVERAGE_COMPLETION_TOLERANCE_FIAT) continue;
 
         activeByKey.set(key, {
@@ -2206,6 +2216,8 @@ const updateCoverageBadge = (transfers = [], cycleSpreads = new Map()) => {
                 // the local ledger authoritative for in-range sales (it reflects
                 // the freshest manual purchases) while still surfacing cross-day
                 // open cycles that the local path cannot see.
+                if (localCycleStatusByKey.has(key)) continue;
+
                 const totalSellFiat = Math.max(0, Number(verdict?.fiatReceived || 0));
                 const verdictRemainingFiat = Math.max(0, Number(verdict?.remainingFiat || 0));
                 const consumedRebuyFiat = Math.max(0, Number(verdict?.consumedRebuyFiat || 0));
