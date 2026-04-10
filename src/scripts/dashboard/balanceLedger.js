@@ -1088,6 +1088,22 @@ const normalizeBankKey = (value) => {
     return raw.replace(/\s+/g, '');
 };
 
+const bankLabelFromKey = (bankKey) => {
+    switch (String(bankKey || '').toLowerCase()) {
+        case 'provincial': return 'BBVA/Provincial';
+        case 'mercantil': return 'Mercantil';
+        case 'banesco': return 'Banesco';
+        case 'bnc': return 'BNC';
+        case 'bancamiga': return 'Bancamiga';
+        case 'bank': return 'BANK';
+        default: {
+            const compact = String(bankKey || '').trim();
+            if (!compact) return 'Banco';
+            return compact.charAt(0).toUpperCase() + compact.slice(1);
+        }
+    }
+};
+
 const INTERBANK_FIAT_DISCOUNT_RATE = 0.003;
 
 const isInterbankPair = (buyBank, sellBank) => {
@@ -2139,27 +2155,15 @@ const updateCoverageBadge = (transfers = [], cycleSpreads = new Map()) => {
     }
 
     if (verdictBySaleId !== null) {
-        // Judge data available: iterate over open verdicts directly,
-        // pero solo para promesas. Los ciclos P2P se resuelven arriba
-        // con el ledger local para evitar quedarse con faltantes stale.
+        // Judge data available: iterate over open verdicts directly.
+        // Promises overwrite any local cycle entry (the judge has authoritative
+        // promise state). Non-promise cycle verdicts act as a FALLBACK: when the
+        // sale transaction is outside the current range (e.g. viewing today with
+        // yesterday's open sell), the local cycle loop above sees no transfers,
+        // so the verdict path is the only way the badge can surface the cycle.
         for (const verdict of verdictBySaleId.values()) {
-            const isPromise = isPromiseVerdict(verdict);
-            if (!isPromise) continue;
-            const fallbackUsdt = Number(verdict?.saleAmount || 0);
-            const fallbackFiat = Number(verdict?.fiatReceived || 0);
-            const expectedUsdt = Number(verdict?.expectedRebuyUsdt ?? fallbackUsdt);
-            const expectedFiat = Number(verdict?.expectedRebuyFiat ?? fallbackFiat);
-            const consumedUsdt = Math.max(0, Number(verdict?.consumedRebuyUsdt || 0));
-            const consumedFiat = Math.max(0, Number(verdict?.consumedRebuyFiat || 0));
-            const boundedConsumedUsdt = Math.min(consumedUsdt, expectedUsdt);
-            const boundedConsumedFiat = Math.min(consumedFiat, expectedFiat);
-            const pendingUsdt = Math.max(0, expectedUsdt - boundedConsumedUsdt);
-            const pendingFiat = Math.max(0, expectedFiat - boundedConsumedFiat);
-            let totalSellFiat = isPromise ? expectedFiat : Number(verdict.fiatReceived || 0);
-
             const key = String(verdict.saleTransferId || verdict.saleId || '');
             if (!key) continue;
-            if (pendingUsdt <= 0.009 && pendingFiat <= COVERAGE_COMPLETION_TOLERANCE_FIAT) continue;
 
             // Restrict to current viewing range.
             // For ranges that include today, we intentionally drop the lower bound
@@ -2171,18 +2175,58 @@ const updateCoverageBadge = (transfers = [], cycleSpreads = new Map()) => {
                 if (!rangeIncludesToday && verdictDateStr < effectiveFrom) continue;
             }
 
-            const actualUsdt = boundedConsumedUsdt;
-            const actualFiat = boundedConsumedFiat;
-            activeByKey.set(key, {
-                kind: 'promise',
-                name: verdict.counterpartyName || 'Sin nombre',
-                actualUsdt,
-                actualFiat,
-                pendingUsdt,
-                pendingFiat,
-                pct: expectedUsdt > 0 ? Math.min(100, (actualUsdt / expectedUsdt) * 100) : 0,
-                fiatLabel: 'FIAT',
-            });
+            const isPromise = isPromiseVerdict(verdict);
+
+            if (isPromise) {
+                const fallbackUsdt = Number(verdict?.saleAmount || 0);
+                const fallbackFiat = Number(verdict?.fiatReceived || 0);
+                const expectedUsdt = Number(verdict?.expectedRebuyUsdt ?? fallbackUsdt);
+                const expectedFiat = Number(verdict?.expectedRebuyFiat ?? fallbackFiat);
+                const consumedUsdt = Math.max(0, Number(verdict?.consumedRebuyUsdt || 0));
+                const consumedFiat = Math.max(0, Number(verdict?.consumedRebuyFiat || 0));
+                const boundedConsumedUsdt = Math.min(consumedUsdt, expectedUsdt);
+                const boundedConsumedFiat = Math.min(consumedFiat, expectedFiat);
+                const pendingUsdt = Math.max(0, expectedUsdt - boundedConsumedUsdt);
+                const pendingFiat = Math.max(0, expectedFiat - boundedConsumedFiat);
+                if (pendingUsdt <= 0.009 && pendingFiat <= COVERAGE_COMPLETION_TOLERANCE_FIAT) continue;
+
+                activeByKey.set(key, {
+                    kind: 'promise',
+                    name: verdict.counterpartyName || 'Sin nombre',
+                    actualUsdt: boundedConsumedUsdt,
+                    actualFiat: boundedConsumedFiat,
+                    pendingUsdt,
+                    pendingFiat,
+                    pct: expectedUsdt > 0 ? Math.min(100, (boundedConsumedUsdt / expectedUsdt) * 100) : 0,
+                    fiatLabel: 'FIAT',
+                });
+            } else if (!activeByKey.has(key)) {
+                // P2P cycle verdict: only used as fallback when the cycle loop
+                // didn't already populate this sale from local data. This keeps
+                // the local ledger authoritative for in-range sales (it reflects
+                // the freshest manual purchases) while still surfacing cross-day
+                // open cycles that the local path cannot see.
+                const totalSellFiat = Math.max(0, Number(verdict?.fiatReceived || 0));
+                const verdictRemainingFiat = Math.max(0, Number(verdict?.remainingFiat || 0));
+                const consumedRebuyFiat = Math.max(0, Number(verdict?.consumedRebuyFiat || 0));
+                // Prefer explicit remainingFiat from the verdict; fall back to
+                // totalSellFiat - consumedRebuyFiat if the backend didn't set it.
+                const remainingFiat = verdictRemainingFiat > 0
+                    ? verdictRemainingFiat
+                    : Math.max(0, totalSellFiat - consumedRebuyFiat);
+                const recoveredFiat = Math.max(0, totalSellFiat - remainingFiat);
+                if (totalSellFiat <= COVERAGE_COMPLETION_TOLERANCE_FIAT) continue;
+                if (remainingFiat <= COVERAGE_COMPLETION_TOLERANCE_FIAT) continue;
+
+                activeByKey.set(key, {
+                    kind: 'cycle',
+                    name: verdict.counterpartyName || 'Sin nombre',
+                    recoveredFiat,
+                    remainingFiat,
+                    pct: totalSellFiat > 0 ? Math.min(100, (recoveredFiat / totalSellFiat) * 100) : 0,
+                    fiatLabel: 'FIAT',
+                });
+            }
         }
     } else {
         // Fallback: no judge data — scan transfer cache for promesas PAY.
@@ -3088,7 +3132,16 @@ const prefetchSellContextPages = async () => {
         });
         // Re-render sidebar with updated per-bank ledger spreads and summary
         if (typeof state.onBankDataUpdate === 'function') {
-            state.onBankDataUpdate(state.bankData, { totalSpread, spreadCount });
+            const spreadByBank = Array.from(ledgerSpreadByBank.entries())
+                .map(([bankKey, spreadUsdt]) => ({
+                    bankKey,
+                    bankLabel: bankLabelFromKey(bankKey),
+                    spreadUsdt: truncateTowardZero(spreadUsdt, 2),
+                }))
+                .filter((entry) => entry.spreadUsdt !== 0)
+                .sort((a, b) => Math.abs(b.spreadUsdt) - Math.abs(a.spreadUsdt));
+
+            state.onBankDataUpdate(state.bankData, { totalSpread, spreadCount, spreadByBank });
         }
     }
 

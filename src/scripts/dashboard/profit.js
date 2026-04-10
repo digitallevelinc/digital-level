@@ -22,6 +22,21 @@ function setHtml(id, value) {
     if (el) el.innerHTML = value;
 }
 
+function formatSignedUsd(value) {
+    const amount = Number(value || 0);
+    const formatted = fUSDT(Math.abs(amount));
+    if (amount < 0) return `-${formatted}`;
+    return formatted;
+}
+
+function buildSpreadBreakdown(summary = {}) {
+    const items = Array.isArray(summary?.spreadByBank) ? summary.spreadByBank : [];
+    if (!items.length) return 'Sin desglose del ledger';
+
+    const pieces = items.map((entry) => `${entry.bankLabel} ${formatSignedUsd(entry.spreadUsdt)}`);
+    return `${pieces.join(' + ')} = ${fUSDT(summary?.totalSpread || 0)}`;
+}
+
 function getSellFeesTotal(kpis = {}, bankInsights = []) {
     const sellFeesFromOps = Number(kpis.operations?.totalFeesSell);
     if (Number.isFinite(sellFeesFromOps)) {
@@ -68,6 +83,10 @@ function updateProfitTooltip(kpis = {}, bankInsights = [], ledgerSummary = null)
             'audit-profit-tooltip-operation',
             `${fUSDT(ledgerSpreadTotal)} - ${fUSDT(sellFees)} = ${fUSDT(displayedProfit)}`
         );
+        setText(
+            'audit-profit-tooltip-spread-breakdown',
+            buildSpreadBreakdown(cachedLedgerProfitSummary)
+        );
 
         setText('audit-profit-tooltip-fallback', hasBackendProfit ? fUSDT(backendProfit) : '---');
         const fallbackLabel = document.getElementById('audit-profit-tooltip-fallback')?.previousElementSibling;
@@ -100,6 +119,7 @@ function updateProfitTooltip(kpis = {}, bankInsights = [], ledgerSummary = null)
                 ? `${fUSDT(backendProfit)} = ${fUSDT(displayedProfit)}`
                 : '$0.00 = $0.00'
         );
+        setText('audit-profit-tooltip-spread-breakdown', 'Esperando desglose del ledger');
         setText('audit-profit-tooltip-fallback', '---');
 
         const fallbackLabel = document.getElementById('audit-profit-tooltip-fallback')?.previousElementSibling;
