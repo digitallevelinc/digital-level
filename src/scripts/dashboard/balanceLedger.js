@@ -82,6 +82,29 @@ const getTransferKey = (tx = {}) => String(
     || tx?.binanceRawId
     || `${tx?.timestamp ?? ''}_${tx?.amount ?? ''}_${tx?.type ?? ''}`
 );
+const getCoverageSaleKey = (verdict = {}) => {
+    const groupId = String(verdict?.groupId || '').trim();
+    if (groupId) return `group:${groupId}`;
+
+    const saleTransferId = String(verdict?.saleTransferId || '').trim();
+    if (saleTransferId) return `transfer:${saleTransferId}`;
+
+    const saleId = String(verdict?.saleId || '').trim();
+    if (saleId) {
+        // Global/manual mirrors are stored as "<sale-id>::<bank>"; they are one sale.
+        const mirrorRoot = saleId.includes('::') ? saleId.split('::')[0] : saleId;
+        if (mirrorRoot) return `sale:${mirrorRoot}`;
+    }
+
+    const orderId = String(verdict?.orderNumber || verdict?.orderNo || '').trim();
+    if (orderId) return `order:${orderId}`;
+
+    return '';
+};
+const getCoverageTransferKey = (tx = {}) => {
+    const key = getTransferKey(tx);
+    return key ? `transfer:${key}` : '';
+};
 const getTxTimestampMs = (tx = {}) => {
     const raw = tx?.timestamp;
     const direct = Number(raw);
@@ -2115,11 +2138,12 @@ const updateCoverageBadge = (transfers = [], cycleSpreads = new Map()) => {
         })
         : null;
 
-    // Map saleTransferId → verdict for quick lookup in cycle entries
+    // Map sale root → verdict for quick lookup in cycle entries. Global mirrors
+    // can arrive as "<sale-id>::<bank>", but they are still one active sale.
     const verdictBySaleId = judgeActiveVerdicts
         ? new Map(
             judgeActiveVerdicts
-                .map((v) => [String(v?.saleTransferId || v?.saleId || ''), v])
+                .map((v) => [getCoverageSaleKey(v), v])
                 .filter(([k]) => k)
         )
         : null;
@@ -2136,8 +2160,9 @@ const updateCoverageBadge = (transfers = [], cycleSpreads = new Map()) => {
         const txDateStr = new Date(getTxTimestampMs(tx)).toLocaleDateString('en-CA', { timeZone: CARACAS_TZ });
         if (txDateStr < effectiveFrom || txDateStr > effectiveTo) continue;
 
-        const key = getTransferKey(tx);
-        const cycleData = cycleSpreads.get(key);
+        const transferKey = getTransferKey(tx);
+        const key = getCoverageTransferKey(tx);
+        const cycleData = cycleSpreads.get(transferKey);
         if (!cycleData) continue;
 
         const totalSellFiat = Number(cycleData.totalSellFiat || 0);
@@ -2172,7 +2197,7 @@ const updateCoverageBadge = (transfers = [], cycleSpreads = new Map()) => {
         // yesterday's open sell), the local cycle loop above sees no transfers,
         // so the verdict path is the only way the badge can surface the cycle.
         for (const verdict of verdictBySaleId.values()) {
-            const key = String(verdict.saleTransferId || verdict.saleId || '');
+            const key = getCoverageSaleKey(verdict);
             if (!key) continue;
 
             // Restrict to current viewing range.
