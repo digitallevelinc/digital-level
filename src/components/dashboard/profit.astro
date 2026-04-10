@@ -58,10 +58,20 @@ import CardHelp from './CardHelp.astro';
               <p class="card-help-calc" id="audit-profit-tooltip-formula">
                 <strong>Regla:</strong> Profit Operativo = valor canonico del backend.
               </p>
+              <div class="mt-3 rounded-lg border border-white/10 bg-black/20 px-3 py-2">
+                <p class="text-[10px] font-black uppercase tracking-[0.14em] text-[#F3BA2F]">Operacion visible</p>
+                <p id="audit-profit-tooltip-operation" class="mt-1 font-mono text-[13px] font-bold leading-[1.5] text-white/90">
+                  --- = ---
+                </p>
+              </div>
               <div class="mt-3 space-y-2 text-[13px] leading-[1.45] text-white/80">
                 <div class="flex items-center justify-between gap-3">
                   <span class="text-white/55">Resultado mostrado</span>
                   <span id="audit-profit-tooltip-result" class="font-mono font-bold text-emerald-400">---</span>
+                </div>
+                <div class="flex items-center justify-between gap-3">
+                  <span id="audit-profit-tooltip-source-label" class="text-white/55">Spread ledger</span>
+                  <span id="audit-profit-tooltip-source-value" class="font-mono text-white/90">---</span>
                 </div>
                 <div class="flex items-center justify-between gap-3">
                   <span class="text-white/55">Profit canonico backend</span>

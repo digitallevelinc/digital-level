@@ -2075,6 +2075,15 @@ const updateCoverageBadge = (transfers = [], cycleSpreads = new Map()) => {
     if (!badge || !label || !tooltip) return;
     const { effectiveFrom, effectiveTo } = getEffectiveCoverageRange();
 
+    // When the visible range ends today, open verdicts from prior days are still
+    // "currently active" and should count toward the badge — they represent live
+    // state, not range-scoped history. Only for pure historical ranges do we
+    // keep the strict lower bound.
+    const todayDateStr = new Intl.DateTimeFormat('en-CA', {
+        timeZone: CARACAS_TZ, year: 'numeric', month: '2-digit', day: '2-digit',
+    }).format(new Date());
+    const rangeIncludesToday = effectiveTo >= todayDateStr;
+
     // Build a set of transfer IDs that the judge considers open promises.
     // If judge data is available, only show promises that are genuinely open.
     // This prevents settled/closed promises from persisting in the coverage badge.
@@ -2152,11 +2161,14 @@ const updateCoverageBadge = (transfers = [], cycleSpreads = new Map()) => {
             if (!key) continue;
             if (pendingUsdt <= 0.009 && pendingFiat <= COVERAGE_COMPLETION_TOLERANCE_FIAT) continue;
 
-            // Restrict to current viewing range
+            // Restrict to current viewing range.
+            // For ranges that include today, we intentionally drop the lower bound
+            // so that still-open verdicts created on prior days remain visible as
+            // "cobertura activa" — they are live state, not historical records.
             const verdictDateStr = getVerdictCoverageDateStr(verdict);
             if (verdictDateStr) {
-                if (verdictDateStr < effectiveFrom) continue;
                 if (verdictDateStr > effectiveTo) continue;
+                if (!rangeIncludesToday && verdictDateStr < effectiveFrom) continue;
             }
 
             const actualUsdt = boundedConsumedUsdt;
@@ -2576,6 +2588,11 @@ const renderTransfers = (transfers = [], options = {}) => {
 
     if (scopedTransfers.length === 0) {
         renderEmpty();
+        // Even with an empty range, the judge may still report open verdicts
+        // from prior days — their "cobertura activa" badge must stay visible.
+        const emptyCachedScoped = getCachedScopedTransfers();
+        const emptyCycleSpreads = computeCycleSpreads(getCycleComputationTransfers());
+        updateCoverageBadge(emptyCachedScoped, emptyCycleSpreads);
         return;
     }
 
