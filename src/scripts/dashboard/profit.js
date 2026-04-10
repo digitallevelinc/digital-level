@@ -181,7 +181,17 @@ export function updateProfitUI(kpis = {}, bankInsights = [], ledgerSummary = nul
 
     renderBankProfitList(bankInsights);
     initEvolutionToggle();
-    renderProfitChart(kpis.chartData, displayedProfit);
+
+    // When the ledger summary has settled, its net profit is more accurate than
+    // the backend's cached chartData (which lags by one cache cycle).
+    // For single-day ranges the entire chart is one bar — sync it with the
+    // ledger-derived displayedProfit so chart and KPI card always agree.
+    let chartDataToRender = Array.isArray(kpis.chartData) ? kpis.chartData : [];
+    if (cachedLedgerProfitSummary !== null && chartDataToRender.length === 1) {
+        chartDataToRender = [{ ...chartDataToRender[0], profit: displayedProfit }];
+    }
+
+    renderProfitChart(chartDataToRender, displayedProfit);
 }
 
 function renderBankProfitList(bankInsights) {
