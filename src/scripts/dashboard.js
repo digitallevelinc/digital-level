@@ -237,7 +237,7 @@ function getActiveLedgerCoverageBankKeys(bankData = []) {
     return { ledgerCoverageResolved, activeKeys };
 }
 
-function syncCoverageAlertModal(kpis = {}, bankData = []) {
+function syncCoverageAlertModal(kpis = {}, bankData = [], currentRange = null) {
     const isOperatorMode = sessionStorage.getItem('admin_impersonation') !== 'true';
     if (!isOperatorMode) {
         toggleCoverageAlertModal(false);
@@ -250,11 +250,6 @@ function syncCoverageAlertModal(kpis = {}, bankData = []) {
     // completed, so if the ledger has not resolved yet we prefer to keep the
     // modal hidden instead of flashing a false alert.
     if (!ledgerCoverageResolved) {
-        toggleCoverageAlertModal(false);
-        return;
-    }
-
-    if (activeKeys.size === 0) {
         toggleCoverageAlertModal(false);
         return;
     }
@@ -275,9 +270,21 @@ function syncCoverageAlertModal(kpis = {}, bankData = []) {
             return false;
         }
 
+        let isOutOFRange = false;
+        if (currentRange && currentRange.from) {
+            const parts = currentRange.from.split('-');
+            if (parts.length === 3) {
+                const rangeStartUtcMs = Date.UTC(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]), 4, 0, 0);
+                const verdictTimestamp = new Date(verdict?.createdAt || verdict?.timestamp || 0).getTime();
+                if (verdictTimestamp < rangeStartUtcMs) {
+                    isOutOFRange = true;
+                }
+            }
+        }
+
         if (ledgerCoverageResolved) {
             const bankKey = normalizeBankKey(verdict?.paymentMethod);
-            if (!bankKey || !activeKeys.has(bankKey)) return false;
+            if (!isOutOFRange && (!bankKey || !activeKeys.has(bankKey))) return false;
         }
 
         const ageMs = now - new Date(verdict?.createdAt || verdict?.timestamp || 0).getTime();
@@ -775,7 +782,7 @@ export async function updateDashboard(API_BASE, token, alias, range = {}, opts =
 
         // Mientras el ledger recalcula la cobertura real, no mostramos el modal
         // basados unicamente en judge.openVerdicts porque puede venir stale.
-        syncCoverageAlertModal(kpis, []);
+        syncCoverageAlertModal(kpis, [], mainRange);
 
         // --- PREPARACIÓN DE DATOS (API V2 - Source of Truth) ---
         const metrics = kpis.metrics || {};
@@ -928,7 +935,7 @@ export async function updateDashboard(API_BASE, token, alias, range = {}, opts =
             onBankDataUpdate: (updatedBankData, ledgerSummary) => {
                 updateSidebarMonitor(kpis, updatedBankData, ledgerSummary);
                 updateProfitUI(kpis, updatedBankData, ledgerSummary);
-                syncCoverageAlertModal(kpis, updatedBankData);
+                syncCoverageAlertModal(kpis, updatedBankData, mainRange);
             },
         });
 
