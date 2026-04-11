@@ -31,7 +31,7 @@ let dashboardRequestSeq = 0;
 let kpiLoadingRequestSeq = 0;
 let authRedirecting = false;
 let cachedLedgerBankData = [];
-const COVERAGE_MODAL_FIAT_TOLERANCE = 1;
+const COVERAGE_MODAL_FIAT_TOLERANCE = 500;
 const COVERAGE_MODAL_STALE_MS = 8 * 60 * 60 * 1000;
 
 function updateSidebarRangeLabel(range = {}) {

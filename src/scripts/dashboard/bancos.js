@@ -1,5 +1,7 @@
 import { fUSDT, fVES } from './utils.js';
 
+const FIAT_COVERAGE_COMPLETION_TOLERANCE = 500;
+
 const safeFloat = (val) => {
     if (!val) return 0;
     if (typeof val === 'number') return val;
@@ -165,14 +167,17 @@ export function updateBancosUI(insights = [], kpis = {}) {
             };
         }
 
-        const progress = available <= 0 ? 0 : clampPercent((available / effectiveCap) * 100);
-        const burned = Math.max(0, effectiveCap - available);
+        const availableNormalized = available >= Math.max(0, effectiveCap - FIAT_COVERAGE_COMPLETION_TOLERANCE)
+            ? effectiveCap
+            : available;
+        const progress = availableNormalized <= 0 ? 0 : clampPercent((availableNormalized / effectiveCap) * 100);
+        const burned = Math.max(0, effectiveCap - availableNormalized);
 
         return {
-            value: `${formatVesInline(available)} / ${formatVesInline(effectiveCap)}`,
-            meta: burned <= 0.01
+            value: `${formatVesInline(availableNormalized)} / ${formatVesInline(effectiveCap)}`,
+            meta: burned <= 0
                 ? 'Barra llena'
-                : available <= 0.01
+                : availableNormalized <= 0.01
                     ? 'Lote quemado'
                     : `${formatVesInline(burned)} gastado`,
             progress,

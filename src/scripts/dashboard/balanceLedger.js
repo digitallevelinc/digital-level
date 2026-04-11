@@ -131,7 +131,8 @@ const normalizeTextToken = (value) => String(value ?? '')
 const WRAPPED_NOTE_PATTERN = /[\(\{]\s*([^\)\}]+?)\s*[\)\}]/s;
 const PLAIN_NOTE_PATTERN = /^\s*([^()\{\}\n]+?)\s*$/s;
 const PROMISE_ACTIVATION_MAX_USDT = 1.0;
-const COVERAGE_COMPLETION_TOLERANCE_FIAT = 1.0;
+// If the remaining FIAT gap is below this threshold, we treat the coverage as completed.
+const COVERAGE_COMPLETION_TOLERANCE_FIAT = 500.0;
 
 const normalizeTxType = (tx = {}) => {
     const rawType = String(tx?.type || '').toUpperCase().trim();
@@ -981,6 +982,10 @@ const getCycleComputationTransfers = () => {
     return combined
         .sort((a, b) => getTxTimestampMs(b) - getTxTimestampMs(a))
         .filter((tx) => isLedgerChannelAllowed(tx));
+};
+
+const rerenderCurrentLedgerView = () => {
+    renderTransfers(state.currentTransfers, { resetScroll: false });
 };
 
 const clearAuxiliaryTransfersCache = () => {
@@ -2102,7 +2107,9 @@ const buildLatestFiatCycleSummaryByBank = (transfers = [], cycleSpreads = new Ma
         if (totalFiat <= 0) continue;
 
         const recoveredFiat = Math.min(totalFiat, Math.max(0, Number(cycleData.recoveredFiat || 0)));
-        const remainingFiat = Math.max(0, totalFiat - recoveredFiat);
+        const remainingFiatRaw = Math.max(0, totalFiat - recoveredFiat);
+        const isComplete = Boolean(cycleData.complete) || remainingFiatRaw <= COVERAGE_COMPLETION_TOLERANCE_FIAT;
+        const remainingFiat = isComplete ? 0 : remainingFiatRaw;
         const txTimestamp = getTxTimestampMs(tx);
         const current = summary.get(bankKey);
         if (current && Number(current.timestamp || 0) > txTimestamp) continue;
@@ -2111,7 +2118,7 @@ const buildLatestFiatCycleSummaryByBank = (transfers = [], cycleSpreads = new Ma
             timestamp: txTimestamp,
             totalFiat,
             remainingFiat,
-            consumedFiat: recoveredFiat,
+            consumedFiat: isComplete ? totalFiat : recoveredFiat,
         });
     }
 
@@ -2168,9 +2175,6 @@ const updateCoverageBadge = (transfers = [], cycleSpreads = new Map()) => {
     for (const tx of transfers) {
         if (normalizeTxType(tx) !== 'P2P_SELL') continue;
 
-        const txDateStr = new Date(getTxTimestampMs(tx)).toLocaleDateString('en-CA', { timeZone: CARACAS_TZ });
-        if (txDateStr < effectiveFrom || txDateStr > effectiveTo) continue;
-
         const transferKey = getTransferKey(tx);
         const key = getCoverageTransferKey(tx);
         const cycleData = cycleSpreads.get(transferKey);
@@ -2179,12 +2183,20 @@ const updateCoverageBadge = (transfers = [], cycleSpreads = new Map()) => {
         const totalSellFiat = Number(cycleData.totalSellFiat || 0);
         const recoveredFiat = Number(cycleData.recoveredFiat || 0);
         const remainingFiat = Math.max(0, totalSellFiat - recoveredFiat);
+        const txDateStr = new Date(getTxTimestampMs(tx)).toLocaleDateString('en-CA', { timeZone: CARACAS_TZ });
+        const isRelevantForLiveState = txDateStr <= effectiveTo && (rangeIncludesToday || txDateStr >= effectiveFrom);
         localCycleStatusByKey.set(key, {
             complete: Boolean(cycleData.complete) || remainingFiat <= COVERAGE_COMPLETION_TOLERANCE_FIAT,
             totalSellFiat,
             recoveredFiat,
             remainingFiat,
+            name: tx?.counterpartyName || tx?.internalCounterpartyAlias || 'Sin nombre',
+            fiatLabel: getFiatLabel(tx),
+            createdAtMs: getTxTimestampMs(tx),
+            isRelevantForLiveState,
         });
+
+        if (txDateStr < effectiveFrom || txDateStr > effectiveTo) continue;
 
         if (cycleData.complete) continue;
 
@@ -2254,7 +2266,23 @@ const updateCoverageBadge = (transfers = [], cycleSpreads = new Map()) => {
                 // the local ledger authoritative for in-range sales (it reflects
                 // the freshest manual purchases) while still surfacing cross-day
                 // open cycles that the local path cannot see.
-                if (localCycleStatusByKey.has(key)) continue;
+                const localCycleStatus = localCycleStatusByKey.get(key);
+                if (localCycleStatus?.isRelevantForLiveState) {
+                    if (localCycleStatus.complete) continue;
+
+                    activeByKey.set(key, {
+                        kind: 'cycle',
+                        name: localCycleStatus.name,
+                        recoveredFiat: localCycleStatus.recoveredFiat,
+                        remainingFiat: localCycleStatus.remainingFiat,
+                        pct: localCycleStatus.totalSellFiat > 0
+                            ? Math.min(100, (localCycleStatus.recoveredFiat / localCycleStatus.totalSellFiat) * 100)
+                            : 0,
+                        fiatLabel: localCycleStatus.fiatLabel,
+                        createdAtMs: localCycleStatus.createdAtMs,
+                    });
+                    continue;
+                }
 
                 const totalSellFiat = Math.max(0, Number(verdict?.fiatReceived || 0));
                 const verdictRemainingFiat = Math.max(0, Number(verdict?.remainingFiat || 0));
@@ -2686,9 +2714,9 @@ const renderTransfers = (transfers = [], options = {}) => {
         renderEmpty();
         // Even with an empty range, the judge may still report open verdicts
         // from prior days — their "cobertura activa" badge must stay visible.
-        const emptyCachedScoped = getCachedScopedTransfers();
-        const emptyCycleSpreads = computeCycleSpreads(getCycleComputationTransfers());
-        updateCoverageBadge(emptyCachedScoped, emptyCycleSpreads);
+        const emptyCoverageTransfers = getCycleComputationTransfers();
+        const emptyCycleSpreads = computeCycleSpreads(emptyCoverageTransfers);
+        updateCoverageBadge(emptyCoverageTransfers, emptyCycleSpreads);
         return;
     }
 
@@ -2772,7 +2800,7 @@ const renderTransfers = (transfers = [], options = {}) => {
     body.innerHTML = filteredRows.map(({ tx, balance, balanceNegativeInfo }) => renderRow(tx, balance, cycleSpreads.get(getTransferKey(tx)), balanceNegativeInfo)).join('');
 
     // Actualizar badge de coberturas activas
-    updateCoverageBadge(cachedScopedTransfers, cycleSpreads);
+    updateCoverageBadge(cycleComputationTransfers, cycleSpreads);
 
     // Wire dispersor toggle buttons
     body.querySelectorAll('[data-dispersor-toggle]').forEach((btn) => {
@@ -2926,13 +2954,12 @@ const fetchRecoveryAugmentation = async () => {
     if (!state.apiBase || !state.token) return;
 
     const rangeTo = sanitizeDateValue(state.range?.to);
+    const rangeFrom = sanitizeDateValue(state.range?.from);
     if (!rangeTo) {
         // No upper bound → the visible cache already extends through today.
         if (state.auxiliaryTransfersCache.size > 0) {
             clearAuxiliaryTransfersCache();
-            if (state.currentTransfers.length > 0) {
-                renderTransfers(state.currentTransfers, { resetScroll: false });
-            }
+            rerenderCurrentLedgerView();
         }
         return;
     }
@@ -2941,25 +2968,48 @@ const fetchRecoveryAugmentation = async () => {
         timeZone: CARACAS_TZ, year: 'numeric', month: '2-digit', day: '2-digit',
     }).format(new Date());
 
+    let augFrom = '';
+    let auxRangeKey = '';
+
     if (rangeTo >= todayStr) {
-        // The current filter already includes today → no augmentation needed.
-        if (state.auxiliaryTransfersCache.size > 0) {
-            clearAuxiliaryTransfersCache();
-            if (state.currentTransfers.length > 0) {
-                renderTransfers(state.currentTransfers, { resetScroll: false });
+        // When viewing today, fetch the older open-cycle history so the local
+        // ledger can invalidate stale judge verdicts from prior days.
+        const effectiveFrom = rangeFrom || todayStr;
+        const judgeOpenVerdicts = Array.isArray(state.kpis?.judge?.openVerdicts)
+            ? state.kpis.judge.openVerdicts
+            : [];
+        const olderOpenCycleDates = judgeOpenVerdicts
+            .filter((verdict) => {
+                const status = String(verdict?.status || '').toUpperCase();
+                if (status.startsWith('CLOS') || status.startsWith('CANCEL') || status.startsWith('COMPLET')) {
+                    return false;
+                }
+                return !isPromiseVerdict(verdict);
+            })
+            .map((verdict) => getVerdictCoverageDateStr(verdict))
+            .filter((dateStr) => dateStr && dateStr < effectiveFrom)
+            .sort();
+
+        if (olderOpenCycleDates.length === 0) {
+            if (state.auxiliaryTransfersCache.size > 0) {
+                clearAuxiliaryTransfersCache();
+                rerenderCurrentLedgerView();
             }
+            return;
         }
-        return;
+
+        augFrom = olderOpenCycleDates[0];
+        auxRangeKey = `${augFrom}::${todayStr}::open-cycle-history`;
+    } else {
+        // Compute the day AFTER range.to as the augmentation floor.
+        const rangeToDate = new Date(`${rangeTo}T00:00:00`);
+        rangeToDate.setDate(rangeToDate.getDate() + 1);
+        augFrom = new Intl.DateTimeFormat('en-CA', {
+            timeZone: CARACAS_TZ, year: 'numeric', month: '2-digit', day: '2-digit',
+        }).format(rangeToDate);
+        auxRangeKey = `${augFrom}::${todayStr}`;
     }
 
-    // Compute the day AFTER range.to as the augmentation floor.
-    const rangeToDate = new Date(`${rangeTo}T00:00:00`);
-    rangeToDate.setDate(rangeToDate.getDate() + 1);
-    const augFrom = new Intl.DateTimeFormat('en-CA', {
-        timeZone: CARACAS_TZ, year: 'numeric', month: '2-digit', day: '2-digit',
-    }).format(rangeToDate);
-
-    const auxRangeKey = `${augFrom}::${todayStr}`;
     if (state.auxiliaryRangeKey === auxRangeKey && state.auxiliaryTransfersCache.size > 0) {
         // Already cached for this window.
         return;
@@ -3018,13 +3068,14 @@ const fetchRecoveryAugmentation = async () => {
 
     if (seq !== state.auxiliarySeq) return;
 
+    const hadAuxiliaryEntries = state.auxiliaryTransfersCache.size > 0;
     // Replace the auxiliary cache atomically.
     state.auxiliaryTransfersCache = freshCache;
     state.auxiliaryRangeKey = auxRangeKey;
-    needsRerender = freshCache.size > 0;
+    needsRerender = hadAuxiliaryEntries || freshCache.size > 0;
 
-    if (needsRerender && state.currentTransfers.length > 0) {
-        renderTransfers(state.currentTransfers, { resetScroll: false });
+    if (needsRerender) {
+        rerenderCurrentLedgerView();
         void prefetchSellContextPages();
     }
 };

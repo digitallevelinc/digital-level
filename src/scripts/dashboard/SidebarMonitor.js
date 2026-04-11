@@ -1,6 +1,7 @@
 import { fUSDT, inject } from './utils.js';
 
 const SIDEBAR_BANK_COLLAPSE_KEY = 'sidebar_bank_cards_collapsed_v1';
+const FIAT_COVERAGE_COMPLETION_TOLERANCE = 500;
 
 // Cache the last ledger summary so dashboard refreshes don't flicker the spread back to 0
 let _cachedLedgerSummary = null;
@@ -871,13 +872,14 @@ function buildBankVesLimitLabel(bank, _config = {}, vesControlSummaryByBank = ne
         fallbackAvailable > 0.00001 || fallbackConsumed > 0.00001 || fallbackInflow > 0.00001;
     const buildVesLabel = (remainingFiat, effectiveCap) => {
         const total = Math.max(0, Number(effectiveCap || 0));
-        const remaining = Math.min(total, Math.max(0, Number(remainingFiat || 0)));
+        const remainingRaw = Math.min(total, Math.max(0, Number(remainingFiat || 0)));
+        const remaining = remainingRaw <= FIAT_COVERAGE_COMPLETION_TOLERANCE ? 0 : remainingRaw;
         const covered = Math.max(0, total - remaining);
         const progress = total > 0 ? clampPercent((covered / total) * 100) : 0;
 
         return {
             value: `${fVESInline(covered)} / ${fVESInline(total)}`,
-            meta: remaining <= 0.01 ? 'Barra llena' : `${formatPlain(remaining, 0)} FIAT`,
+            meta: remaining <= 0 ? 'Barra llena' : `${formatPlain(remaining, 0)} FIAT`,
             progress,
             limit: total,
             current: covered,
