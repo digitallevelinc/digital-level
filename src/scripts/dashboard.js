@@ -31,6 +31,7 @@ let dashboardRequestSeq = 0;
 let kpiLoadingRequestSeq = 0;
 let authRedirecting = false;
 let cachedLedgerBankData = [];
+let cachedLedgerActiveCoverages = [];
 const COVERAGE_MODAL_FIAT_TOLERANCE = 500;
 const COVERAGE_MODAL_STALE_MS = 8 * 60 * 60 * 1000;
 
@@ -255,7 +256,7 @@ function getActiveLedgerCoverageBankKeys(bankData = []) {
     return { ledgerCoverageResolved, activeKeys };
 }
 
-function syncCoverageAlertModal(kpis = {}, bankData = [], currentRange = null) {
+function syncCoverageAlertModal(kpis = {}, bankData = [], currentRange = null, ledgerActiveCoverages = []) {
     const isOperatorMode = sessionStorage.getItem('admin_impersonation') !== 'true';
     if (!isOperatorMode) {
         toggleCoverageAlertModal(false);
@@ -272,46 +273,63 @@ function syncCoverageAlertModal(kpis = {}, bankData = [], currentRange = null) {
         return;
     }
 
-    const verdicts = Array.isArray(kpis?.judge?.openVerdicts) ? kpis.judge.openVerdicts : [];
-    if (verdicts.length === 0) {
+    const activeCoverages = Array.isArray(ledgerActiveCoverages) ? ledgerActiveCoverages : [];
+    if (activeCoverages.length === 0) {
         toggleCoverageAlertModal(false);
         return;
     }
 
     const now = Date.now();
-    const staleVerdicts = verdicts.filter((verdict) => {
-        const remainingFiat = Number(verdict?.remainingFiat || 0);
+    const staleVerdicts = activeCoverages.filter((coverage) => {
+        const remainingFiat = Number(
+            coverage?.remainingFiat ??
+            coverage?.pendingFiat ??
+            0
+        );
         if (remainingFiat <= COVERAGE_MODAL_FIAT_TOLERANCE) return false;
 
-        // Full terminal-status check (mirrors SidebarMonitor.isTerminalVerdict)
-        if (isCoverageAlertTerminalVerdict(verdict)) return false;
+        if (isCoverageAlertTerminalVerdict(coverage)) return false;
 
-        // Additional guard: if consumed fiat already covers expected, skip
-        const expectedUsdt = Number(verdict?.expectedRebuyUsdt ?? verdict?.saleAmount ?? 0);
-        const saleRate = Number(verdict?.saleRate || 0);
-        const expectedFiat = Number(
-            verdict?.expectedRebuyFiat ??
-            (expectedUsdt > 0 && saleRate > 0 ? expectedUsdt * saleRate : 0)
+        const consumedFiat = Number(
+            coverage?.consumedRebuyFiat ??
+            coverage?.actualFiat ??
+            coverage?.recoveredFiat ??
+            0
         );
-        const consumedFiat = Number(verdict?.consumedRebuyFiat || 0);
-        if (expectedFiat > 0 && consumedFiat >= expectedFiat - COVERAGE_MODAL_FIAT_TOLERANCE) return false;
+        const expectedFiat = Number(
+            coverage?.expectedRebuyFiat ??
+            coverage?.expectedFiat ??
+            (remainingFiat + consumedFiat)
+        );
+        if (expectedFiat > 0 && consumedFiat >= expectedFiat - COVERAGE_MODAL_FIAT_TOLERANCE) {
+            return false;
+        }
 
-        // Verdicts created before the current date-range start are out of scope.
-        // The ledger bank data is scoped to the range, so we can't verify them —
-        // skip them to avoid false alerts from stale backend entries.
+        const bankKey = normalizeBankKey(coverage?.paymentMethod);
+        if (!bankKey || !activeKeys.has(bankKey)) return false;
+
+        const createdAtMs = Number(
+            coverage?.createdAtMs ||
+            new Date(coverage?.createdAt || coverage?.timestamp || 0).getTime()
+        );
+        if (!Number.isFinite(createdAtMs) || createdAtMs <= 0) return false;
+
         if (currentRange && currentRange.from) {
             const parts = currentRange.from.split('-');
             if (parts.length === 3) {
-                const rangeStartUtcMs = Date.UTC(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]), 4, 0, 0);
-                const verdictTimestamp = new Date(verdict?.createdAt || verdict?.timestamp || 0).getTime();
-                if (verdictTimestamp < rangeStartUtcMs) return false;
+                const rangeStartUtcMs = Date.UTC(
+                    Number(parts[0]),
+                    Number(parts[1]) - 1,
+                    Number(parts[2]),
+                    4,
+                    0,
+                    0
+                );
+                if (createdAtMs < rangeStartUtcMs) return false;
             }
         }
 
-        const bankKey = normalizeBankKey(verdict?.paymentMethod);
-        if (!bankKey || !activeKeys.has(bankKey)) return false;
-
-        const ageMs = now - new Date(verdict?.createdAt || verdict?.timestamp || 0).getTime();
+        const ageMs = now - createdAtMs;
         return ageMs >= COVERAGE_MODAL_STALE_MS;
     });
 
@@ -809,9 +827,10 @@ export async function updateDashboard(API_BASE, token, alias, range = {}, opts =
         // ya que el balanceLedger UI no volverá a llamar a onBankDataUpdate si no tiene data nueva.
         if (showLoading) {
             cachedLedgerBankData = [];
-            syncCoverageAlertModal(kpis, [], mainRange);
+            cachedLedgerActiveCoverages = [];
+            syncCoverageAlertModal(kpis, [], mainRange, []);
         } else {
-            syncCoverageAlertModal(kpis, cachedLedgerBankData, mainRange);
+            syncCoverageAlertModal(kpis, cachedLedgerBankData, mainRange, cachedLedgerActiveCoverages);
         }
 
         // --- PREPARACIÓN DE DATOS (API V2 - Source of Truth) ---
@@ -964,9 +983,17 @@ export async function updateDashboard(API_BASE, token, alias, range = {}, opts =
             bankData,
             onBankDataUpdate: (updatedBankData, ledgerSummary) => {
                 cachedLedgerBankData = updatedBankData;
+                cachedLedgerActiveCoverages = Array.isArray(ledgerSummary?.activeCoverages)
+                    ? ledgerSummary.activeCoverages
+                    : [];
                 updateSidebarMonitor(kpis, updatedBankData, ledgerSummary);
                 updateProfitUI(kpis, updatedBankData, ledgerSummary);
-                syncCoverageAlertModal(kpis, updatedBankData, mainRange);
+                syncCoverageAlertModal(
+                    kpis,
+                    updatedBankData,
+                    mainRange,
+                    cachedLedgerActiveCoverages,
+                );
             },
         });
 

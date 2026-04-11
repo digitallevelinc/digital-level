@@ -38,6 +38,7 @@ const state = {
     pageNetByPage: new Map(),
     prefetchedPages: new Set(),
     bankData: [],
+    activeCoverages: [],
     closingBalance: null,
     onBankDataUpdate: null,
     spreadTooltipBound: false,
@@ -2191,6 +2192,8 @@ const updateCoverageBadge = (transfers = [], cycleSpreads = new Map()) => {
             recoveredFiat,
             remainingFiat,
             name: tx?.counterpartyName || tx?.internalCounterpartyAlias || 'Sin nombre',
+            paymentMethod: tx?.paymentMethod || tx?.bankName || tx?.bank || '',
+            orderNumber: tx?.orderNumber || tx?.orderNo || '',
             fiatLabel: getFiatLabel(tx),
             createdAtMs: getTxTimestampMs(tx),
             isRelevantForLiveState,
@@ -2204,6 +2207,11 @@ const updateCoverageBadge = (transfers = [], cycleSpreads = new Map()) => {
 
         activeByKey.set(key, {
             kind: 'cycle',
+            key,
+            transferId: transferKey,
+            sourceId: transferKey,
+            paymentMethod: tx?.paymentMethod || tx?.bankName || tx?.bank || '',
+            orderNumber: tx?.orderNumber || tx?.orderNo || '',
             name: tx?.counterpartyName || tx?.internalCounterpartyAlias || 'Sin nombre',
             recoveredFiat,
             remainingFiat,
@@ -2251,6 +2259,14 @@ const updateCoverageBadge = (transfers = [], cycleSpreads = new Map()) => {
 
                 activeByKey.set(key, {
                     kind: 'promise',
+                    key,
+                    saleId: String(verdict?.saleId || '').trim(),
+                    saleTransferId: String(verdict?.saleTransferId || '').trim(),
+                    sourceId: String(verdict?.saleTransferId || verdict?.saleId || '').trim(),
+                    paymentMethod: verdict?.paymentMethod || '',
+                    orderNumber: verdict?.orderNumber || verdict?.orderNo || '',
+                    status: verdict?.status || 'OPEN',
+                    expectedUsdt,
                     name: verdict.counterpartyName || 'Sin nombre',
                     actualUsdt: boundedConsumedUsdt,
                     actualFiat: boundedConsumedFiat,
@@ -2272,6 +2288,11 @@ const updateCoverageBadge = (transfers = [], cycleSpreads = new Map()) => {
 
                     activeByKey.set(key, {
                         kind: 'cycle',
+                        key,
+                        transferId: key.replace(/^transfer:/, ''),
+                        sourceId: key.replace(/^transfer:/, ''),
+                        paymentMethod: localCycleStatus.paymentMethod || '',
+                        orderNumber: localCycleStatus.orderNumber || '',
                         name: localCycleStatus.name,
                         recoveredFiat: localCycleStatus.recoveredFiat,
                         remainingFiat: localCycleStatus.remainingFiat,
@@ -2298,6 +2319,13 @@ const updateCoverageBadge = (transfers = [], cycleSpreads = new Map()) => {
 
                 activeByKey.set(key, {
                     kind: 'cycle',
+                    key,
+                    saleId: String(verdict?.saleId || '').trim(),
+                    saleTransferId: String(verdict?.saleTransferId || '').trim(),
+                    sourceId: String(verdict?.saleTransferId || verdict?.saleId || '').trim(),
+                    paymentMethod: verdict?.paymentMethod || '',
+                    orderNumber: verdict?.orderNumber || verdict?.orderNo || '',
+                    status: verdict?.status || 'OPEN',
                     name: verdict.counterpartyName || 'Sin nombre',
                     recoveredFiat,
                     remainingFiat,
@@ -2319,6 +2347,13 @@ const updateCoverageBadge = (transfers = [], cycleSpreads = new Map()) => {
                 const key = getTransferKey(tx);
                 activeByKey.set(key, {
                     kind: 'promise',
+                    key,
+                    transferId: getTransferKey(tx),
+                    sourceId: getTransferKey(tx),
+                    paymentMethod: tx?.paymentMethod || tx?.bankName || tx?.bank || '',
+                    orderNumber: tx?.orderNumber || tx?.orderNo || '',
+                    status: 'OPEN',
+                    expectedUsdt: Number(promiseMeta.promiseUsdt || 0),
                     name: tx?.counterpartyName || tx?.internalCounterpartyAlias || 'Sin nombre',
                     actualUsdt: Number(promiseMeta.actualUsdt || 0),
                     actualFiat: Number(promiseMeta.actualFiat || 0),
@@ -2335,6 +2370,41 @@ const updateCoverageBadge = (transfers = [], cycleSpreads = new Map()) => {
         }
     }
     const active = selectCurrentActiveCoverages(Array.from(activeByKey.values()));
+    state.activeCoverages = active.map((entry) => {
+        const createdAtMs = Number(entry?.createdAtMs || 0);
+        const expectedFiat = entry.kind === 'promise'
+            ? Math.max(0, Number(entry.actualFiat || 0) + Number(entry.pendingFiat || 0))
+            : Math.max(0, Number(entry.recoveredFiat || 0) + Number(entry.remainingFiat || 0));
+        const consumedFiat = entry.kind === 'promise'
+            ? Math.max(0, Number(entry.actualFiat || 0))
+            : Math.max(0, Number(entry.recoveredFiat || 0));
+        const remainingFiat = entry.kind === 'promise'
+            ? Math.max(0, Number(entry.pendingFiat || 0))
+            : Math.max(0, Number(entry.remainingFiat || 0));
+        const status = remainingFiat <= COVERAGE_COMPLETION_TOLERANCE_FIAT
+            ? 'COMPLETED'
+            : consumedFiat > COVERAGE_COMPLETION_TOLERANCE_FIAT
+                ? 'PARTIAL'
+                : 'OPEN';
+
+        return {
+            id: String(entry?.sourceId || entry?.saleId || entry?.transferId || entry?.key || '').trim(),
+            saleId: String(entry?.saleId || entry?.sourceId || '').trim(),
+            saleTransferId: String(entry?.saleTransferId || entry?.transferId || '').trim(),
+            orderNumber: String(entry?.orderNumber || '').trim(),
+            paymentMethod: entry?.paymentMethod || entry?.bank || '',
+            createdAt: createdAtMs > 0 ? new Date(createdAtMs).toISOString() : null,
+            timestamp: createdAtMs > 0 ? new Date(createdAtMs).toISOString() : null,
+            createdAtMs,
+            status,
+            saleAmount: Number(entry?.expectedUsdt || 0),
+            expectedRebuyUsdt: Number(entry?.expectedUsdt || 0),
+            expectedRebuyFiat: expectedFiat,
+            consumedRebuyFiat: consumedFiat,
+            remainingFiat,
+            kind: entry.kind || 'cycle',
+        };
+    });
 
     if (active.length === 0) {
         badge.style.display = 'none';
@@ -3234,7 +3304,7 @@ const prefetchSellContextPages = async () => {
             };
         });
         // Re-render sidebar with updated per-bank ledger spreads and summary
-        if (typeof state.onBankDataUpdate === 'function') {
+            if (typeof state.onBankDataUpdate === 'function') {
             const spreadByBank = Array.from(ledgerSpreadByBank.entries())
                 .map(([bankKey, spreadUsdt]) => ({
                     bankKey,
@@ -3244,7 +3314,14 @@ const prefetchSellContextPages = async () => {
                 .filter((entry) => entry.spreadUsdt !== 0)
                 .sort((a, b) => Math.abs(b.spreadUsdt) - Math.abs(a.spreadUsdt));
 
-            state.onBankDataUpdate(state.bankData, { totalSpread, spreadCount, spreadByBank });
+            state.onBankDataUpdate(state.bankData, {
+                totalSpread,
+                spreadCount,
+                spreadByBank,
+                activeCoverages: Array.isArray(state.activeCoverages)
+                    ? state.activeCoverages.map((entry) => ({ ...entry }))
+                    : [],
+            });
         }
     }
 
