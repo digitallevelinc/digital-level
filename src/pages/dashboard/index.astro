@@ -21,6 +21,14 @@ import 'flatpickr/dist/themes/dark.css';
           <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
         </svg>
       </div>
+      <!-- ? button -->
+      <button
+        id="coverage-alert-details-btn"
+        title="Ver venta pendiente"
+        class="absolute top-3 right-3 flex h-7 w-7 items-center justify-center rounded-full border-2 border-rose-300 bg-rose-50 text-rose-500 text-[13px] font-black transition-all hover:bg-rose-100 hover:border-rose-400"
+        aria-expanded="false"
+        aria-controls="coverage-alert-details"
+      >?</button>
       <div class="mt-4 text-center">
         <h3 class="mb-3 text-[14px] font-black uppercase tracking-[0.2em] text-gray-900">Alerta de Seguridad</h3>
         <p class="mb-8 text-base font-black leading-relaxed text-rose-600">NO HAS COMPLETADO TUS COBERTURAS DEBES COMPLETARLO AHORA MISMO</p>
@@ -31,18 +39,96 @@ import 'flatpickr/dist/themes/dark.css';
           </svg>
           <span>Esperando cobertura completada...</span>
         </div>
+        <!-- Details panel (hidden by default) -->
+        <div
+          id="coverage-alert-details"
+          class="mt-5 hidden rounded-xl border border-rose-200 bg-rose-50 p-4 text-left"
+          role="region"
+          aria-label="Detalle de venta abierta"
+        >
+          <p class="mb-2 text-[11px] font-black uppercase tracking-[0.15em] text-rose-500">Venta(s) aún abierta(s):</p>
+          <ul id="coverage-alert-verdict-list" class="space-y-3 text-[12px] text-gray-700"></ul>
+        </div>
       </div>
     </div>
   </div>
   <script is:inline>
-    // Se utilizará para mostrar el modal localmente
-    window.showCoverageAlertModal = function() {
+    // ── helpers ────────────────────────────────────────────────────────────────
+    function _fmtCovNum(v, decimals) {
+      const n = Number(v || 0);
+      return Number.isFinite(n) ? n.toLocaleString('es-VE', { minimumFractionDigits: decimals, maximumFractionDigits: decimals }) : '—';
+    }
+    function _fmtAge(createdAt) {
+      const ms = Date.now() - new Date(createdAt || 0).getTime();
+      if (!ms || ms < 0) return '';
+      const h = Math.floor(ms / 3600000);
+      const m = Math.floor((ms % 3600000) / 60000);
+      if (h >= 1) return `${h}h ${m}m`;
+      return `${m}m`;
+    }
+    function _bankLabel(raw) {
+      const k = String(raw || '').trim().toLowerCase()
+        .normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+      if (k.includes('provincial') || k.includes('bbva')) return 'BBVA/Provincial';
+      if (k.includes('mercantil')) return 'Mercantil';
+      if (k.includes('banesco')) return 'Banesco';
+      if (k.includes('bnc')) return 'BNC';
+      if (k.includes('bancamiga')) return 'Bancamiga';
+      if (k.includes('bank') || k.includes('fintech')) return 'BANK';
+      return raw || 'Banco';
+    }
+
+    function _buildVerdictHTML(verdict) {
+      const bank    = _bankLabel(verdict?.paymentMethod);
+      const expUsdt = Number(verdict?.expectedRebuyUsdt ?? verdict?.saleAmount ?? 0);
+      const saleRate = Number(verdict?.saleRate || 0);
+      const expFiat  = Number(verdict?.expectedRebuyFiat ?? (expUsdt > 0 && saleRate > 0 ? expUsdt * saleRate : 0));
+      const remFiat  = Number(verdict?.remainingFiat || 0);
+      const consFiat = Number(verdict?.consumedRebuyFiat || 0);
+      const age      = _fmtAge(verdict?.createdAt || verdict?.timestamp);
+      const orderId  = String(verdict?.orderNumber || verdict?.orderNo || verdict?.id || '').trim();
+      const status   = String(verdict?.status || 'OPEN').toUpperCase();
+
+      return `
+        <li class="rounded-lg border border-rose-200 bg-white p-3 space-y-1">
+          <div class="flex items-center justify-between gap-2">
+            <span class="font-black text-[11px] uppercase tracking-wide text-rose-600">${bank}</span>
+            ${age ? `<span class="text-[10px] text-gray-400 font-bold">${age} abierta</span>` : ''}
+          </div>
+          ${orderId ? `<div class="text-[10px] text-gray-400 font-mono">ID: ${orderId}</div>` : ''}
+          <div class="text-[11px] text-gray-600 space-y-0.5">
+            ${expUsdt > 0 ? `<div>Esperado: <strong>${_fmtCovNum(expUsdt, 2)} USDT</strong>${expFiat > 0 ? ` · ${_fmtCovNum(expFiat, 2)} Bs` : ''}</div>` : ''}
+            ${remFiat > 0 ? `<div>Faltante: <strong class="text-rose-600">${_fmtCovNum(remFiat, 2)} Bs</strong></div>` : ''}
+            ${consFiat > 0 ? `<div>Cubierto: <strong class="text-emerald-600">${_fmtCovNum(consFiat, 2)} Bs</strong></div>` : ''}
+          </div>
+          <div class="text-[10px] font-bold text-gray-400 uppercase">${status}</div>
+        </li>`;
+    }
+
+    function _populateCoverageAlertDetails(verdicts) {
+      const list = document.getElementById('coverage-alert-verdict-list');
+      if (!list) return;
+      if (!Array.isArray(verdicts) || verdicts.length === 0) {
+        list.innerHTML = '<li class="text-[12px] text-gray-400 italic">Sin detalles disponibles.</li>';
+        return;
+      }
+      list.innerHTML = verdicts.map(_buildVerdictHTML).join('');
+    }
+
+    // ── modal API ──────────────────────────────────────────────────────────────
+    window.showCoverageAlertModal = function(staleVerdicts) {
       const modal = document.getElementById('coverage-alert-modal');
       const wrap = modal?.querySelector('div');
-      if (modal && wrap && modal.classList.contains('hidden')) {
+      if (!modal || !wrap) return;
+      _populateCoverageAlertDetails(staleVerdicts);
+      // Reset details panel each time
+      const details = document.getElementById('coverage-alert-details');
+      const detailsBtn = document.getElementById('coverage-alert-details-btn');
+      if (details) details.classList.add('hidden');
+      if (detailsBtn) detailsBtn.setAttribute('aria-expanded', 'false');
+      if (modal.classList.contains('hidden')) {
         modal.classList.remove('hidden');
         modal.classList.add('flex');
-        // Pequeño delay para la transición
         setTimeout(() => {
           modal.classList.remove('opacity-0');
           modal.classList.add('opacity-100');
@@ -56,7 +142,6 @@ import 'flatpickr/dist/themes/dark.css';
       const modal = document.getElementById('coverage-alert-modal');
       const wrap = modal?.querySelector('div');
       if (modal && wrap && !modal.classList.contains('hidden')) {
-        // Animación de salida
         modal.classList.remove('opacity-100');
         modal.classList.add('opacity-0');
         wrap.classList.remove('scale-100');
@@ -67,6 +152,17 @@ import 'flatpickr/dist/themes/dark.css';
         }, 300);
       }
     };
+
+    // ── ? button toggle ────────────────────────────────────────────────────────
+    document.addEventListener('DOMContentLoaded', function() {
+      const detailsBtn = document.getElementById('coverage-alert-details-btn');
+      const details    = document.getElementById('coverage-alert-details');
+      if (!detailsBtn || !details) return;
+      detailsBtn.addEventListener('click', function() {
+        const isOpen = details.classList.toggle('hidden');
+        detailsBtn.setAttribute('aria-expanded', isOpen ? 'false' : 'true');
+      });
+    });
   </script>
 
   <!-- Impersonacion Admin: aceptar ?impersonate=<token>&alias=<alias> -->

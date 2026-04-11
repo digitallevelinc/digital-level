@@ -204,16 +204,33 @@ function bankLabelFromKey(bankKey) {
     }
 }
 
-function toggleCoverageAlertModal(isVisible) {
+function toggleCoverageAlertModal(isVisible, staleVerdicts = []) {
     if (isVisible) {
         if (typeof window.showCoverageAlertModal === 'function') {
-            window.showCoverageAlertModal();
+            window.showCoverageAlertModal(staleVerdicts);
         }
         return;
     }
     if (typeof window.hideCoverageAlertModal === 'function') {
         window.hideCoverageAlertModal();
     }
+}
+
+const COVERAGE_ALERT_TERMINAL_STATUSES = new Set([
+    'CLOSED', 'COMPLETED', 'CANCELLED', 'CANCELED',
+    'CANCELLED_BY_SYSTEM', 'CANCELED_BY_SYSTEM',
+    'EXPIRED', 'RELEASED', 'FINISHED', 'DONE', 'SUCCESS',
+]);
+
+function isCoverageAlertTerminalVerdict(verdict = {}) {
+    const rawStatus = String(verdict?.status || verdict?.orderStatus || '').trim().toUpperCase();
+    if (rawStatus) {
+        if (COVERAGE_ALERT_TERMINAL_STATUSES.has(rawStatus)) return true;
+        if (rawStatus.startsWith('CLOS') || rawStatus.startsWith('COMPLET') ||
+            rawStatus.startsWith('CANCEL') || rawStatus.startsWith('EXPIRE') ||
+            rawStatus.startsWith('RELEASE')) return true;
+    }
+    return Boolean(verdict?.closedAt || verdict?.completedAt || verdict?.releasedAt);
 }
 
 function getActiveLedgerCoverageBankKeys(bankData = []) {
@@ -262,37 +279,43 @@ function syncCoverageAlertModal(kpis = {}, bankData = [], currentRange = null) {
     }
 
     const now = Date.now();
-    const hasStaleCoverage = verdicts.some((verdict) => {
+    const staleVerdicts = verdicts.filter((verdict) => {
         const remainingFiat = Number(verdict?.remainingFiat || 0);
         if (remainingFiat <= COVERAGE_MODAL_FIAT_TOLERANCE) return false;
 
-        const status = String(verdict?.status || '').toUpperCase();
-        if (status.startsWith('CLOS') || status.startsWith('COMPLET') || status.startsWith('CANCEL')) {
-            return false;
-        }
+        // Full terminal-status check (mirrors SidebarMonitor.isTerminalVerdict)
+        if (isCoverageAlertTerminalVerdict(verdict)) return false;
 
-        let isOutOFRange = false;
+        // Additional guard: if consumed fiat already covers expected, skip
+        const expectedUsdt = Number(verdict?.expectedRebuyUsdt ?? verdict?.saleAmount ?? 0);
+        const saleRate = Number(verdict?.saleRate || 0);
+        const expectedFiat = Number(
+            verdict?.expectedRebuyFiat ??
+            (expectedUsdt > 0 && saleRate > 0 ? expectedUsdt * saleRate : 0)
+        );
+        const consumedFiat = Number(verdict?.consumedRebuyFiat || 0);
+        if (expectedFiat > 0 && consumedFiat >= expectedFiat - COVERAGE_MODAL_FIAT_TOLERANCE) return false;
+
+        // Verdicts created before the current date-range start are out of scope.
+        // The ledger bank data is scoped to the range, so we can't verify them —
+        // skip them to avoid false alerts from stale backend entries.
         if (currentRange && currentRange.from) {
             const parts = currentRange.from.split('-');
             if (parts.length === 3) {
                 const rangeStartUtcMs = Date.UTC(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]), 4, 0, 0);
                 const verdictTimestamp = new Date(verdict?.createdAt || verdict?.timestamp || 0).getTime();
-                if (verdictTimestamp < rangeStartUtcMs) {
-                    isOutOFRange = true;
-                }
+                if (verdictTimestamp < rangeStartUtcMs) return false;
             }
         }
 
-        if (ledgerCoverageResolved) {
-            const bankKey = normalizeBankKey(verdict?.paymentMethod);
-            if (!isOutOFRange && (!bankKey || !activeKeys.has(bankKey))) return false;
-        }
+        const bankKey = normalizeBankKey(verdict?.paymentMethod);
+        if (!bankKey || !activeKeys.has(bankKey)) return false;
 
         const ageMs = now - new Date(verdict?.createdAt || verdict?.timestamp || 0).getTime();
         return ageMs >= COVERAGE_MODAL_STALE_MS;
     });
 
-    toggleCoverageAlertModal(hasStaleCoverage);
+    toggleCoverageAlertModal(staleVerdicts.length > 0, staleVerdicts);
 }
 
 function getRequiredBankKeys(kpis = {}) {
