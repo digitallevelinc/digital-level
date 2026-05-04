@@ -34,6 +34,22 @@ function fmtDate(d) {
   }
 }
 
+function getReferenceLabel(kind, type) {
+  const normalizedType = String(type || '').toUpperCase();
+  if (kind === 'TX_HASH') return normalizedType === 'WITHDRAWAL' ? 'TxHash' : 'Hash';
+  if (kind === 'BINANCE_ID') return 'Binance ID';
+  if (kind === 'TRANSFER_ID') return 'Transfer ID';
+  return 'Orden';
+}
+
+function getTypeLabel(type) {
+  const normalized = String(type || '').toUpperCase();
+  if (normalized === 'P2P_SELL') return 'P2P Sell';
+  if (normalized === 'PAY_SENT') return 'Pay Sent';
+  if (normalized === 'WITHDRAWAL') return 'Retiro Red';
+  return normalized || 'Movimiento';
+}
+
 function setFeedback(text, tone = 'muted') {
   const el = qs('payroll-withdrawal-feedback');
   if (!el) return;
@@ -76,26 +92,31 @@ function renderHistory(items = []) {
   }
 
   list.innerHTML = items.map((row) => {
-    const order = escapeHtml(row.orderNumber || '-');
+    const reference = escapeHtml(row.orderNumber || '-');
+    const referenceLabel = escapeHtml(getReferenceLabel(row.referenceKind, row.type));
     const amount = Number(row.amount || 0);
     const asset = escapeHtml(row.asset || 'USDT');
     const soldDate = fmtDate(row.timestamp);
     const payrollAddedDate = fmtDate(row.appliedAt || row.timestamp);
     const status = escapeHtml(row.status || 'SUCCESS');
+    const typeLabel = escapeHtml(getTypeLabel(row.type));
+    const network = row.network ? escapeHtml(row.network) : '';
     const amt = fUSDT(Math.abs(amount));
 
     return `
       <div class="grid grid-cols-1 sm:grid-cols-[1fr_auto] items-start sm:items-center gap-3 rounded-lg border border-white/10 bg-black/20 px-3.5 py-3">
         <div class="min-w-0">
-          <div class="text-[10px] sm:text-[11px] font-black uppercase tracking-[0.14em] text-white-500">Orden</div>
-          <div class="text-[13px] sm:text-[14px] font-mono font-black text-white break-all leading-tight">${order}</div>
-          <div class="text-[11px] sm:text-[12px] font-semibold text-white/75 mt-1 leading-tight">Venta: ${escapeHtml(soldDate)}</div>
+          <div class="text-[10px] sm:text-[11px] font-black uppercase tracking-[0.14em] text-white-500">${referenceLabel}</div>
+          <div class="text-[13px] sm:text-[14px] font-mono font-black text-white break-all leading-tight">${reference}</div>
+          <div class="text-[11px] sm:text-[12px] font-semibold text-white/75 mt-1 leading-tight">Movimiento: ${escapeHtml(soldDate)}</div>
           <div class="text-[11px] sm:text-[12px] font-semibold text-white/75 mt-1 leading-tight">Agregada a Payroll: ${escapeHtml(payrollAddedDate)}</div>
         </div>
         <div class="text-left sm:text-right">
           <div class="text-[13px] sm:text-[14px] font-mono font-black text-rose-300">-${amt}</div>
           <div class="mt-1.5 flex flex-wrap items-center justify-start sm:justify-end gap-1.5">
             <span class="inline-flex px-2 py-0.5 rounded-md border border-white/10 bg-white/5 text-[10px] sm:text-[11px] font-black uppercase tracking-[0.1em] text-white/75">${asset}</span>
+            <span class="inline-flex px-2 py-0.5 rounded-md border border-sky-400/20 bg-sky-500/10 text-[10px] sm:text-[11px] font-black uppercase tracking-[0.1em] text-sky-300">${typeLabel}</span>
+            ${network ? `<span class="inline-flex px-2 py-0.5 rounded-md border border-[#F3BA2F]/20 bg-[#F3BA2F]/10 text-[10px] sm:text-[11px] font-black uppercase tracking-[0.1em] text-[#F3BA2F]">${network}</span>` : ''}
             <span class="inline-flex px-2 py-0.5 rounded-md border text-[10px] sm:text-[11px] font-black uppercase tracking-[0.1em] ${status === 'SUCCESS' ? 'border-emerald-400/30 bg-emerald-500/10 text-emerald-300' : 'border-white/10 bg-white/5 text-white/65'}">${status}</span>
           </div>
         </div>
@@ -147,8 +168,8 @@ export async function handleWithdrawalByOrder(API_BASE, token, orderNumber) {
     setFeedback('Pega una referencia ORD o un numero de orden.', 'err');
     return;
   }
-  if (!/^\d{6,}$/.test(normalizedOrder)) {
-    setFeedback('La referencia debe contener un numero de orden valido.', 'err');
+  if (normalizedOrder.length < 6) {
+    setFeedback('La referencia debe tener al menos 6 caracteres validos.', 'err');
     return;
   }
 
@@ -184,8 +205,11 @@ export async function handleWithdrawalByOrder(API_BASE, token, orderNumber) {
     }
 
     if (applied) {
+      const refLabel = getReferenceLabel(applied.referenceKind, applied.type);
+      const typeLabel = getTypeLabel(applied.type);
+      const networkLabel = applied.network ? ` | ${applied.network}` : '';
       setFeedback(
-        `Aplicado: Orden ${applied.orderNumber} | -${fUSDT(Number(applied.amount || 0))} | ${fmtDate(applied.timestamp)} | ${applied.status || 'SUCCESS'}`,
+        `Aplicado: ${refLabel} ${applied.orderNumber} | ${typeLabel}${networkLabel} | -${fUSDT(Number(applied.amount || 0))} | ${fmtDate(applied.timestamp)} | ${applied.status || 'SUCCESS'}`,
         'ok'
       );
     } else {
