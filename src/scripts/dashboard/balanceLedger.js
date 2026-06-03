@@ -294,6 +294,25 @@ const getLedgerAnchorBalance = (kpis = {}) => {
     // trade lands. If we anchor the ledger to a stale KPI balance while the
     // rows already include the new transfers, the reconstructed balances drift
     // negative even though the closing balance is correct.
+    //
+    // SAFETY GUARD: If the backend-derived closingBalance diverges significantly
+    // from the verified Binance wallet balance, prefer the verified value and log
+    // the mismatch. This prevents negative reconstructed balances caused by
+    // backend groupBy inconsistencies (missing transfers, race conditions, etc.).
+    const CLOSING_BALANCE_DIVERGENCE_THRESHOLD = 10;
+    if (Number.isFinite(payloadClosingBalance) && Number.isFinite(verifiedWalletBalance)) {
+        const divergence = Math.abs(payloadClosingBalance - verifiedWalletBalance);
+        if (divergence > CLOSING_BALANCE_DIVERGENCE_THRESHOLD) {
+            console.warn(
+                `[Ledger] closingBalance (${payloadClosingBalance.toFixed(2)}) diverges from ` +
+                `verifiedWalletBalance (${verifiedWalletBalance.toFixed(2)}) by ${divergence.toFixed(2)}. ` +
+                `Using verified wallet balance to prevent negative ledger balances.`
+            );
+            return verifiedWalletBalance;
+        }
+        return payloadClosingBalance;
+    }
+
     if (Number.isFinite(payloadClosingBalance)) {
         return payloadClosingBalance;
     }
