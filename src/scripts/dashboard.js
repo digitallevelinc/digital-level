@@ -582,6 +582,7 @@ function buildKpiUrl(API_BASE, range = {}, options = {}) {
     if (range?.from) params.set('from', range.from);
     if (range?.to) params.set('to', range.to);
     if (options?.bootstrap) params.set('bootstrap', '1');
+    params.set('analytics', '1');
     params.set('_ts', String(Date.now()));
     return `${API_BASE}/api/kpis${params.toString() ? `?${params.toString()}` : ''}`;
 }
