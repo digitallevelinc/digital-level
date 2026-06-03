@@ -227,9 +227,12 @@ function initEvolutionToggle() {
         body.classList.toggle('hidden', isOpen);
         if (icon) icon.style.transform = isOpen ? '' : 'rotate(90deg)';
         if (!isOpen && pendingChartData) {
-            renderProfitChart(pendingChartData, pendingChartTotalProfit);
-            pendingChartData = null;
-            pendingChartTotalProfit = 0;
+            // Defer to next frame so the browser calculates layout after removing hidden
+            requestAnimationFrame(() => {
+                renderProfitChart(pendingChartData, pendingChartTotalProfit);
+                pendingChartData = null;
+                pendingChartTotalProfit = 0;
+            });
         }
     });
 }
@@ -288,10 +291,27 @@ function renderProfitChart(chartData = [], totalProfit = 0) {
     // Destroy existing chart to prevent canvas reuse errors
     if (profitChartInstance) {
         profitChartInstance.destroy();
+        profitChartInstance = null;
     }
 
+    const wrapper = ctx.parentElement;
+
     if (!chartData || chartData.length === 0) {
+        if (wrapper) {
+            let noDataMsg = wrapper.querySelector('.chart-no-data-msg');
+            if (!noDataMsg) {
+                noDataMsg = document.createElement('div');
+                noDataMsg.className = 'chart-no-data-msg absolute inset-0 flex h-full w-full items-center justify-center text-white/40 text-sm';
+                noDataMsg.textContent = 'No hay datos históricos para el rango seleccionado.';
+                wrapper.appendChild(noDataMsg);
+            }
+        }
         return;
+    }
+
+    if (wrapper) {
+        const noDataMsg = wrapper.querySelector('.chart-no-data-msg');
+        if (noDataMsg) noDataMsg.remove();
     }
 
     // The backend now provides real daily profit/fee/capital/cycle values for
