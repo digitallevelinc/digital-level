@@ -84,6 +84,12 @@ function resolveBankCeilingRate(bank = {}, fallbackRate = 0) {
     return Number(bank.ceilingRate || fallbackRate || 0);
 }
 
+function buildBankRateLabel(bank, fallbackRate = 0) {
+    const averageSellRate = resolveBankAverageSellRate(bank);
+    const ceilingRate = resolveBankCeilingRate(bank, fallbackRate);
+    return `Venta prom. ${formatPlain(averageSellRate)} | Techo ${formatPlain(ceilingRate)}`;
+}
+
 function getBankMonitorSummary(kpis = {}, bankInsights = []) {
     const banks = Array.isArray(bankInsights) ? bankInsights : [];
     const ceilingBanks = banks.filter((bank) => Number(bank.ceilingRate || 0) > 0);
@@ -1105,6 +1111,7 @@ export function updateSidebarMonitor(kpis = {}, bankInsights = [], ledgerSummary
         const bankProfitFiat = getLedgerSpreadProfitFiat(bank);
         const vesControl = buildBankVesLimitLabel(bank, kpis.config || {}, vesControlSummaryByBank);
         const bankCeiling = Number(vesControl.limit || 0);
+        const rateLabel = buildBankRateLabel(bank, bankSummary.referenceSellRate);
 
         return {
             bank,
@@ -1116,8 +1123,11 @@ export function updateSidebarMonitor(kpis = {}, bankInsights = [], ledgerSummary
             bankCeiling,
             bankProfit,
             bankProfitFiat,
+            rateLabel,
         };
     });
+
+    const activeBankCards = bankCards.filter((entry) => Number(entry.bankCeiling || 0) > 0);
 
     inject('side-ceiling-level-label', 'VENTA ACTUAL');
     inject('side-ceiling-level-value', bankSummary.avgSellRate > 0 ? formatPlain(bankSummary.avgSellRate) : '0,00');
@@ -1125,8 +1135,15 @@ export function updateSidebarMonitor(kpis = {}, bankInsights = [], ledgerSummary
         'side-ceiling-level-meta',
         `Nivel ${String(bankSummary.levelLabel || 'Sin nivel').toUpperCase()} | ${formatPlain(bankSummary.verificationPercent)}%`
     );
+    inject(
+        'side-ceiling-sell-rate',
+        bankSummary.avgCeilingRate > 0
+            ? `Techo general: ${formatPlain(bankSummary.avgCeilingRate)} VES/USDT`
+            : 'Sin techo configurado'
+    );
+    inject('side-ceiling-level-badge', `${formatPlain(activeBankCards.length, 0)} Bancos`);
 
-    bankCards.forEach(({ bank, ops, vesControl, pagoMovil, cyclesCompleted, bankProfit, bankProfitFiat }) => {
+    bankCards.forEach(({ bank, ops, vesControl, pagoMovil, cyclesCompleted, bankProfit, bankProfitFiat, rateLabel }) => {
         const performancePercent = Number(bank.profitPercent ?? bank.margin ?? 0);
         const hasReliablePerformanceBase = (
             Math.abs(Number(bank.spreadSellUsdt || 0)) > 0.0001
@@ -1169,6 +1186,9 @@ export function updateSidebarMonitor(kpis = {}, bankInsights = [], ledgerSummary
                     <span data-bank-toggle-icon class="text-[#F3BA2F] text-[14px] leading-none mt-0.5">${isCollapsed ? '&#9656;' : '&#9662;'}</span>
                 </div>
             </button>
+            <div class="text-[11px] font-mono font-black tracking-tight text-[#F3BA2F] mt-1">
+                ${rateLabel}
+            </div>
             <div data-bank-body class="${isCollapsed ? 'hidden ' : ''}mt-2 flex flex-col gap-2.5">
                 <div class="flex items-center justify-between gap-3 mt-1">
                     <span class="text-[11px] text-slate-500 font-black uppercase tracking-[0.18em]">Control FIAT</span>
