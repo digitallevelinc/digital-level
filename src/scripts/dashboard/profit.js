@@ -26,6 +26,16 @@ function setHtml(id, value) {
     if (el) el.innerHTML = value;
 }
 
+function setProfitCardSkeleton(isVisible) {
+    const skeleton = document.getElementById('audit-total-profit-skeleton');
+    const value = document.getElementById('audit-total-profit-display');
+    if (!skeleton || !value) return;
+
+    skeleton.classList.toggle('hidden', !isVisible);
+    value.classList.toggle('hidden', isVisible);
+    value.setAttribute('aria-busy', isVisible ? 'true' : 'false');
+}
+
 function formatSignedUsd(value) {
     const amount = Number(value || 0);
     const formatted = fUSDT(Math.abs(amount));
@@ -164,11 +174,10 @@ export function updateProfitUI(kpis = {}, bankInsights = [], ledgerSummary = nul
     // This card must reflect Binance API balance only.
     const realBinance = parseNumeric(audit.realBalance);
     inject('real-binance-balance', fUSDT(realBinance));
-    inject(
-        'audit-total-profit-display',
-        displayedProfit === null ? 'Calculando...' : fUSDT(displayedProfit),
-        true
-    );
+    setProfitCardSkeleton(displayedProfit === null);
+    if (displayedProfit !== null) {
+        inject('audit-total-profit-display', fUSDT(displayedProfit), true);
+    }
 
     inject('audit-total-volume', fUSDT(parseFloat(operations.totalVolumeUSDT || 0)));
     inject('audit-total-fees', fUSDT(parseFloat(operations.totalFeesPaid || 0)));

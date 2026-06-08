@@ -98,7 +98,14 @@ import CardHelp from './CardHelp.astro';
             </div>
           </div>
         </div>
-        <h4 id="audit-total-profit-display" class="font-mono text-[1.75rem] font-bold leading-tight text-white sm:text-[1.95rem]">---</h4>
+        <div class="mt-1 min-h-[2.35rem] sm:min-h-[2.6rem]">
+          <div
+            id="audit-total-profit-skeleton"
+            class="hidden h-[2.05rem] w-32 animate-pulse rounded-md bg-white/10 shadow-inner shadow-black/20 sm:h-[2.25rem] sm:w-36"
+            aria-hidden="true"
+          ></div>
+          <h4 id="audit-total-profit-display" class="font-mono text-[1.75rem] font-bold leading-tight text-white sm:text-[1.95rem]">---</h4>
+        </div>
         <p class="mt-2 text-[10px] italic uppercase tracking-[0.14em] text-white/45 sm:text-[11px]">Profit neto consolidado del rango</p>
       </div>
     </div>
