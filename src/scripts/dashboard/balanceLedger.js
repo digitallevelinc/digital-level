@@ -2107,6 +2107,80 @@ const buildActiveFiatCoverageSummaryByBank = (transfers = [], cycleSpreads = new
     return summary;
 };
 
+const COVERAGE_TERMINAL_STATUSES = new Set([
+    'CLOSED', 'COMPLETED', 'CANCELLED', 'CANCELED',
+    'CANCELLED_BY_SYSTEM', 'CANCELED_BY_SYSTEM',
+    'EXPIRED', 'RELEASED', 'FINISHED', 'DONE', 'SUCCESS',
+]);
+
+const isTerminalCoverageVerdict = (verdict = {}) => {
+    const rawStatus = String(verdict?.status || verdict?.orderStatus || '').trim().toUpperCase();
+    if (rawStatus) {
+        if (COVERAGE_TERMINAL_STATUSES.has(rawStatus)) return true;
+        if (
+            rawStatus.startsWith('CLOS') ||
+            rawStatus.startsWith('COMPLET') ||
+            rawStatus.startsWith('CANCEL') ||
+            rawStatus.startsWith('EXPIRE') ||
+            rawStatus.startsWith('RELEASE')
+        ) {
+            return true;
+        }
+    }
+    return Boolean(verdict?.closedAt || verdict?.completedAt || verdict?.releasedAt);
+};
+
+const buildJudgeActiveFiatCoverageSummaryByBank = () => {
+    const summary = new Map();
+    const judgeOpenVerdicts = Array.isArray(state.kpis?.judge?.openVerdicts)
+        ? state.kpis.judge.openVerdicts
+        : null;
+
+    if (!judgeOpenVerdicts) {
+        return { hasJudgeData: false, summary };
+    }
+
+    for (const verdict of judgeOpenVerdicts) {
+        if (isPromiseVerdict(verdict)) continue;
+        if (isTerminalCoverageVerdict(verdict)) continue;
+
+        const bankKey = normalizeBankKey(verdict?.paymentMethod);
+        if (!bankKey) continue;
+
+        const totalFiat = Math.max(0, Number(verdict?.fiatReceived || 0));
+        const remainingFiat = Math.max(0, Number(verdict?.remainingFiat || 0));
+        if (totalFiat <= COVERAGE_COMPLETION_TOLERANCE_FIAT) continue;
+        if (remainingFiat <= COVERAGE_COMPLETION_TOLERANCE_FIAT) continue;
+
+        const consumedFiat = Math.max(0, totalFiat - remainingFiat);
+        const createdAtMs = new Date(verdict?.createdAt || verdict?.timestamp || 0).getTime() || 0;
+        const bucket = summary.get(bankKey) || {
+            activeCount: 0,
+            totalFiat: 0,
+            remainingFiat: 0,
+            consumedFiat: 0,
+            latestTimestamp: 0,
+            latestTotalFiat: 0,
+            latestRemainingFiat: 0,
+            latestConsumedFiat: 0,
+        };
+
+        bucket.activeCount += 1;
+        bucket.totalFiat += totalFiat;
+        bucket.remainingFiat += remainingFiat;
+        bucket.consumedFiat += consumedFiat;
+        if (createdAtMs >= Number(bucket.latestTimestamp || 0)) {
+            bucket.latestTimestamp = createdAtMs;
+            bucket.latestTotalFiat = totalFiat;
+            bucket.latestRemainingFiat = remainingFiat;
+            bucket.latestConsumedFiat = consumedFiat;
+        }
+        summary.set(bankKey, bucket);
+    }
+
+    return { hasJudgeData: true, summary };
+};
+
 const buildLatestFiatCycleSummaryByBank = (transfers = [], cycleSpreads = new Map()) => {
     const summary = new Map();
     const { effectiveFrom, effectiveTo } = getEffectiveCoverageRange();
@@ -2189,9 +2263,9 @@ const updateCoverageBadge = (transfers = [], cycleSpreads = new Map()) => {
     const activeByKey = new Map();
     const localCycleStatusByKey = new Map();
 
-    // Las coberturas P2P activas deben salir del ciclo local del ledger,
-    // porque es la vista que incorpora de inmediato las compras manuales
-    // más recientes del rango actual.
+    // El ledger local sigue calculando spreads/profit, pero la cobertura FIAT
+    // activa debe obedecer al judge backend cuando está disponible: ahí se aplica
+    // la regla neta "Fiat que sale - Fiat que entra" sin depender del orden.
     for (const tx of transfers) {
         if (normalizeTxType(tx) !== 'P2P_SELL') continue;
 
@@ -2224,20 +2298,22 @@ const updateCoverageBadge = (transfers = [], cycleSpreads = new Map()) => {
 
         if (remainingFiat <= COVERAGE_COMPLETION_TOLERANCE_FIAT) continue;
 
-        activeByKey.set(key, {
-            kind: 'cycle',
-            key,
-            transferId: transferKey,
-            sourceId: transferKey,
-            paymentMethod: tx?.paymentMethod || tx?.bankName || tx?.bank || '',
-            orderNumber: tx?.orderNumber || tx?.orderNo || '',
-            name: tx?.counterpartyName || tx?.internalCounterpartyAlias || 'Sin nombre',
-            recoveredFiat,
-            remainingFiat,
-            pct: Number(cycleData.recoveredPct || 0),
-            fiatLabel: getFiatLabel(tx),
-            createdAtMs: getTxTimestampMs(tx),
-        });
+        if (verdictBySaleId === null) {
+            activeByKey.set(key, {
+                kind: 'cycle',
+                key,
+                transferId: transferKey,
+                sourceId: transferKey,
+                paymentMethod: tx?.paymentMethod || tx?.bankName || tx?.bank || '',
+                orderNumber: tx?.orderNumber || tx?.orderNo || '',
+                name: tx?.counterpartyName || tx?.internalCounterpartyAlias || 'Sin nombre',
+                recoveredFiat,
+                remainingFiat,
+                pct: Number(cycleData.recoveredPct || 0),
+                fiatLabel: getFiatLabel(tx),
+                createdAtMs: getTxTimestampMs(tx),
+            });
+        }
     }
 
     if (verdictBySaleId !== null) {
@@ -2295,35 +2371,8 @@ const updateCoverageBadge = (transfers = [], cycleSpreads = new Map()) => {
                     fiatLabel: 'FIAT',
                     createdAtMs: new Date(verdict?.createdAt || verdict?.timestamp || 0).getTime() || 0,
                 });
-            } else if (!activeByKey.has(key)) {
-                // P2P cycle verdict: only used as fallback when the cycle loop
-                // didn't already populate this sale from local data. This keeps
-                // the local ledger authoritative for in-range sales (it reflects
-                // the freshest manual purchases) while still surfacing cross-day
-                // open cycles that the local path cannot see.
+            } else {
                 const localCycleStatus = localCycleStatusByKey.get(key);
-                if (localCycleStatus?.isRelevantForLiveState) {
-                    if (localCycleStatus.complete) continue;
-
-                    activeByKey.set(key, {
-                        kind: 'cycle',
-                        key,
-                        transferId: key.replace(/^transfer:/, ''),
-                        sourceId: key.replace(/^transfer:/, ''),
-                        paymentMethod: localCycleStatus.paymentMethod || '',
-                        orderNumber: localCycleStatus.orderNumber || '',
-                        name: localCycleStatus.name,
-                        recoveredFiat: localCycleStatus.recoveredFiat,
-                        remainingFiat: localCycleStatus.remainingFiat,
-                        pct: localCycleStatus.totalSellFiat > 0
-                            ? Math.min(100, (localCycleStatus.recoveredFiat / localCycleStatus.totalSellFiat) * 100)
-                            : 0,
-                        fiatLabel: localCycleStatus.fiatLabel,
-                        createdAtMs: localCycleStatus.createdAtMs,
-                    });
-                    continue;
-                }
-
                 const totalSellFiat = Math.max(0, Number(verdict?.fiatReceived || 0));
                 const verdictRemainingFiat = Math.max(0, Number(verdict?.remainingFiat || 0));
                 const consumedRebuyFiat = Math.max(0, Number(verdict?.consumedRebuyFiat || 0));
@@ -2349,7 +2398,7 @@ const updateCoverageBadge = (transfers = [], cycleSpreads = new Map()) => {
                     recoveredFiat,
                     remainingFiat,
                     pct: totalSellFiat > 0 ? Math.min(100, (recoveredFiat / totalSellFiat) * 100) : 0,
-                    fiatLabel: 'FIAT',
+                    fiatLabel: localCycleStatus?.fiatLabel || 'FIAT',
                     createdAtMs: new Date(verdict?.createdAt || verdict?.timestamp || 0).getTime() || 0,
                 });
             }
@@ -3243,6 +3292,7 @@ const prefetchSellContextPages = async () => {
     const ledgerSpreadByBank = new Map(); // bankKey → spread sum (USDT)
     const ledgerSpreadFiatByBank = new Map(); // bankKey → spread sum (FIAT)
     const activeFiatCoverageSummaryByBank = buildActiveFiatCoverageSummaryByBank(allScoped, allCycleSpreads);
+    const judgeCoverageSummary = buildJudgeActiveFiatCoverageSummaryByBank();
     const latestFiatCycleSummaryByBank = buildLatestFiatCycleSummaryByBank(allScoped, allCycleSpreads);
 
     // Count completed cycles per bank from the local ledger (P2P_SELL entries marked complete)
@@ -3297,14 +3347,23 @@ const prefetchSellContextPages = async () => {
             injectedKeys.add(key);
             const ledgerSpread = truncateTowardZero(ledgerSpreadByBank.get(key) || 0, 2);
             const ledgerSpreadFiat = truncateTowardZero(ledgerSpreadFiatByBank.get(key) || 0, 2);
-            const coverageSummary = activeFiatCoverageSummaryByBank.get(key) || {};
+            const coverageSummary = judgeCoverageSummary.hasJudgeData
+                ? (judgeCoverageSummary.summary.get(key) || {})
+                : (activeFiatCoverageSummaryByBank.get(key) || {});
             const latestCycleSummary = latestFiatCycleSummaryByBank.get(key) || {};
             const ledgerCompleted = ledgerCompletedCyclesByBank.get(key) || 0;
+            const currentCycleSummary = coverageSummary.activeCount > 0
+                ? {
+                    remainingFiat: Number(coverageSummary.latestRemainingFiat ?? coverageSummary.remainingFiat ?? 0),
+                    totalFiat: Number(coverageSummary.latestTotalFiat ?? coverageSummary.totalFiat ?? 0),
+                    consumedFiat: Number(coverageSummary.latestConsumedFiat ?? coverageSummary.consumedFiat ?? 0),
+                }
+                : latestCycleSummary;
             return {
                 ...bank,
                 spreadProfitUsdt: ledgerSpread !== 0 ? ledgerSpread : bank.spreadProfitUsdt,
                 spreadProfitFiat: ledgerSpreadFiat !== 0 ? ledgerSpreadFiat : bank.spreadProfitFiat,
-                coverageActiveFiatCount: coverageSummary.activeCount > 0 ? coverageSummary.activeCount : bank.coverageActiveFiatCount,
+                coverageActiveFiatCount: Number(coverageSummary.activeCount || 0),
                 // Always write ledger-computed coverage so the sidebar memo can
                 // detect when no active cycle exists (totalFiat === 0) and clear itself,
                 // instead of falling back to stale backend values.
@@ -3313,9 +3372,9 @@ const prefetchSellContextPages = async () => {
                 // Always mirror the latest cycle snapshot from the ledger, even
                 // when it is already complete, so the sidebar Control FIAT keeps
                 // showing the real bank cycle instead of stale backend values.
-                currentCycleFiatRemaining: Number(latestCycleSummary.remainingFiat ?? 0),
-                currentCycleTotalFiat: Number(latestCycleSummary.totalFiat ?? 0),
-                currentCycleFiatSpent: Number(latestCycleSummary.consumedFiat ?? 0),
+                currentCycleFiatRemaining: Number(currentCycleSummary.remainingFiat ?? 0),
+                currentCycleTotalFiat: Number(currentCycleSummary.totalFiat ?? 0),
+                currentCycleFiatSpent: Number(currentCycleSummary.consumedFiat ?? 0),
                 // Ledger-counted completed cycles — used by the sidebar if greater than
                 // whatever the backend reports, so the CICLOS counter is always up-to-date.
                 ledgerCompletedCycles: ledgerCompleted,
