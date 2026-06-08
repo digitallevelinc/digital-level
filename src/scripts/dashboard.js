@@ -3,7 +3,7 @@ import flatpickr from "flatpickr";
 import { Spanish } from "flatpickr/dist/l10n/es.js";
 import { fUSDT, fVES, inject } from './dashboard/utils.js';
 // import { updateDispersorUI } from './dashboard/dispersor.js'; // REMOVED
-import { updateProfitUI } from './dashboard/profit.js';
+import { resetProfitLedgerSummary, updateProfitUI } from './dashboard/profit.js';
 import { updateComisionOperadorUI } from './dashboard/comisionOp.js';
 import { initPayrollWithdrawalsUI, refreshPayrollSummary, refreshPayrollWithdrawalHistory, setPayrollRange } from './dashboard/payrollWithdrawals.js';
 import { updateProyeccionesUI } from './dashboard/proyecciones.js';
@@ -829,6 +829,8 @@ export async function updateDashboard(API_BASE, token, alias, range = {}, opts =
         if (showLoading) {
             cachedLedgerBankData = [];
             cachedLedgerActiveCoverages = [];
+            resetProfitLedgerSummary();
+            kpis.__ledgerProfitReady = false;
             syncCoverageAlertModal(kpis, [], mainRange, []);
         } else {
             syncCoverageAlertModal(kpis, cachedLedgerBankData, mainRange, cachedLedgerActiveCoverages);
@@ -989,6 +991,7 @@ export async function updateDashboard(API_BASE, token, alias, range = {}, opts =
                     : [];
                 updateSidebarMonitor(kpis, updatedBankData, ledgerSummary);
                 updateProfitUI(kpis, updatedBankData, ledgerSummary);
+                updateMainKpis(kpis, kpis.critical?.profitTotalUSDT ?? null);
                 syncCoverageAlertModal(
                     kpis,
                     updatedBankData,
@@ -1206,9 +1209,12 @@ function updateMainKpis(kpis = {}, manualProfit = null) {
 
     inject('kpi-margin', pct(critical.globalMarginPercent ?? summary.globalMarginPct), true);
 
-    // El backend envía el PROFIT NETO directamente, no hacer cálculos aquí.
-    const profitToDisplay = critical.profitTotalUSDT ?? (manualProfit !== null ? manualProfit : (summary.totalProfit ?? summary.profit ?? 0));
-    inject('kpi-profit', fUSDT(profitToDisplay), true);
+    const profitToDisplay = manualProfit !== null
+        ? manualProfit
+        : (kpis.__ledgerProfitReady === true
+            ? (critical.profitTotalUSDT ?? summary.totalProfit ?? summary.profit ?? null)
+            : null);
+    inject('kpi-profit', profitToDisplay === null ? 'Calculando...' : fUSDT(profitToDisplay), true);
 
 }
 

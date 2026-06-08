@@ -3,6 +3,10 @@ import Chart from 'chart.js/auto';
 
 let cachedLedgerProfitSummary = null;
 
+export function resetProfitLedgerSummary() {
+    cachedLedgerProfitSummary = null;
+}
+
 function parseNumeric(value) {
     const n = Number(value);
     return Number.isFinite(n) ? n : 0;
@@ -50,6 +54,27 @@ function getSellFeesTotal(kpis = {}, bankInsights = []) {
     ), 0);
 }
 
+function applyVisibleProfit(kpis = {}, profit = 0) {
+    if (!kpis.critical) kpis.critical = {};
+    if (!kpis.metrics) kpis.metrics = {};
+
+    const normalizedProfit = parseNumeric(profit);
+    kpis.__ledgerProfitReady = true;
+    kpis.critical.profitTotalUSDT = normalizedProfit;
+    kpis.metrics.totalProfit = normalizedProfit;
+
+    const completedCycles = parseNumeric(kpis.critical.completedCycles);
+    if (completedCycles > 0) {
+        kpis.critical.averageCycleProfit = normalizedProfit / completedCycles;
+    }
+
+    if (kpis.critical.payroll && typeof kpis.critical.payroll === 'object') {
+        const percentage = parseNumeric(kpis.critical.payroll.percentage);
+        kpis.critical.payroll.baseProfit = normalizedProfit;
+        kpis.critical.payroll.totalAmount = (normalizedProfit * percentage) / 100;
+    }
+}
+
 function updateProfitTooltip(kpis = {}, bankInsights = [], ledgerSummary = null) {
     if (ledgerSummary && typeof ledgerSummary === 'object') {
         cachedLedgerProfitSummary = ledgerSummary;
@@ -67,6 +92,7 @@ function updateProfitTooltip(kpis = {}, bankInsights = [], ledgerSummary = null)
     if (hasLedgerProfit) {
         const ledgerNetProfit = ledgerSpreadTotal - sellFees;
         const displayedProfit = ledgerNetProfit;
+        applyVisibleProfit(kpis, displayedProfit);
 
         setText(
             'audit-profit-tooltip-summary',
@@ -99,37 +125,28 @@ function updateProfitTooltip(kpis = {}, bankInsights = [], ledgerSummary = null)
 
         return displayedProfit;
     } else {
-        const displayedProfit = hasBackendProfit ? backendProfit : 0;
+        const displayedProfit = null;
         setText(
             'audit-profit-tooltip-summary',
-            hasBackendProfit
-                ? 'Como todavia no llega el ledger, el KPI visible usa directo el valor canonico del backend.'
-                : 'Todavia no llega ni ledger ni backend, asi que el KPI visible queda en 0.'
+            'Calculando el spread ledger antes de mostrar el Profit Operativo.'
         );
-        setHtml('audit-profit-tooltip-formula', '<strong>Regla visible:</strong> Profit Operativo = Profit canonico backend');
+        setHtml('audit-profit-tooltip-formula', '<strong>Regla visible:</strong> Profit Operativo = Spread ledger - Fees de venta');
 
-        setText('audit-profit-tooltip-result', fUSDT(displayedProfit));
-        setText('audit-profit-tooltip-source-label', 'Valor base visible');
-        setText('audit-profit-tooltip-source-value', hasBackendProfit ? fUSDT(backendProfit) : '---');
+        setText('audit-profit-tooltip-result', 'Calculando...');
+        setText('audit-profit-tooltip-source-label', 'Spread ledger');
+        setText('audit-profit-tooltip-source-value', '---');
         setText('audit-profit-tooltip-backend', fUSDT(backendProfit));
         setText('audit-profit-tooltip-sell-fees', fUSDT(sellFees));
-        setText(
-            'audit-profit-tooltip-operation',
-            hasBackendProfit
-                ? `${fUSDT(backendProfit)} = ${fUSDT(displayedProfit)}`
-                : '$0.00 = $0.00'
-        );
+        setText('audit-profit-tooltip-operation', 'Calculando ledger...');
         setText('audit-profit-tooltip-spread-breakdown', 'Esperando desglose del ledger');
-        setText('audit-profit-tooltip-fallback', '---');
+        setText('audit-profit-tooltip-fallback', hasBackendProfit ? fUSDT(backendProfit) : '---');
 
         const fallbackLabel = document.getElementById('audit-profit-tooltip-fallback')?.previousElementSibling;
-        if (fallbackLabel) fallbackLabel.textContent = hasBackendProfit ? 'Referencia visual' : 'Referencia pendiente';
+        if (fallbackLabel) fallbackLabel.textContent = 'Canonico backend';
 
         setText(
             'audit-profit-tooltip-note',
-            hasBackendProfit
-                ? 'En este caso no hay suma ni resta extra: se muestra directo el valor del backend.'
-                : 'Todavia no existe una base valida para calcularlo.'
+            'Para evitar saltos visuales, el KPI no usa el valor canonico backend como fallback.'
         );
 
         return displayedProfit;
@@ -147,7 +164,11 @@ export function updateProfitUI(kpis = {}, bankInsights = [], ledgerSummary = nul
     // This card must reflect Binance API balance only.
     const realBinance = parseNumeric(audit.realBalance);
     inject('real-binance-balance', fUSDT(realBinance));
-    inject('audit-total-profit-display', fUSDT(displayedProfit), true);
+    inject(
+        'audit-total-profit-display',
+        displayedProfit === null ? 'Calculando...' : fUSDT(displayedProfit),
+        true
+    );
 
     inject('audit-total-volume', fUSDT(parseFloat(operations.totalVolumeUSDT || 0)));
     inject('audit-total-fees', fUSDT(parseFloat(operations.totalFeesPaid || 0)));
