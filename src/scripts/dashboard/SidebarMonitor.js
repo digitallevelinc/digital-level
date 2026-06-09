@@ -1016,26 +1016,45 @@ export function updateSidebarMonitor(kpis = {}, bankInsights = [], ledgerSummary
     }
     inject('side-spread-meta', ls.spreadCount > 0 ? `${ls.spreadCount} spreads` : '—');
 
-    // PROM/CICLO: promedio real desde el desglose por banco del judge
+    // PROM/CICLO: promedio del profit/spread visible por ciclo completado.
+    // Judge se usa como fuente de conteo, pero su totalProfitUSDT puede venir de
+    // otro criterio historico; mezclarlo con el spread visible produce promedios
+    // incoherentes (por ejemplo spread positivo con promedio negativo).
     let totalProfitFromJudge = 0;
     let totalCyclesFromJudge = 0;
     judgeByBank.forEach((bank) => {
         totalProfitFromJudge += Number(bank.totalProfitUSDT || 0);
         totalCyclesFromJudge += Number(bank.completedCycles || 0);
     });
-    const criticalCyclesCount = Number(
-        critical.cycleEquivalentCount
-        ?? critical.completedCycles
-        ?? 0
-    );
+    const criticalCompletedCycles = Number(critical.completedCycles ?? 0);
+    const criticalCycleEquivalentCount = Number(critical.cycleEquivalentCount ?? 0);
     const judgeCyclesCount = Number(completedCycles.count || 0);
     const cycleCountToDisplay = totalCyclesFromJudge > 0
         ? totalCyclesFromJudge
-        : criticalCyclesCount > 0 ? criticalCyclesCount : judgeCyclesCount;
-    const avgProfitPerCycle = totalCyclesFromJudge > 0
-        ? totalProfitFromJudge / totalCyclesFromJudge
-        : (cycleCountToDisplay > 0 ? ls.totalSpread / cycleCountToDisplay : 0);
-    inject('side-cycle-avg', formatPlain(avgProfitPerCycle));
+        : criticalCompletedCycles > 0
+            ? criticalCompletedCycles
+            : judgeCyclesCount > 0
+                ? judgeCyclesCount
+                : criticalCycleEquivalentCount;
+    const ledgerSpreadTotal = toNumber(ls.totalSpread);
+    const hasLedgerSpreadTotal = toNumber(ls.spreadCount) > 0 || Math.abs(ledgerSpreadTotal) > 0.0001;
+    const bankLedgerSpreadTotal = toNumber(bankSummary.spreadProfitUsdt);
+    const canonicalProfit = toNumber(critical.profitTotalUSDT ?? summary.totalProfit ?? 0);
+    const profitForCycleAverage = hasLedgerSpreadTotal
+        ? ledgerSpreadTotal
+        : Math.abs(bankLedgerSpreadTotal) > 0.0001
+            ? bankLedgerSpreadTotal
+            : Math.abs(canonicalProfit) > 0.0001
+                ? canonicalProfit
+                : totalProfitFromJudge;
+    const avgProfitPerCycle = cycleCountToDisplay > 0
+        ? profitForCycleAverage / cycleCountToDisplay
+        : 0;
+    const cycleAvgEl = document.getElementById('side-cycle-avg');
+    if (cycleAvgEl) {
+        cycleAvgEl.textContent = formatPlain(avgProfitPerCycle);
+        cycleAvgEl.className = `mt-1.5 text-[15px] leading-none font-mono font-black tracking-tight ${avgProfitPerCycle >= 0 ? 'text-white' : 'text-rose-300'}`;
+    }
     inject('side-cycle-count', formatPlain(cycleCountToDisplay, 0));
 
     const alias = audit.operatorAlias || kpis.operatorAlias || 'N/A';
