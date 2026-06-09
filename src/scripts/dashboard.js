@@ -947,8 +947,8 @@ export async function updateDashboard(API_BASE, token, alias, range = {}, opts =
             }
         });
 
-        // Mantener el profit neto canonico del backend. Si no llega, reconstruir
-        // un fallback desde judge - fees de venta para no inflar el KPI.
+        // Mantener el profit neto canonico del backend para que el KPI no dependa
+        // de que el ledger local termine de hidratar.
         syncCriticalProfitFromBanks(kpis, metrics, bankData);
 
         // --- ACTUALIZACIÓN DE MÉTRICAS BASE ---
@@ -1211,9 +1211,7 @@ function updateMainKpis(kpis = {}, manualProfit = null) {
 
     const profitToDisplay = manualProfit !== null
         ? manualProfit
-        : (kpis.__ledgerProfitReady === true
-            ? (critical.profitTotalUSDT ?? summary.totalProfit ?? summary.profit ?? null)
-            : null);
+        : (critical.profitTotalUSDT ?? summary.totalProfit ?? summary.profit ?? null);
     inject('kpi-profit', profitToDisplay === null ? 'Calculando...' : fUSDT(profitToDisplay), true);
 
 }

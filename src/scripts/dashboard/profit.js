@@ -134,11 +134,39 @@ function updateProfitTooltip(kpis = {}, bankInsights = [], ledgerSummary = null)
         );
 
         return displayedProfit;
+    } else if (hasBackendProfit) {
+        const displayedProfit = backendProfit;
+        applyVisibleProfit(kpis, displayedProfit);
+
+        setText(
+            'audit-profit-tooltip-summary',
+            'Mostrando el valor canonico del backend mientras el ledger local termina de calcular.'
+        );
+        setHtml('audit-profit-tooltip-formula', '<strong>Regla visible:</strong> Profit Operativo = profit canonico del backend');
+
+        setText('audit-profit-tooltip-result', fUSDT(displayedProfit));
+        setText('audit-profit-tooltip-source-label', 'Spread ledger');
+        setText('audit-profit-tooltip-source-value', 'Pendiente');
+        setText('audit-profit-tooltip-backend', fUSDT(backendProfit));
+        setText('audit-profit-tooltip-sell-fees', fUSDT(sellFees));
+        setText('audit-profit-tooltip-operation', fUSDT(displayedProfit));
+        setText('audit-profit-tooltip-spread-breakdown', 'Esperando desglose del ledger');
+        setText('audit-profit-tooltip-fallback', fUSDT(backendProfit));
+
+        const fallbackLabel = document.getElementById('audit-profit-tooltip-fallback')?.previousElementSibling;
+        if (fallbackLabel) fallbackLabel.textContent = 'Valor visible actual';
+
+        setText(
+            'audit-profit-tooltip-note',
+            'Cuando el ledger local termine, el desglose se actualiza sin dejar el KPI en skeleton.'
+        );
+
+        return displayedProfit;
     } else {
         const displayedProfit = null;
         setText(
             'audit-profit-tooltip-summary',
-            'Calculando el spread ledger antes de mostrar el Profit Operativo.'
+            'Esperando un valor valido de profit para mostrar el KPI.'
         );
         setHtml('audit-profit-tooltip-formula', '<strong>Regla visible:</strong> Profit Operativo = Spread ledger - Fees de venta');
 
@@ -156,7 +184,7 @@ function updateProfitTooltip(kpis = {}, bankInsights = [], ledgerSummary = null)
 
         setText(
             'audit-profit-tooltip-note',
-            'Para evitar saltos visuales, el KPI no usa el valor canonico backend como fallback.'
+            'El skeleton solo se mantiene cuando todavia no hay profit canonico ni ledger calculado.'
         );
 
         return displayedProfit;
