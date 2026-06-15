@@ -1,6 +1,9 @@
 import { fUSDT, fVES } from './utils.js';
 
 const FIAT_COVERAGE_COMPLETION_TOLERANCE = 500;
+// Promise tracking is now handled manually inside the system.
+// Keep old promise helpers available, but do not derive bank metrics from them.
+const AUTO_PROMISE_TRACKING_ENABLED = false;
 
 const safeFloat = (val) => {
     if (!val) return 0;
@@ -15,6 +18,8 @@ const formatSignedUsdtPlain = (val) => {
 };
 
 const getPromiseSellRate = (bank = {}) => {
+    if (!AUTO_PROMISE_TRACKING_ENABLED) return 0;
+
     const promisedUsdt = safeFloat(bank.rangePromisedUsdt);
     const promisedFiat = safeFloat(bank.rangePromisedFiat);
     if (promisedUsdt <= 0 || promisedFiat <= 0) return 0;
@@ -72,6 +77,11 @@ export function updateBancosUI(insights = [], kpis = {}) {
         const openVerdicts = Array.isArray(inputKpis?.judge?.openVerdicts) ? inputKpis.judge.openVerdicts : [];
         return openVerdicts.filter((verdict) => !isTerminalVerdict(verdict));
     };
+    const isAutoPromiseVerdict = (verdict = {}) => {
+        const parseMode = String(verdict?.parseMode || '').trim().toUpperCase();
+        if (parseMode === 'PROMISE' || parseMode === 'GLOBAL_PROMISE') return true;
+        return Number(verdict?.expectedRebuyUsdt || 0) > 0 || Number(verdict?.expectedRebuyFiat || 0) > 0;
+    };
 
     const buildVesControlSummaryByBank = (inputKpis = {}) => {
         const hasLiveVerdictsFeed = Array.isArray(inputKpis?.judge?.openVerdicts);
@@ -100,6 +110,8 @@ export function updateBancosUI(insights = [], kpis = {}) {
         }
 
         openVerdicts.forEach((verdict) => {
+            if (!AUTO_PROMISE_TRACKING_ENABLED && isAutoPromiseVerdict(verdict)) return;
+
             const bankKey = normalizeBankName(verdict?.paymentMethod);
             if (!bankKey) return;
 
@@ -405,24 +417,10 @@ export function updateBancosUI(insights = [], kpis = {}) {
         if (ui.vesMeta) ui.vesMeta.textContent = vesControl.meta;
         if (ui.vesBar) ui.vesBar.style.width = `${vesControl.progress}%`;
 
-        // Dispersor reconciliation: fiatBalance (net VES from ops) vs rangeVesAvailableFiat
-        // (VES committed to active promises). Delta > 0 means orphaned VES on this card.
+        // Manual mode: do not compare FIAT balance against auto promise commitments.
         if (ui.vesDelta) {
-            const bankKey = normalizeBankLimitKey(b);
-            const summary = vesControlSummaryByBank.get(bankKey);
-            const availableFromPromise = summary ? Number(summary.availableFiat || 0) : 0;
-            const delta = fiatBal - availableFromPromise;
-            const THRESHOLD = 100; // VES
-
-            if (Math.abs(delta) < THRESHOLD || (fiatBal <= 0.01 && availableFromPromise <= 0.01)) {
-                ui.vesDelta.classList.add('hidden');
-            } else if (delta > THRESHOLD) {
-                ui.vesDelta.textContent = `${formatVesInline(delta)} FIAT sin promesa activa`;
-                ui.vesDelta.className = 'mt-2 text-xs font-mono font-bold text-amber-400 truncate';
-            } else {
-                ui.vesDelta.textContent = `${formatVesInline(Math.abs(delta))} FIAT en promesa pendiente`;
-                ui.vesDelta.className = 'mt-2 text-xs font-mono font-bold text-sky-400 truncate';
-            }
+            ui.vesDelta.classList.add('hidden');
+            ui.vesDelta.textContent = '';
         }
     });
 

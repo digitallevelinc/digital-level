@@ -2,6 +2,9 @@ const CARACAS_TZ = 'America/Caracas';
 const LEDGER_CHANNELS = Object.freeze(['RED', 'P2P', 'PAY']);
 const LEDGER_FILTER_OPTIONS = Object.freeze(['ALL', ...LEDGER_CHANNELS]);
 const LEDGER_CHANNEL_SET = new Set(LEDGER_CHANNELS);
+// Promise tracking is now handled manually inside the system.
+// Keep the old parser/rendering code in place, but do not auto-detect promises.
+const AUTO_PROMISE_TRACKING_ENABLED = false;
 
 const state = {
     apiBase: '',
@@ -475,6 +478,7 @@ const hasPromiseHint = (token) => {
 };
 
 const getPromiseMeta = (tx = {}) => {
+    if (!AUTO_PROMISE_TRACKING_ENABLED) return null;
     if (tx?.syntheticPromiseMeta) return tx.syntheticPromiseMeta;
     const type = String(tx?.type || '').toUpperCase();
     if (type !== 'PAY_SENT' && type !== 'PAY_RECEIVED') return null;
@@ -1019,7 +1023,7 @@ const clearAuxiliaryTransfersCache = () => {
 const buildRowsWithBalance = (transfers = []) => {
     let rows = Array.isArray(transfers) ? [...transfers] : [];
 
-    if (state.page === 1) {
+    if (AUTO_PROMISE_TRACKING_ENABLED && state.page === 1) {
         const dispersor = state.kpis?.judge?.dispersor || state.kpis?.dispersor;
         const pendingUsdt = Number(dispersor?.pendingUsdt || 0);
         const promisedUsdt = Number(dispersor?.promisedUsdt || 0);
@@ -1205,6 +1209,8 @@ const matchTxToBank = (tx) => {
 };
 
 const getBankPromiseRate = (bank = {}) => {
+    if (!AUTO_PROMISE_TRACKING_ENABLED) return 0;
+
     const promisedUsdt = Number(bank?.rangePromisedUsdt || 0);
     const promisedFiat = Number(bank?.rangePromisedFiat || 0);
     if (promisedUsdt <= 0 || promisedFiat <= 0) return 0;
@@ -2046,11 +2052,13 @@ const wireSpreadTooltips = (root) => {
     }
 };
 
-const isPromiseVerdict = (verdict = {}) => {
+const isAutoPromiseVerdict = (verdict = {}) => {
     const parseMode = String(verdict?.parseMode || '').trim().toUpperCase();
     if (parseMode === 'PROMISE' || parseMode === 'GLOBAL_PROMISE') return true;
     return Number(verdict?.expectedRebuyUsdt || 0) > 0 || Number(verdict?.expectedRebuyFiat || 0) > 0;
 };
+
+const isPromiseVerdict = (verdict = {}) => AUTO_PROMISE_TRACKING_ENABLED && isAutoPromiseVerdict(verdict);
 
 const getVerdictCoverageDateStr = (verdict = {}) => {
     const coverageDate = verdict?.promiseActivatedAt || verdict?.createdAt;
@@ -2141,6 +2149,7 @@ const buildJudgeActiveFiatCoverageSummaryByBank = () => {
     }
 
     for (const verdict of judgeOpenVerdicts) {
+        if (!AUTO_PROMISE_TRACKING_ENABLED && isAutoPromiseVerdict(verdict)) continue;
         if (isPromiseVerdict(verdict)) continue;
         if (isTerminalCoverageVerdict(verdict)) continue;
 
@@ -2326,6 +2335,7 @@ const updateCoverageBadge = (transfers = [], cycleSpreads = new Map()) => {
         for (const verdict of verdictBySaleId.values()) {
             const key = getCoverageSaleKey(verdict);
             if (!key) continue;
+            if (!AUTO_PROMISE_TRACKING_ENABLED && isAutoPromiseVerdict(verdict)) continue;
 
             // Restrict to current viewing range.
             // For ranges that include today, we intentionally drop the lower bound
@@ -2403,7 +2413,7 @@ const updateCoverageBadge = (transfers = [], cycleSpreads = new Map()) => {
                 });
             }
         }
-    } else {
+    } else if (AUTO_PROMISE_TRACKING_ENABLED) {
         // Fallback: no judge data — scan transfer cache for promesas PAY.
         for (const tx of transfers) {
             const txType = normalizeTxType(tx);

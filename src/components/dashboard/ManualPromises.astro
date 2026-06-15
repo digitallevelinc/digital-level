@@ -1,0 +1,456 @@
+<section id="manual-promises-module" class="manual-promises-shell">
+  <div class="manual-promises-head">
+    <div>
+      <p class="manual-promises-kicker">Control manual</p>
+      <h3 class="manual-promises-title">Promesas manuales</h3>
+    </div>
+    <div class="manual-promises-status" id="manual-promises-status">Sin cargar</div>
+  </div>
+
+  <div class="manual-promises-summary" aria-label="Resumen de promesas manuales">
+    <div class="manual-promises-summary-item">
+      <span>Abiertas</span>
+      <strong id="manual-promises-open-count">0</strong>
+    </div>
+    <div class="manual-promises-summary-item">
+      <span>Pendiente USDT</span>
+      <strong id="manual-promises-pending-usdt">0.00</strong>
+    </div>
+    <div class="manual-promises-summary-item">
+      <span>Pendiente FIAT</span>
+      <strong id="manual-promises-pending-fiat">0.00</strong>
+    </div>
+  </div>
+
+  <div class="manual-promises-grid">
+    <form id="manual-promises-form" class="manual-promises-form">
+      <div class="manual-promises-form-title">
+        <span>Nueva promesa</span>
+        <small>Registro interno, independiente de Binance</small>
+      </div>
+
+      <label>
+        <span>Banco</span>
+        <select id="manual-promise-bank" name="bank" required>
+          <option value="">Seleccionar...</option>
+          <option value="Mercantil">Mercantil</option>
+          <option value="Banesco">Banesco</option>
+          <option value="BNC">BNC</option>
+          <option value="BBVA/Provincial">BBVA/Provincial</option>
+          <option value="Bancamiga">Bancamiga</option>
+          <option value="BANK">BANK</option>
+          <option value="Pago Movil">Pago Movil</option>
+        </select>
+      </label>
+
+      <label>
+        <span>Persona / operador</span>
+        <input id="manual-promise-counterparty" name="counterpartyName" type="text" placeholder="Ej. Luis / Alne / cliente" required />
+      </label>
+
+      <div class="manual-promises-two">
+        <label>
+          <span>USDT</span>
+          <input id="manual-promise-usdt" name="promisedUsdt" type="number" min="0" step="0.01" placeholder="0.00" required />
+        </label>
+        <label>
+          <span>Tasa</span>
+          <input id="manual-promise-rate" name="exchangeRate" type="number" min="0" step="0.01" placeholder="0.00" />
+        </label>
+      </div>
+
+      <label>
+        <span>FIAT prometido</span>
+        <input id="manual-promise-fiat" name="promisedFiat" type="number" min="0" step="0.01" placeholder="Se calcula con USDT x tasa" />
+      </label>
+
+      <div class="manual-promises-two">
+        <label>
+          <span>Pagado USDT</span>
+          <input id="manual-promise-paid-usdt" name="paidUsdt" type="number" min="0" step="0.01" placeholder="0.00" />
+        </label>
+        <label>
+          <span>Fecha limite</span>
+          <input id="manual-promise-due-at" name="dueAt" type="date" />
+        </label>
+      </div>
+
+      <label>
+        <span>Nota</span>
+        <textarea id="manual-promise-notes" name="notes" rows="3" placeholder="Detalle operativo, referencia o instruccion"></textarea>
+      </label>
+
+      <div class="manual-promises-actions">
+        <button type="submit" id="manual-promises-submit">Registrar</button>
+        <button type="button" id="manual-promises-refresh">Refrescar</button>
+      </div>
+      <p id="manual-promises-form-error" class="manual-promises-error" role="alert"></p>
+    </form>
+
+    <div class="manual-promises-list-wrap">
+      <div class="manual-promises-list-head">
+        <span>Promesas registradas</span>
+        <small id="manual-promises-list-count">0 registros</small>
+      </div>
+      <div id="manual-promises-list" class="manual-promises-list">
+        <div class="manual-promises-empty">Cargando promesas manuales...</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<style is:global>
+  .manual-promises-shell {
+    overflow: hidden;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 1.35rem;
+    background: #0b0f14;
+    box-shadow: 0 14px 36px rgba(0, 0, 0, 0.24);
+  }
+
+  .manual-promises-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 1.1rem 1.25rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  }
+
+  .manual-promises-kicker,
+  .manual-promises-form-title small,
+  .manual-promises-list-head small {
+    color: rgba(255, 255, 255, 0.42);
+    font-size: 0.68rem;
+    font-weight: 900;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+  }
+
+  .manual-promises-title {
+    margin-top: 0.25rem;
+    color: white;
+    font-size: 1rem;
+    font-weight: 950;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+
+  .manual-promises-status {
+    border: 1px solid rgba(243, 186, 47, 0.22);
+    border-radius: 999px;
+    background: rgba(243, 186, 47, 0.08);
+    color: #f3ba2f;
+    padding: 0.45rem 0.7rem;
+    font-size: 0.68rem;
+    font-weight: 950;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+
+  .manual-promises-summary {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 1px;
+    background: rgba(255, 255, 255, 0.08);
+  }
+
+  .manual-promises-summary-item {
+    background: #0f141a;
+    padding: 0.9rem 1.25rem;
+  }
+
+  .manual-promises-summary-item span {
+    display: block;
+    color: rgba(255, 255, 255, 0.42);
+    font-size: 0.66rem;
+    font-weight: 900;
+    letter-spacing: 0.13em;
+    text-transform: uppercase;
+  }
+
+  .manual-promises-summary-item strong {
+    display: block;
+    margin-top: 0.3rem;
+    color: white;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    font-size: 1.05rem;
+    font-weight: 950;
+  }
+
+  .manual-promises-grid {
+    display: grid;
+    grid-template-columns: minmax(280px, 0.92fr) minmax(0, 1.35fr);
+    gap: 1px;
+    background: rgba(255, 255, 255, 0.08);
+  }
+
+  .manual-promises-form,
+  .manual-promises-list-wrap {
+    background: #0b0f14;
+    padding: 1.25rem;
+  }
+
+  .manual-promises-form {
+    display: grid;
+    gap: 0.8rem;
+  }
+
+  .manual-promises-form-title,
+  .manual-promises-list-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 0.25rem;
+  }
+
+  .manual-promises-form-title span,
+  .manual-promises-list-head span {
+    color: #f3ba2f;
+    font-size: 0.76rem;
+    font-weight: 950;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+  }
+
+  .manual-promises-form label {
+    display: grid;
+    gap: 0.35rem;
+  }
+
+  .manual-promises-form label > span {
+    color: rgba(255, 255, 255, 0.55);
+    font-size: 0.68rem;
+    font-weight: 950;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+  }
+
+  .manual-promises-form input,
+  .manual-promises-form select,
+  .manual-promises-form textarea {
+    width: 100%;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 0.8rem;
+    background: #05070a;
+    color: white;
+    outline: none;
+    padding: 0.78rem 0.85rem;
+    font-size: 0.9rem;
+    transition: border-color 160ms ease, background 160ms ease;
+  }
+
+  .manual-promises-form input:focus,
+  .manual-promises-form select:focus,
+  .manual-promises-form textarea:focus {
+    border-color: rgba(243, 186, 47, 0.72);
+    background: rgba(255, 255, 255, 0.04);
+  }
+
+  .manual-promises-two {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.75rem;
+  }
+
+  .manual-promises-actions {
+    display: flex;
+    gap: 0.65rem;
+    margin-top: 0.15rem;
+  }
+
+  .manual-promises-actions button,
+  .manual-promise-card button {
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 0.75rem;
+    padding: 0.72rem 0.9rem;
+    font-size: 0.72rem;
+    font-weight: 950;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    transition: transform 160ms ease, opacity 160ms ease, background 160ms ease;
+  }
+
+  #manual-promises-submit {
+    flex: 1;
+    border-color: rgba(243, 186, 47, 0.9);
+    background: #f3ba2f;
+    color: black;
+  }
+
+  #manual-promises-refresh {
+    background: rgba(255, 255, 255, 0.05);
+    color: rgba(255, 255, 255, 0.72);
+  }
+
+  .manual-promises-actions button:active,
+  .manual-promise-card button:active {
+    transform: scale(0.98);
+  }
+
+  .manual-promises-error {
+    min-height: 1rem;
+    color: #fb7185;
+    font-size: 0.78rem;
+    font-weight: 800;
+  }
+
+  .manual-promises-list {
+    display: grid;
+    gap: 0.8rem;
+    max-height: 34rem;
+    overflow: auto;
+    padding-right: 0.25rem;
+  }
+
+  .manual-promise-card {
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 1rem;
+    background: #0f141a;
+    padding: 1rem;
+  }
+
+  .manual-promise-card.is-closed {
+    opacity: 0.62;
+  }
+
+  .manual-promise-top {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+  }
+
+  .manual-promise-bank {
+    color: #f3ba2f;
+    font-size: 0.74rem;
+    font-weight: 950;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+  }
+
+  .manual-promise-name {
+    margin-top: 0.25rem;
+    color: white;
+    font-size: 0.95rem;
+    font-weight: 950;
+  }
+
+  .manual-promise-status {
+    border-radius: 999px;
+    padding: 0.35rem 0.55rem;
+    font-size: 0.62rem;
+    font-weight: 950;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+  }
+
+  .manual-promise-status.is-open {
+    background: rgba(14, 165, 233, 0.12);
+    color: #7dd3fc;
+  }
+
+  .manual-promise-status.is-paid {
+    background: rgba(16, 185, 129, 0.12);
+    color: #6ee7b7;
+  }
+
+  .manual-promise-status.is-cancelled {
+    background: rgba(244, 63, 94, 0.12);
+    color: #fda4af;
+  }
+
+  .manual-promise-metrics {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.65rem;
+    margin-top: 0.85rem;
+  }
+
+  .manual-promise-metrics div {
+    border-radius: 0.75rem;
+    background: rgba(0, 0, 0, 0.24);
+    padding: 0.65rem;
+  }
+
+  .manual-promise-metrics span {
+    display: block;
+    color: rgba(255, 255, 255, 0.42);
+    font-size: 0.61rem;
+    font-weight: 950;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+  }
+
+  .manual-promise-metrics strong {
+    display: block;
+    margin-top: 0.2rem;
+    color: white;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    font-size: 0.86rem;
+    font-weight: 950;
+  }
+
+  .manual-promise-note {
+    margin-top: 0.75rem;
+    color: rgba(255, 255, 255, 0.58);
+    font-size: 0.82rem;
+    line-height: 1.45;
+  }
+
+  .manual-promise-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.55rem;
+    margin-top: 0.85rem;
+  }
+
+  .manual-promise-pay {
+    background: rgba(16, 185, 129, 0.12);
+    color: #6ee7b7;
+  }
+
+  .manual-promise-cancel {
+    background: rgba(244, 63, 94, 0.12);
+    color: #fda4af;
+  }
+
+  .manual-promise-delete {
+    background: rgba(255, 255, 255, 0.05);
+    color: rgba(255, 255, 255, 0.52);
+  }
+
+  .manual-promises-empty {
+    border: 1px dashed rgba(255, 255, 255, 0.12);
+    border-radius: 1rem;
+    padding: 2rem 1rem;
+    color: rgba(255, 255, 255, 0.44);
+    text-align: center;
+    font-size: 0.88rem;
+    font-weight: 800;
+  }
+
+  @media (max-width: 980px) {
+    .manual-promises-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  @media (max-width: 640px) {
+    .manual-promises-head,
+    .manual-promises-form-title,
+    .manual-promises-list-head,
+    .manual-promise-top {
+      flex-direction: column;
+      align-items: flex-start;
+    }
+
+    .manual-promises-summary,
+    .manual-promises-two,
+    .manual-promise-metrics {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>

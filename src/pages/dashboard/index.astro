@@ -5,6 +5,7 @@ import StatCard from '../../components/dashboard/StatCard.astro';
 import Operaciones from '../../components/dashboard/operaciones.astro';
 import Comisiones from '../../components/dashboard/comisiones.astro';
 import BalanceLedger from '../../components/dashboard/BalanceLedger.astro';
+import ManualPromises from '../../components/dashboard/ManualPromises.astro';
 import Profit from '../../components/dashboard/profit.astro';
 import ComisionOperador from '../../components/dashboard/ComisionOperador.astro'; 
 import ProyeccionGanancias from '../../components/dashboard/ProyeccionGanancias.astro';
@@ -329,6 +330,9 @@ import 'flatpickr/dist/themes/dark.css';
     <h2 class="mb-6 flex items-center gap-3 break-words px-1 text-[11px] font-black uppercase italic tracking-[0.18em] text-[#F3BA2F] sm:px-2 sm:text-[13px] sm:tracking-[0.26em]">
       <span class="w-1.5 h-4 bg-[#F3BA2F]"></span> 3. LOGISTICA DE CARTERAS (BALANCES INTERNOS)
     </h2>
+    <div class="mb-7">
+      <ManualPromises />
+    </div>
     <BalanceLedger />
   </section>
   <script>

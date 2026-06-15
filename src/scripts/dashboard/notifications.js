@@ -1,5 +1,8 @@
 let notificationsPollTimer = null;
 let notificationsOpen = false;
+// Promise notifications belong to the old automatic flow. Manual mode hides them.
+const AUTO_PROMISE_TRACKING_ENABLED = false;
+const PROMISE_NOTIFICATION_TYPES = new Set(['promise_created', 'promise_paid', 'promise_reminder']);
 
 function escapeHtml(value) {
     return String(value ?? '')
@@ -43,6 +46,8 @@ function formatUsdtValue(value) {
 }
 
 function isInternalActivationNotification(item = {}) {
+    if (!AUTO_PROMISE_TRACKING_ENABLED) return false;
+
     const meta = item?.metadata || {};
     return item?.type === 'promise_created'
         && Boolean(meta?.isInternalActivation || meta?.receiverOperatorId || meta?.receiverOperatorAlias);
@@ -131,10 +136,15 @@ export function initDashboardNotifications({ apiBase, token }) {
     };
 
     const render = (items = [], unreadCount = 0) => {
-        cachedItems = items;
-        cachedUnreadCount = unreadCount;
+        const visibleItems = AUTO_PROMISE_TRACKING_ENABLED
+            ? items
+            : items.filter((item) => !PROMISE_NOTIFICATION_TYPES.has(item?.type));
+        const visibleUnreadCount = visibleItems.filter((item) => !item?.readAt).length;
 
-        const unread = Number(unreadCount || 0);
+        cachedItems = visibleItems;
+        cachedUnreadCount = visibleUnreadCount;
+
+        const unread = Number(visibleUnreadCount || 0);
         badge.textContent = unread > 99 ? '99+' : String(unread);
         badge.classList.toggle('hidden', unread <= 0);
 
@@ -148,7 +158,7 @@ export function initDashboardNotifications({ apiBase, token }) {
             }
         }
 
-        const filteredItems = items.filter(item => currentTab === 'unread' ? !item.readAt : !!item.readAt);
+        const filteredItems = visibleItems.filter(item => currentTab === 'unread' ? !item.readAt : !!item.readAt);
 
         if (!Array.isArray(filteredItems) || filteredItems.length === 0) {
             list.innerHTML = `<div class="px-4 py-5 text-center text-sm font-bold text-white/50">Sin notificaciones ${currentTab === 'unread' ? 'no leidas' : 'leidas'}.</div>`;

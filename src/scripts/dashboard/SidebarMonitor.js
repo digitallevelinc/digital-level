@@ -2,6 +2,9 @@ import { fUSDT, inject } from './utils.js';
 
 const SIDEBAR_BANK_COLLAPSE_KEY = 'sidebar_bank_cards_collapsed_v1';
 const FIAT_COVERAGE_COMPLETION_TOLERANCE = 500;
+// Promise tracking is now handled manually inside the system.
+// Keep the old monitor code available, but do not auto-group active promises.
+const AUTO_PROMISE_TRACKING_ENABLED = false;
 
 // Cache the last ledger summary so dashboard refreshes don't flicker the spread back to 0
 let _cachedLedgerSummary = null;
@@ -64,8 +67,8 @@ function weightedAverage(items = [], getValue = () => 0, getWeight = () => 0) {
 }
 
 function resolveBankAverageSellRate(bank = {}) {
-    const promisedUsdt = Number(bank.rangePromisedUsdt || 0);
-    const promisedFiat = Number(bank.rangePromisedFiat || 0);
+    const promisedUsdt = AUTO_PROMISE_TRACKING_ENABLED ? Number(bank.rangePromisedUsdt || 0) : 0;
+    const promisedFiat = AUTO_PROMISE_TRACKING_ENABLED ? Number(bank.rangePromisedFiat || 0) : 0;
     const promiseRate = promisedUsdt > 0 && promisedFiat > 0
         ? promisedFiat / promisedUsdt
         : 0;
@@ -126,7 +129,7 @@ function getBankMonitorSummary(kpis = {}, bankInsights = []) {
         const sellVolUsdt = Number(bank.sellVolUSDT || bank.realizedVolumeUSDT || bank.spreadSellUsdt || 0);
         const sellRate = resolveBankAverageSellRate(bank);
         if (sellVolUsdt > 0 && sellRate > 0) return sellVolUsdt * sellRate;
-        const promisedFiat = Number(bank.rangePromisedFiat || 0);
+        const promisedFiat = AUTO_PROMISE_TRACKING_ENABLED ? Number(bank.rangePromisedFiat || 0) : 0;
         if (promisedFiat > 0) return promisedFiat;
         return sellVolUsdt > 0 ? sellVolUsdt : 0;
     };
@@ -592,12 +595,21 @@ function getActiveOpenVerdicts(kpis = {}) {
 }
 
 function isPromiseVerdict(verdict) {
+    if (!AUTO_PROMISE_TRACKING_ENABLED) return false;
+    const parseMode = String(verdict?.parseMode || '').trim().toUpperCase();
+    if (parseMode === 'PROMISE' || parseMode === 'GLOBAL_PROMISE') return true;
+    return Number(verdict?.expectedRebuyUsdt || 0) > 0 || Number(verdict?.expectedRebuyFiat || 0) > 0;
+}
+
+function isAutoPromiseVerdict(verdict) {
     const parseMode = String(verdict?.parseMode || '').trim().toUpperCase();
     if (parseMode === 'PROMISE' || parseMode === 'GLOBAL_PROMISE') return true;
     return Number(verdict?.expectedRebuyUsdt || 0) > 0 || Number(verdict?.expectedRebuyFiat || 0) > 0;
 }
 
 function buildPromiseSummaryByBank(kpis = {}, bankInsights = []) {
+    if (!AUTO_PROMISE_TRACKING_ENABLED) return new Map();
+
     const hasLiveVerdictsFeed = Array.isArray(kpis?.judge?.openVerdicts);
     const openVerdicts = getActiveOpenVerdicts(kpis);
     const knownBankKeys = new Set(
@@ -639,6 +651,7 @@ function buildPromiseSummaryByBank(kpis = {}, bankInsights = []) {
     }
 
     openVerdicts.forEach((verdict) => {
+        if (!AUTO_PROMISE_TRACKING_ENABLED && isAutoPromiseVerdict(verdict)) return;
         if (!isPromiseVerdict(verdict)) return;
 
         const bankKey = resolveVerdictBankKey(verdict, knownBankKeys);
@@ -754,6 +767,8 @@ function buildVesControlSummaryByBank(kpis = {}, bankInsights = []) {
     }
 
     openVerdicts.forEach((verdict) => {
+        if (!AUTO_PROMISE_TRACKING_ENABLED && isAutoPromiseVerdict(verdict)) return;
+
         const bankKey = resolveVerdictBankKey(verdict, knownBankKeys) || normalizeBankName(verdict?.paymentMethod);
         if (!bankKey) return;
 
@@ -804,6 +819,8 @@ function buildLatestCycleByBank(kpis = {}, bankInsights = []) {
     const latest = new Map();
 
     openVerdicts.forEach((verdict) => {
+        if (!AUTO_PROMISE_TRACKING_ENABLED && isAutoPromiseVerdict(verdict)) return;
+
         const bankKey = resolveVerdictBankKey(verdict, knownBankKeys) || normalizeBankName(verdict?.paymentMethod);
         if (!bankKey) return;
 
