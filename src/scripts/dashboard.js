@@ -15,6 +15,7 @@ import { updateSidebarMonitor } from './dashboard/SidebarMonitor.js';
 import { initCardHelpTooltips } from './dashboard/cardHelp.js';
 import { initDashboardNotifications } from './dashboard/notifications.js';
 import { initManualPromisesUI, refreshManualPromisesUI } from './dashboard/manualPromises.js';
+import { updateCapitalControlUI } from './dashboard/capitalControl.js';
 const KPI_REQUEST_TIMEOUT_MS = 12000;
 const LIVE_KPI_FAST_REFRESH_DELAY_MS = 4500;
 const DASHBOARD_BOOTSTRAP_HYDRATION_DELAY_MS = 900;
@@ -956,6 +957,7 @@ export async function updateDashboard(API_BASE, token, alias, range = {}, opts =
         // --- ACTUALIZACIÓN DE MÉTRICAS BASE ---
         updateMainKpis(kpis);
         updateRatesCard(kpis);
+        updateCapitalControlUI(kpis);
 
         const kpisWithNormalizedBanks = { ...kpis, bankInsights: bankData };
         updateComisionesUI(kpisWithNormalizedBanks);

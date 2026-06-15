@@ -1,0 +1,176 @@
+---
+// CapitalControl.astro — Tarjeta de Control de Capital (FIAT en la calle)
+// Se muestra en color naranja cuando hay FIAT pendiente de recompra,
+// y en verde cuando todo el capital ha retornado al circuito.
+---
+
+<div id="capital-control-card" class="capital-control-card">
+  <div class="capital-control-header">
+    <span class="capital-control-label">FIAT EN LA CALLE</span>
+    <span id="capital-control-status" class="capital-control-status">NORMAL</span>
+  </div>
+  <div class="capital-control-body">
+    <div class="capital-control-amount">
+      <span id="capital-control-fiat">0,00</span>
+      <span class="capital-control-unit">Bs.</span>
+    </div>
+    <div id="capital-control-usdt" class="capital-control-usdt">≈ 0,00 USDT</div>
+    <div class="capital-control-bar">
+      <div id="capital-control-bar-consumed" class="capital-control-bar-consumed" style="width: 0%"></div>
+      <div id="capital-control-bar-pending" class="capital-control-bar-pending" style="width: 100%"></div>
+    </div>
+    <div class="capital-control-meta">
+      <span>Salido: <strong id="capital-control-expected">0,00 Bs.</strong></span>
+      <span>Retornado: <strong id="capital-control-consumed">0,00 Bs.</strong></span>
+    </div>
+  </div>
+</div>
+
+<style is:global>
+  .capital-control-card {
+    overflow: hidden;
+    border-radius: 1.4rem;
+    border: 1px solid rgba(251, 146, 60, 0.35);
+    background: linear-gradient(180deg, rgba(251, 146, 60, 0.10) 0%, rgba(67, 24, 8, 0.35) 100%);
+    padding: 1.4rem 1.5rem;
+    box-shadow: 0 14px 36px rgba(0, 0, 0, 0.24);
+    transition: border-color 0.3s ease, background 0.3s ease;
+  }
+
+  .capital-control-card.is-zero {
+    border-color: rgba(34, 197, 94, 0.35);
+    background: linear-gradient(180deg, rgba(34, 197, 94, 0.08) 0%, rgba(6, 30, 22, 0.30) 100%);
+  }
+
+  .capital-control-card.is-critical {
+    border-color: rgba(244, 63, 94, 0.40);
+    background: linear-gradient(180deg, rgba(244, 63, 94, 0.12) 0%, rgba(61, 22, 31, 0.35) 100%);
+  }
+
+  .capital-control-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 1rem;
+  }
+
+  .capital-control-label {
+    font-size: 0.72rem;
+    font-weight: 950;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: #fdba74;
+  }
+
+  .capital-control-card.is-zero .capital-control-label {
+    color: #86efac;
+  }
+
+  .capital-control-card.is-critical .capital-control-label {
+    color: #fda4af;
+  }
+
+  .capital-control-status {
+    border-radius: 999px;
+    padding: 0.35rem 0.65rem;
+    font-size: 0.62rem;
+    font-weight: 950;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    background: rgba(251, 146, 60, 0.14);
+    color: #fdba74;
+  }
+
+  .capital-control-card.is-zero .capital-control-status {
+    background: rgba(34, 197, 94, 0.14);
+    color: #86efac;
+  }
+
+  .capital-control-card.is-critical .capital-control-status {
+    background: rgba(244, 63, 94, 0.14);
+    color: #fda4af;
+  }
+
+  .capital-control-body {
+    display: grid;
+    gap: 0.65rem;
+  }
+
+  .capital-control-amount {
+    display: flex;
+    align-items: baseline;
+    gap: 0.4rem;
+    line-height: 1;
+  }
+
+  .capital-control-amount span:first-child {
+    font-size: 2.15rem;
+    font-weight: 800;
+    color: #fff;
+    word-break: break-word;
+  }
+
+  .capital-control-unit {
+    font-size: 0.92rem;
+    font-weight: 700;
+    color: rgba(255, 255, 255, 0.55);
+  }
+
+  .capital-control-usdt {
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: #fdba74;
+  }
+
+  .capital-control-card.is-zero .capital-control-usdt {
+    color: #86efac;
+  }
+
+  .capital-control-bar {
+    margin-top: 0.5rem;
+    height: 5px;
+    width: 100%;
+    background: rgba(255, 255, 255, 0.08);
+    border-radius: 3px;
+    overflow: hidden;
+    display: flex;
+  }
+
+  .capital-control-bar-consumed {
+    height: 100%;
+    background: linear-gradient(90deg, #34d399, #22c55e);
+    border-radius: 3px 0 0 3px;
+    transition: width 0.4s ease;
+  }
+
+  .capital-control-bar-pending {
+    height: 100%;
+    background: linear-gradient(90deg, #f97316, #fbbf24);
+    border-radius: 0 3px 3px 0;
+    transition: width 0.4s ease;
+  }
+
+  .capital-control-meta {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-top: 0.4rem;
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: rgba(255, 255, 255, 0.55);
+  }
+
+  .capital-control-meta strong {
+    color: rgba(255, 255, 255, 0.85);
+  }
+
+  @media (max-width: 640px) {
+    .capital-control-amount span:first-child {
+      font-size: 1.7rem;
+    }
+    .capital-control-card {
+      padding: 1rem 1.15rem;
+    }
+  }
+</style>
