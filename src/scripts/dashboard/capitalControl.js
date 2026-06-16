@@ -18,15 +18,8 @@ export function updateCapitalControlUI(kpis = {}) {
 
     if (!card) return;
 
-    // Wire resolve button once.
-    if (resolveBtn && !resolveBtn.dataset.wired) {
-        resolveBtn.dataset.wired = '1';
-        resolveBtn.addEventListener('click', () => {
-            if (typeof window.openCycleResolveModal === 'function') {
-                window.openCycleResolveModal();
-            }
-        });
-    }
+    // Resolver Bs. pendientes comentado temporalmente en UI.
+    void resolveBtn;
 
     // Preferir capitalControl del backend si existe (nuevo campo)
     const cc = kpis.capitalControl;
@@ -133,8 +126,8 @@ export function updateCapitalControlUI(kpis = {}) {
         card.classList.add('is-critical');
     }
 
-    // Mostrar boton de resolucion si hay Bs. pendientes.
+    // Mantener oculto el contenedor de resolución manual.
     if (actionsEl) {
-        actionsEl.classList.toggle('hidden', totalPendingFiat <= 0);
+        actionsEl.classList.add('hidden');
     }
 }

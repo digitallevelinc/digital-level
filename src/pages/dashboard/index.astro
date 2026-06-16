@@ -5,18 +5,19 @@ import StatCard from '../../components/dashboard/StatCard.astro';
 import Operaciones from '../../components/dashboard/operaciones.astro';
 import Comisiones from '../../components/dashboard/comisiones.astro';
 import BalanceLedger from '../../components/dashboard/BalanceLedger.astro';
-import ManualPromises from '../../components/dashboard/ManualPromises.astro';
+// import ManualPromises from '../../components/dashboard/ManualPromises.astro';
 import Profit from '../../components/dashboard/profit.astro';
 import ComisionOperador from '../../components/dashboard/ComisionOperador.astro'; 
 import ProyeccionGanancias from '../../components/dashboard/ProyeccionGanancias.astro';
 import CapitalControl from '../../components/dashboard/CapitalControl.astro';
-import CycleResolveModal from '../../components/dashboard/CycleResolveModal.astro';
+// import CycleResolveModal from '../../components/dashboard/CycleResolveModal.astro';
 import 'flatpickr/dist/flatpickr.min.css';
 import 'flatpickr/dist/themes/dark.css';
 ---
 
 <DashboardLayout>
   <!-- MODAL DE COBERTURA PENDIENTE -->
+  <!--
   <div id="coverage-alert-modal" class="fixed inset-0 z-[9999] hidden items-center justify-center bg-black/80 backdrop-blur-sm transition-opacity duration-300 opacity-0 px-4">
     <div class="relative w-full max-w-md scale-95 transform rounded-[2rem] border border-white bg-white p-8 shadow-[0_20px_50px_rgba(225,29,72,0.30)] transition-all duration-300">
       <div class="absolute -top-6 left-1/2 flex h-14 w-14 -translate-x-1/2 items-center justify-center rounded-full border-4 border-white bg-rose-500 shadow-lg shadow-rose-500/30">
@@ -167,9 +168,10 @@ import 'flatpickr/dist/themes/dark.css';
       });
     });
   </script>
+  -->
 
   <!-- MODAL DE RESOLUCION DE BS. PENDIENTES -->
-  <CycleResolveModal />
+  <!-- <CycleResolveModal /> -->
 
   <!-- Impersonacion Admin: aceptar ?impersonate=<token>&alias=<alias> -->
   <script is:inline>
@@ -341,9 +343,11 @@ import 'flatpickr/dist/themes/dark.css';
     <h2 class="mb-6 flex items-center gap-3 break-words px-1 text-[11px] font-black uppercase italic tracking-[0.18em] text-[#F3BA2F] sm:px-2 sm:text-[13px] sm:tracking-[0.26em]">
       <span class="w-1.5 h-4 bg-[#F3BA2F]"></span> 3. LOGISTICA DE CARTERAS (BALANCES INTERNOS)
     </h2>
+    <!--
     <div class="mb-7">
       <ManualPromises />
     </div>
+    -->
     <BalanceLedger />
   </section>
   <script>
