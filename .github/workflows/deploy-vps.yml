@@ -65,14 +65,25 @@ jobs:
         run: |
           set -euo pipefail
           sudo apt-get update
-          sudo apt-get install -y openssh-client sshpass
+          sudo apt-get install -y openssh-client sshpass netcat-openbsd
           mkdir -p ~/.ssh
           chmod 700 ~/.ssh
-          ssh-keyscan -H "${VPS_HOST}" >> ~/.ssh/known_hosts 2>/dev/null || true
+          ssh-keyscan -t rsa,ecdsa,ed25519 -H "${VPS_HOST}" >> ~/.ssh/known_hosts 2>/dev/null || true
           chmod 644 ~/.ssh/known_hosts
           if [ -n "${VPS_SSH_KEY}" ]; then
             printf '%s\n' "${VPS_SSH_KEY}" > ~/.ssh/deploy_key
             chmod 600 ~/.ssh/deploy_key
+          fi
+
+      - name: Test VPS connectivity
+        shell: bash
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+        run: |
+          set -euo pipefail
+          echo "Testing TCP/22 reachability to ${VPS_HOST}..."
+          if ! nc -z -v -w10 "${VPS_HOST}" 22; then
+            echo "ERROR: Cannot reach ${VPS_HOST}:22. Possible causes: firewall, wrong IP, server down, or fail2ban."
           fi
 
       - name: Upload and deploy to VPS
@@ -86,11 +97,11 @@ jobs:
           set -euo pipefail
 
           if [ -n "${VPS_SSH_KEY}" ]; then
-            SSH_BASE=(ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=yes -o ConnectTimeout=20 -o ServerAliveInterval=15 -o ServerAliveCountMax=3)
-            SCP_BASE=(scp -i ~/.ssh/deploy_key -o StrictHostKeyChecking=yes -o ConnectTimeout=20 -o ServerAliveInterval=15 -o ServerAliveCountMax=3)
+            SSH_BASE=(ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=yes -o ConnectTimeout=30 -o TCPKeepAlive=yes -o ServerAliveInterval=15 -o ServerAliveCountMax=3 -o BatchMode=yes)
+            SCP_BASE=(scp -i ~/.ssh/deploy_key -o StrictHostKeyChecking=yes -o ConnectTimeout=30 -o TCPKeepAlive=yes -o ServerAliveInterval=15 -o ServerAliveCountMax=3 -o BatchMode=yes)
           else
-            SSH_BASE=(sshpass -p "${VPS_PASSWORD}" ssh -o StrictHostKeyChecking=yes -o PreferredAuthentications=password -o PubkeyAuthentication=no -o ConnectTimeout=20 -o ServerAliveInterval=15 -o ServerAliveCountMax=3)
-            SCP_BASE=(sshpass -p "${VPS_PASSWORD}" scp -o StrictHostKeyChecking=yes -o PreferredAuthentications=password -o PubkeyAuthentication=no -o ConnectTimeout=20 -o ServerAliveInterval=15 -o ServerAliveCountMax=3)
+            SSH_BASE=(sshpass -p "${VPS_PASSWORD}" ssh -o StrictHostKeyChecking=yes -o PreferredAuthentications=password -o PubkeyAuthentication=no -o ConnectTimeout=30 -o TCPKeepAlive=yes -o ServerAliveInterval=15 -o ServerAliveCountMax=3)
+            SCP_BASE=(sshpass -p "${VPS_PASSWORD}" scp -o StrictHostKeyChecking=yes -o PreferredAuthentications=password -o PubkeyAuthentication=no -o ConnectTimeout=30 -o TCPKeepAlive=yes -o ServerAliveInterval=15 -o ServerAliveCountMax=3)
           fi
 
           connected=0
