@@ -2759,6 +2759,14 @@ const renderRow = (tx, rowBalance, cycleData = undefined, balanceNegativeInfo = 
         : '';
     const receiversHtml = hasReceivers ? renderReceiversDetail(receivers) : '';
 
+    const isResolutionEligible = !isDispersorPending && signedAmount > 0 && ['PAY_RECEIVED', 'DEPOSIT'].includes(normalizeTxType(tx));
+    const resolveActionHtml = isResolutionEligible
+        ? `<button class="ledger-resolve-btn" data-resolve-transfer="${escapeHtml(tx.id)}" title="Usar como compra de retorno para Bs. pendientes">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M2 12h20"/></svg>
+            <span>Resolver ciclo</span>
+           </button>`
+        : '';
+
     return `
         <article class="ledger-row ${rowTone}${isDispersorPending ? ' ledger-row-dispersor-pending' : ''}">
             <div class="ledger-mobile-card">
@@ -2778,6 +2786,7 @@ const renderRow = (tx, rowBalance, cycleData = undefined, balanceNegativeInfo = 
                     <div class="ledger-mobile-kicker-block">
                         <div class="ledger-mobile-kicker-text">${directionLabel}${methodText ? ` | ${methodText}` : ''}</div>
                         ${spreadReferenceTrigger ? `<div class="ledger-mobile-kicker-action">${spreadReferenceTrigger}</div>` : ''}
+                        ${resolveActionHtml ? `<div class="ledger-mobile-kicker-action">${resolveActionHtml}</div>` : ''}
                     </div>
                     ${toggleBtnHtml}
                 </div>
@@ -2799,6 +2808,7 @@ const renderRow = (tx, rowBalance, cycleData = undefined, balanceNegativeInfo = 
                     <div class="ledger-direction-stack">
                         <div class="ledger-date-sub">${directionLabel}</div>
                         ${spreadReferenceTrigger ? `<div class="ledger-date-action">${spreadReferenceTrigger}</div>` : ''}
+                        ${resolveActionHtml ? `<div class="ledger-date-action">${resolveActionHtml}</div>` : ''}
                     </div>
                 </div>
                 <div class="ledger-description-col">
@@ -3496,6 +3506,15 @@ const bindEventsOnce = () => {
             if (hasActiveSearch()) return;
             if (state.page >= state.totalPages) return;
             void fetchTransfersPage(state.page + 1);
+            return;
+        }
+
+        const resolveBtn = target.closest('.ledger-resolve-btn');
+        if (resolveBtn) {
+            const transferId = resolveBtn.getAttribute('data-resolve-transfer');
+            if (transferId && typeof window.openCycleResolveModal === 'function') {
+                window.openCycleResolveModal(transferId);
+            }
             return;
         }
 

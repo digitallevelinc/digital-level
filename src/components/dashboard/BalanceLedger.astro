@@ -928,6 +928,35 @@
         align-items: flex-start;
     }
 
+    .ledger-resolve-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        border: 1px solid rgba(251, 146, 60, 0.4);
+        border-radius: 999px;
+        background: rgba(251, 146, 60, 0.1);
+        color: #fdba74;
+        padding: 0.25rem 0.55rem;
+        font-size: 0.62rem;
+        font-weight: 950;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        cursor: pointer;
+        transition: background 160ms ease, border-color 160ms ease, transform 160ms ease;
+        white-space: nowrap;
+    }
+
+    .ledger-resolve-btn:hover {
+        background: rgba(251, 146, 60, 0.18);
+        border-color: rgba(251, 146, 60, 0.65);
+        transform: translateY(-1px);
+    }
+
+    .ledger-resolve-btn svg {
+        width: 0.7rem;
+        height: 0.7rem;
+    }
+
     .ledger-mobile-kicker,
     .ledger-mobile-kicker-text {
         margin-top: 0;

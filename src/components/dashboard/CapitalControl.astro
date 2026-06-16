@@ -23,6 +23,11 @@
       <span>Salido: <strong id="capital-control-expected">0,00 Bs.</strong></span>
       <span>Retornado: <strong id="capital-control-consumed">0,00 Bs.</strong></span>
     </div>
+    <div id="capital-control-actions" class="capital-control-actions hidden">
+      <button type="button" id="capital-control-resolve-btn" class="capital-control-resolve-btn">
+        ⚠️ Resolver Bs. pendientes
+      </button>
+    </div>
   </div>
 </div>
 
@@ -163,6 +168,35 @@
 
   .capital-control-meta strong {
     color: rgba(255, 255, 255, 0.85);
+  }
+
+  .capital-control-actions {
+    margin-top: 0.85rem;
+  }
+
+  .capital-control-resolve-btn {
+    width: 100%;
+    border: 1px solid rgba(251, 146, 60, 0.45);
+    border-radius: 0.85rem;
+    background: linear-gradient(180deg, rgba(251, 146, 60, 0.16), rgba(251, 146, 60, 0.08));
+    color: #fdba74;
+    padding: 0.7rem 1rem;
+    font-size: 0.72rem;
+    font-weight: 950;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    transition: transform 160ms ease, background 160ms ease, border-color 160ms ease;
+    cursor: pointer;
+  }
+
+  .capital-control-resolve-btn:hover {
+    background: linear-gradient(180deg, rgba(251, 146, 60, 0.24), rgba(251, 146, 60, 0.12));
+    border-color: rgba(251, 146, 60, 0.65);
+    transform: translateY(-1px);
+  }
+
+  .capital-control-card.is-zero .capital-control-resolve-btn {
+    display: none;
   }
 
   @media (max-width: 640px) {
