@@ -4,7 +4,23 @@
       <p class="manual-promises-kicker">Control manual</p>
       <h3 class="manual-promises-title">Promesas manuales</h3>
     </div>
-    <div class="manual-promises-status" id="manual-promises-status">Sin cargar</div>
+
+    <div class="manual-promises-head-actions">
+      <div class="manual-promises-status" id="manual-promises-status">Sin cargar</div>
+      <button
+        type="button"
+        id="manual-promises-open-dialog"
+        class="manual-promises-open"
+        aria-haspopup="dialog"
+        aria-controls="manual-promises-dialog"
+        aria-label="Abrir panel de promesas manuales"
+        title="Abrir panel de promesas manuales"
+      >
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M12 5v14M5 12h14" />
+        </svg>
+      </button>
+    </div>
   </div>
 
   <div class="manual-promises-summary" aria-label="Resumen de promesas manuales">
@@ -22,81 +38,109 @@
     </div>
   </div>
 
-  <div class="manual-promises-grid">
-    <form id="manual-promises-form" class="manual-promises-form">
-      <div class="manual-promises-form-title">
-        <span>Nueva promesa</span>
-        <small>Registro interno, independiente de Binance</small>
+  <div class="manual-promises-compact-note">
+    <div>
+      <span class="manual-promises-compact-label">Vista compacta</span>
+      <p>El registro y el historial ahora viven en un panel modal para que el dashboard respire mejor.</p>
+    </div>
+    <span class="manual-promises-compact-icon" aria-hidden="true">+</span>
+  </div>
+
+  <dialog id="manual-promises-dialog" class="manual-promises-dialog" aria-labelledby="manual-promises-dialog-title">
+    <div class="manual-promises-dialog-surface">
+      <div class="manual-promises-dialog-head">
+        <div>
+          <p class="manual-promises-kicker">Registro interno</p>
+          <h4 id="manual-promises-dialog-title" class="manual-promises-dialog-title">Gestionar promesas manuales</h4>
+        </div>
+
+        <div class="manual-promises-dialog-actions">
+          <button type="button" id="manual-promises-refresh" class="manual-promises-secondary">Refrescar</button>
+          <button type="button" class="manual-promises-close" data-manual-promises-close aria-label="Cerrar modal de promesas manuales">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M6 6l12 12M18 6L6 18" />
+            </svg>
+          </button>
+        </div>
       </div>
 
-      <label>
-        <span>Banco</span>
-        <select id="manual-promise-bank" name="bank" required>
-          <option value="">Seleccionar...</option>
-          <option value="Mercantil">Mercantil</option>
-          <option value="Banesco">Banesco</option>
-          <option value="BNC">BNC</option>
-          <option value="BBVA/Provincial">BBVA/Provincial</option>
-          <option value="Bancamiga">Bancamiga</option>
-          <option value="BANK">BANK</option>
-          <option value="Pago Movil">Pago Movil</option>
-        </select>
-      </label>
+      <div class="manual-promises-grid">
+        <form id="manual-promises-form" class="manual-promises-form">
+          <div class="manual-promises-form-title">
+            <span>Nueva promesa</span>
+            <small>Carga manual independiente de Binance</small>
+          </div>
 
-      <label>
-        <span>Persona / operador</span>
-        <input id="manual-promise-counterparty" name="counterpartyName" type="text" placeholder="Ej. Luis / Alne / cliente" required />
-      </label>
+          <label>
+            <span>Banco</span>
+            <select id="manual-promise-bank" name="bank" required>
+              <option value="">Seleccionar...</option>
+              <option value="Mercantil">Mercantil</option>
+              <option value="Banesco">Banesco</option>
+              <option value="BNC">BNC</option>
+              <option value="BBVA/Provincial">BBVA/Provincial</option>
+              <option value="Bancamiga">Bancamiga</option>
+              <option value="BANK">BANK</option>
+              <option value="Pago Movil">Pago Movil</option>
+            </select>
+          </label>
 
-      <div class="manual-promises-two">
-        <label>
-          <span>USDT</span>
-          <input id="manual-promise-usdt" name="promisedUsdt" type="number" min="0" step="0.01" placeholder="0.00" required />
-        </label>
-        <label>
-          <span>Tasa</span>
-          <input id="manual-promise-rate" name="exchangeRate" type="number" min="0" step="0.01" placeholder="0.00" />
-        </label>
-      </div>
+          <label>
+            <span>Persona / operador</span>
+            <input id="manual-promise-counterparty" name="counterpartyName" type="text" placeholder="Ej. Luis / Alne / cliente" required />
+          </label>
 
-      <label>
-        <span>FIAT prometido</span>
-        <input id="manual-promise-fiat" name="promisedFiat" type="number" min="0" step="0.01" placeholder="Se calcula con USDT x tasa" />
-      </label>
+          <div class="manual-promises-two">
+            <label>
+              <span>USDT</span>
+              <input id="manual-promise-usdt" name="promisedUsdt" type="number" min="0" step="0.01" placeholder="0.00" required />
+            </label>
+            <label>
+              <span>Tasa</span>
+              <input id="manual-promise-rate" name="exchangeRate" type="number" min="0" step="0.01" placeholder="0.00" />
+            </label>
+          </div>
 
-      <div class="manual-promises-two">
-        <label>
-          <span>Pagado USDT</span>
-          <input id="manual-promise-paid-usdt" name="paidUsdt" type="number" min="0" step="0.01" placeholder="0.00" />
-        </label>
-        <label>
-          <span>Fecha limite</span>
-          <input id="manual-promise-due-at" name="dueAt" type="date" />
-        </label>
-      </div>
+          <label>
+            <span>FIAT prometido</span>
+            <input id="manual-promise-fiat" name="promisedFiat" type="number" min="0" step="0.01" placeholder="Se calcula con USDT x tasa" />
+          </label>
 
-      <label>
-        <span>Nota</span>
-        <textarea id="manual-promise-notes" name="notes" rows="3" placeholder="Detalle operativo, referencia o instruccion"></textarea>
-      </label>
+          <div class="manual-promises-two">
+            <label>
+              <span>Pagado USDT</span>
+              <input id="manual-promise-paid-usdt" name="paidUsdt" type="number" min="0" step="0.01" placeholder="0.00" />
+            </label>
+            <label>
+              <span>Fecha limite</span>
+              <input id="manual-promise-due-at" name="dueAt" type="date" />
+            </label>
+          </div>
 
-      <div class="manual-promises-actions">
-        <button type="submit" id="manual-promises-submit">Registrar</button>
-        <button type="button" id="manual-promises-refresh">Refrescar</button>
-      </div>
-      <p id="manual-promises-form-error" class="manual-promises-error" role="alert"></p>
-    </form>
+          <label>
+            <span>Nota</span>
+            <textarea id="manual-promise-notes" name="notes" rows="3" placeholder="Detalle operativo, referencia o instruccion"></textarea>
+          </label>
 
-    <div class="manual-promises-list-wrap">
-      <div class="manual-promises-list-head">
-        <span>Promesas registradas</span>
-        <small id="manual-promises-list-count">0 registros</small>
-      </div>
-      <div id="manual-promises-list" class="manual-promises-list">
-        <div class="manual-promises-empty">Cargando promesas manuales...</div>
+          <div class="manual-promises-actions">
+            <button type="submit" id="manual-promises-submit">Registrar</button>
+            <button type="button" class="manual-promises-secondary" data-manual-promises-close>Cerrar</button>
+          </div>
+          <p id="manual-promises-form-error" class="manual-promises-error" role="alert"></p>
+        </form>
+
+        <div class="manual-promises-list-wrap">
+          <div class="manual-promises-list-head">
+            <span>Promesas registradas</span>
+            <small id="manual-promises-list-count">0 registros</small>
+          </div>
+          <div id="manual-promises-list" class="manual-promises-list">
+            <div class="manual-promises-empty">Cargando promesas manuales...</div>
+          </div>
+        </div>
       </div>
     </div>
-  </div>
+  </dialog>
 </section>
 
 <style is:global>
@@ -108,18 +152,30 @@
     box-shadow: 0 14px 36px rgba(0, 0, 0, 0.24);
   }
 
-  .manual-promises-head {
+  .manual-promises-head,
+  .manual-promises-dialog-head {
     display: flex;
     align-items: flex-start;
     justify-content: space-between;
     gap: 1rem;
+  }
+
+  .manual-promises-head {
     padding: 1.1rem 1.25rem;
     border-bottom: 1px solid rgba(255, 255, 255, 0.08);
   }
 
+  .manual-promises-head-actions,
+  .manual-promises-dialog-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+  }
+
   .manual-promises-kicker,
   .manual-promises-form-title small,
-  .manual-promises-list-head small {
+  .manual-promises-list-head small,
+  .manual-promises-compact-label {
     color: rgba(255, 255, 255, 0.42);
     font-size: 0.68rem;
     font-weight: 900;
@@ -127,7 +183,8 @@
     text-transform: uppercase;
   }
 
-  .manual-promises-title {
+  .manual-promises-title,
+  .manual-promises-dialog-title {
     margin-top: 0.25rem;
     color: white;
     font-size: 1rem;
@@ -147,6 +204,40 @@
     letter-spacing: 0.12em;
     text-transform: uppercase;
     white-space: nowrap;
+  }
+
+  .manual-promises-open,
+  .manual-promises-close {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.7rem;
+    height: 2.7rem;
+    border: 1px solid rgba(243, 186, 47, 0.28);
+    border-radius: 999px;
+    background: radial-gradient(circle at top, rgba(243, 186, 47, 0.26), rgba(243, 186, 47, 0.08));
+    color: #f3ba2f;
+    transition: transform 160ms ease, border-color 160ms ease, background 160ms ease, box-shadow 160ms ease;
+    box-shadow: 0 10px 24px rgba(243, 186, 47, 0.12);
+  }
+
+  .manual-promises-open:hover,
+  .manual-promises-close:hover,
+  .manual-promises-secondary:hover,
+  .manual-promises-actions button:hover,
+  .manual-promise-card button:hover {
+    transform: translateY(-1px);
+  }
+
+  .manual-promises-open svg,
+  .manual-promises-close svg {
+    width: 1.05rem;
+    height: 1.05rem;
+    fill: none;
+    stroke: currentColor;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    stroke-width: 2.2;
   }
 
   .manual-promises-summary {
@@ -179,9 +270,72 @@
     font-weight: 950;
   }
 
+  .manual-promises-compact-note {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 1rem 1.25rem 1.1rem;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.015), rgba(255, 255, 255, 0));
+  }
+
+  .manual-promises-compact-note p {
+    margin-top: 0.3rem;
+    color: rgba(255, 255, 255, 0.64);
+    font-size: 0.9rem;
+    line-height: 1.45;
+  }
+
+  .manual-promises-compact-icon {
+    flex: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 2.1rem;
+    height: 2.1rem;
+    border-radius: 999px;
+    background: rgba(243, 186, 47, 0.12);
+    color: #f3ba2f;
+    font-size: 1.15rem;
+    font-weight: 950;
+  }
+
+  .manual-promises-dialog {
+    width: min(1120px, calc(100vw - 2rem));
+    max-width: 1120px;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: inherit;
+  }
+
+  .manual-promises-dialog::backdrop {
+    background: rgba(2, 6, 12, 0.76);
+    backdrop-filter: blur(10px);
+  }
+
+  .manual-promises-dialog[open] {
+    display: grid;
+    place-items: center;
+  }
+
+  .manual-promises-dialog-surface {
+    width: 100%;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 1.6rem;
+    background: linear-gradient(180deg, rgba(12, 16, 22, 0.98), rgba(8, 11, 16, 0.98));
+    box-shadow: 0 34px 80px rgba(0, 0, 0, 0.48);
+    overflow: hidden;
+  }
+
+  .manual-promises-dialog-head {
+    padding: 1.1rem 1.25rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  }
+
   .manual-promises-grid {
     display: grid;
-    grid-template-columns: minmax(280px, 0.92fr) minmax(0, 1.35fr);
+    grid-template-columns: minmax(310px, 0.96fr) minmax(0, 1.28fr);
     gap: 1px;
     background: rgba(255, 255, 255, 0.08);
   }
@@ -262,6 +416,7 @@
   }
 
   .manual-promises-actions button,
+  .manual-promises-secondary,
   .manual-promise-card button {
     border: 1px solid rgba(255, 255, 255, 0.1);
     border-radius: 0.75rem;
@@ -270,7 +425,12 @@
     font-weight: 950;
     letter-spacing: 0.12em;
     text-transform: uppercase;
-    transition: transform 160ms ease, opacity 160ms ease, background 160ms ease;
+    transition: transform 160ms ease, opacity 160ms ease, background 160ms ease, border-color 160ms ease;
+  }
+
+  .manual-promises-secondary {
+    background: rgba(255, 255, 255, 0.05);
+    color: rgba(255, 255, 255, 0.72);
   }
 
   #manual-promises-submit {
@@ -280,13 +440,11 @@
     color: black;
   }
 
-  #manual-promises-refresh {
-    background: rgba(255, 255, 255, 0.05);
-    color: rgba(255, 255, 255, 0.72);
-  }
-
   .manual-promises-actions button:active,
-  .manual-promise-card button:active {
+  .manual-promises-secondary:active,
+  .manual-promise-card button:active,
+  .manual-promises-open:active,
+  .manual-promises-close:active {
     transform: scale(0.98);
   }
 
@@ -300,7 +458,7 @@
   .manual-promises-list {
     display: grid;
     gap: 0.8rem;
-    max-height: 34rem;
+    max-height: min(65vh, 42rem);
     overflow: auto;
     padding-right: 0.25rem;
   }
@@ -436,10 +594,15 @@
     .manual-promises-grid {
       grid-template-columns: 1fr;
     }
+
+    .manual-promises-dialog {
+      width: min(720px, calc(100vw - 1rem));
+    }
   }
 
   @media (max-width: 640px) {
     .manual-promises-head,
+    .manual-promises-dialog-head,
     .manual-promises-form-title,
     .manual-promises-list-head,
     .manual-promise-top {
@@ -447,10 +610,36 @@
       align-items: flex-start;
     }
 
+    .manual-promises-head-actions,
+    .manual-promises-dialog-actions {
+      width: 100%;
+      justify-content: space-between;
+    }
+
     .manual-promises-summary,
     .manual-promises-two,
     .manual-promise-metrics {
       grid-template-columns: 1fr;
+    }
+
+    .manual-promises-compact-note {
+      align-items: flex-start;
+    }
+
+    .manual-promises-dialog {
+      width: calc(100vw - 0.5rem);
+      margin: 0.25rem;
+    }
+
+    .manual-promises-form,
+    .manual-promises-list-wrap,
+    .manual-promises-dialog-head {
+      padding-left: 1rem;
+      padding-right: 1rem;
+    }
+
+    .manual-promises-actions {
+      flex-direction: column;
     }
   }
 </style>

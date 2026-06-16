@@ -1,6 +1,7 @@
 let manualPromisesApiBase = '';
 let manualPromisesToken = '';
 let manualPromisesInitialized = false;
+let manualPromisesLastTrigger = null;
 
 const money = (value, locale = 'es-VE') => Number(value || 0).toLocaleString(locale, {
     minimumFractionDigits: 2,
@@ -23,6 +24,7 @@ const headers = () => ({
 
 function getEls() {
     return {
+        dialog: document.getElementById('manual-promises-dialog'),
         form: document.getElementById('manual-promises-form'),
         status: document.getElementById('manual-promises-status'),
         list: document.getElementById('manual-promises-list'),
@@ -33,6 +35,8 @@ function getEls() {
         error: document.getElementById('manual-promises-form-error'),
         refresh: document.getElementById('manual-promises-refresh'),
         submit: document.getElementById('manual-promises-submit'),
+        openDialog: document.getElementById('manual-promises-open-dialog'),
+        closeButtons: Array.from(document.querySelectorAll('[data-manual-promises-close]')),
         usdt: document.getElementById('manual-promise-usdt'),
         rate: document.getElementById('manual-promise-rate'),
         fiat: document.getElementById('manual-promise-fiat'),
@@ -49,6 +53,34 @@ function setStatus(text, tone = 'idle') {
 function setError(message = '') {
     const { error } = getEls();
     if (error) error.textContent = message;
+}
+
+function showDialog(event) {
+    const { dialog } = getEls();
+    if (!dialog) return;
+    manualPromisesLastTrigger = event?.currentTarget || document.activeElement || null;
+
+    if (typeof dialog.showModal === 'function') {
+        if (!dialog.open) dialog.showModal();
+    } else {
+        dialog.setAttribute('open', 'open');
+    }
+
+    const firstField = dialog.querySelector('select, input, textarea, button');
+    firstField?.focus?.();
+}
+
+function hideDialog() {
+    const { dialog } = getEls();
+    if (!dialog) return;
+
+    if (typeof dialog.close === 'function' && dialog.open) {
+        dialog.close();
+    } else {
+        dialog.removeAttribute('open');
+    }
+
+    manualPromisesLastTrigger?.focus?.();
 }
 
 function syncFiatFromRate() {
@@ -194,6 +226,7 @@ async function submitManualPromise(event) {
             body: JSON.stringify(payload),
         });
         form.reset();
+        syncFiatFromRate();
         await refreshManualPromisesUI();
         setStatus('Registrada', 'ok');
     } catch (error) {
@@ -245,11 +278,27 @@ async function handleListClick(event) {
     }
 }
 
+function handleDialogBackdropClick(event) {
+    const { dialog } = getEls();
+    if (!dialog || event.target !== dialog) return;
+
+    const rect = dialog.getBoundingClientRect();
+    const clickedInside =
+        event.clientX >= rect.left &&
+        event.clientX <= rect.right &&
+        event.clientY >= rect.top &&
+        event.clientY <= rect.bottom;
+
+    if (!clickedInside) {
+        hideDialog();
+    }
+}
+
 export function initManualPromisesUI(apiBase, token) {
     manualPromisesApiBase = apiBase;
     manualPromisesToken = token;
 
-    const { form, refresh, list, usdt, rate } = getEls();
+    const { dialog, form, refresh, list, usdt, rate, openDialog, closeButtons } = getEls();
     if (!form || manualPromisesInitialized) {
         void refreshManualPromisesUI();
         return;
@@ -260,6 +309,14 @@ export function initManualPromisesUI(apiBase, token) {
     list?.addEventListener('click', handleListClick);
     usdt?.addEventListener('input', syncFiatFromRate);
     rate?.addEventListener('input', syncFiatFromRate);
+    openDialog?.addEventListener('click', showDialog);
+    closeButtons.forEach((button) => {
+        button.addEventListener('click', hideDialog);
+    });
+    dialog?.addEventListener('click', handleDialogBackdropClick);
+    dialog?.addEventListener('close', () => {
+        manualPromisesLastTrigger?.focus?.();
+    });
 
     manualPromisesInitialized = true;
     void refreshManualPromisesUI();
