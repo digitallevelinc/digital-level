@@ -36,6 +36,7 @@ function getElements() {
         closeBtn: document.getElementById('cycle-resolve-close'),
         cancelBtn: document.getElementById('cycle-resolve-cancel'),
         doneBtn: document.getElementById('cycle-resolve-done'),
+        submit: document.getElementById('cycle-resolve-submit'),
         form: document.getElementById('cycle-resolve-form'),
         transferSelect: document.getElementById('cycle-resolve-transfer'),
         rateInput: document.getElementById('cycle-resolve-rate'),
@@ -200,7 +201,9 @@ function openModal(preselectedTransferId = null) {
     if (!dialog) return;
 
     resetForm();
-    dialog.showModal();
+    if (!dialog.open) {
+        dialog.showModal();
+    }
     void loadData();
 }
 

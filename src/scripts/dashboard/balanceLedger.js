@@ -2277,6 +2277,47 @@ const renderCoverageDebugTrigger = (cycleData = {}, fiatLabel = 'FIAT') => {
         </div>`;
 };
 
+const shouldShowResolveAction = (tx = {}) => {
+    const category = getCategory(String(tx?.type || '').toUpperCase());
+    if (category !== 'PAY' && category !== 'RED') return false;
+
+    const normalizedTxType = normalizeTxType(tx);
+    return normalizedTxType !== 'DIVIDEND';
+};
+
+const getResolveActionTransferId = (tx = {}) => {
+    const normalizedTxType = normalizeTxType(tx);
+    const asset = String(tx?.asset || '').toUpperCase();
+    const status = String(tx?.status || '').toUpperCase();
+    const amount = Number(tx?.amount || 0);
+
+    if ((normalizedTxType !== 'PAY_RECEIVED' && normalizedTxType !== 'DEPOSIT') || amount <= 0) {
+        return '';
+    }
+
+    if (status && status !== 'SUCCESS') return '';
+    if (asset && asset !== 'USDT') return '';
+
+    return String(tx?.id || '').trim();
+};
+
+const renderResolveAction = (tx = {}) => {
+    if (!shouldShowResolveAction(tx)) return '';
+
+    const transferId = getResolveActionTransferId(tx);
+    const transferAttr = transferId ? ` data-transfer-id="${escapeHtml(transferId)}"` : '';
+
+    return `
+        <button type="button" class="ledger-resolve-btn" data-ledger-resolve${transferAttr}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M21 12a9 9 0 1 1-2.64-6.36" />
+                <path d="M21 3v6h-6" />
+            </svg>
+            <span>Resolver Fiat</span>
+        </button>
+    `;
+};
+
 const renderRow = (tx, rowBalance, cycleData = undefined, balanceNegativeInfo = null) => {
     const isSettlement = isSettlementTransfer(tx);
     const category = isSettlement ? 'LIQUID' : getCategory(tx.type);
@@ -2459,8 +2500,7 @@ const renderRow = (tx, rowBalance, cycleData = undefined, balanceNegativeInfo = 
         : '';
     const receiversHtml = hasReceivers ? renderReceiversDetail(receivers) : '';
 
-    // Resolución manual de Bs. pendientes comentada temporalmente.
-    const resolveActionHtml = '';
+    const resolveActionHtml = renderResolveAction(tx);
 
     return `
         <article class="ledger-row ${rowTone}${isDispersorPending ? ' ledger-row-dispersor-pending' : ''}">
@@ -3204,7 +3244,15 @@ const bindEventsOnce = () => {
             return;
         }
 
-        // Resolución manual de Bs. pendientes comentada temporalmente.
+        const resolveBtn = target.closest('[data-ledger-resolve]');
+        if (resolveBtn) {
+            event.preventDefault();
+            const transferId = String(resolveBtn?.dataset?.transferId || '').trim();
+            if (typeof window.openCycleResolveModal === 'function') {
+                window.openCycleResolveModal(transferId || null);
+            }
+            return;
+        }
 
         const typeButton = target.closest('[data-ledger-type]');
         if (!typeButton) return;
