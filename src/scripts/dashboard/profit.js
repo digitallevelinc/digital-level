@@ -99,7 +99,47 @@ function updateProfitTooltip(kpis = {}, bankInsights = [], ledgerSummary = null)
         ledgerSpreadTotal !== 0 || parseNumeric(cachedLedgerProfitSummary?.spreadCount) > 0
     );
 
-    if (hasLedgerProfit) {
+    // The backend canonical value is the authoritative Profit Operativo.
+    // The locally-recomputed ledger spread is only used as a fallback while
+    // the backend hasn't reported a value yet — once it has, we keep showing
+    // it instead of overwriting with the ledger (which can drift as new
+    // transfers arrive and produce visible flicker on auto-refresh).
+    if (hasBackendProfit) {
+        const displayedProfit = backendProfit;
+        applyVisibleProfit(kpis, displayedProfit);
+
+        setText(
+            'audit-profit-tooltip-summary',
+            hasLedgerProfit
+                ? 'El backend reporto un valor canonico; se mantiene estable pese al recálculo del ledger.'
+                : 'Mostrando el valor canonico del backend mientras el ledger local termina de calcular.'
+        );
+        setHtml('audit-profit-tooltip-formula', '<strong>Regla visible:</strong> Profit Operativo = profit canonico del backend');
+
+        setText('audit-profit-tooltip-result', fUSDT(displayedProfit));
+        setText('audit-profit-tooltip-source-label', 'Spread ledger');
+        setText('audit-profit-tooltip-source-value', hasLedgerProfit ? fUSDT(ledgerSpreadTotal) : 'Pendiente');
+        setText('audit-profit-tooltip-backend', fUSDT(backendProfit));
+        setText('audit-profit-tooltip-sell-fees', fUSDT(sellFees));
+        setText('audit-profit-tooltip-operation', fUSDT(displayedProfit));
+        setText(
+            'audit-profit-tooltip-spread-breakdown',
+            hasLedgerProfit ? buildSpreadBreakdown(cachedLedgerProfitSummary) : 'Esperando desglose del ledger'
+        );
+        setText('audit-profit-tooltip-fallback', fUSDT(backendProfit));
+
+        const fallbackLabel = document.getElementById('audit-profit-tooltip-fallback')?.previousElementSibling;
+        if (fallbackLabel) fallbackLabel.textContent = 'Valor visible actual';
+
+        setText(
+            'audit-profit-tooltip-note',
+            hasLedgerProfit
+                ? 'El KPI visible sigue al backend canonico; el ledger se muestra solo como referencia.'
+                : 'Cuando el ledger local termine, el desglose se actualiza sin dejar el KPI en skeleton.'
+        );
+
+        return displayedProfit;
+    } else if (hasLedgerProfit) {
         const ledgerNetProfit = ledgerSpreadTotal - sellFees;
         const displayedProfit = ledgerNetProfit;
         applyVisibleProfit(kpis, displayedProfit);
@@ -131,34 +171,6 @@ function updateProfitTooltip(kpis = {}, bankInsights = [], ledgerSummary = null)
         setText(
             'audit-profit-tooltip-note',
             'Primero toma el spread total del ledger, luego le resta las fees de venta.'
-        );
-
-        return displayedProfit;
-    } else if (hasBackendProfit) {
-        const displayedProfit = backendProfit;
-        applyVisibleProfit(kpis, displayedProfit);
-
-        setText(
-            'audit-profit-tooltip-summary',
-            'Mostrando el valor canonico del backend mientras el ledger local termina de calcular.'
-        );
-        setHtml('audit-profit-tooltip-formula', '<strong>Regla visible:</strong> Profit Operativo = profit canonico del backend');
-
-        setText('audit-profit-tooltip-result', fUSDT(displayedProfit));
-        setText('audit-profit-tooltip-source-label', 'Spread ledger');
-        setText('audit-profit-tooltip-source-value', 'Pendiente');
-        setText('audit-profit-tooltip-backend', fUSDT(backendProfit));
-        setText('audit-profit-tooltip-sell-fees', fUSDT(sellFees));
-        setText('audit-profit-tooltip-operation', fUSDT(displayedProfit));
-        setText('audit-profit-tooltip-spread-breakdown', 'Esperando desglose del ledger');
-        setText('audit-profit-tooltip-fallback', fUSDT(backendProfit));
-
-        const fallbackLabel = document.getElementById('audit-profit-tooltip-fallback')?.previousElementSibling;
-        if (fallbackLabel) fallbackLabel.textContent = 'Valor visible actual';
-
-        setText(
-            'audit-profit-tooltip-note',
-            'Cuando el ledger local termine, el desglose se actualiza sin dejar el KPI en skeleton.'
         );
 
         return displayedProfit;
@@ -240,12 +252,12 @@ export function updateProfitUI(kpis = {}, bankInsights = [], ledgerSummary = nul
     renderBankProfitList(bankInsights);
     initEvolutionToggle();
 
-    // When the ledger summary has settled, its net profit is more accurate than
-    // the backend's cached chartData (which lags by one cache cycle).
     // For single-day ranges the entire chart is one bar — sync it with the
-    // ledger-derived displayedProfit so chart and KPI card always agree.
+    // displayed profit so chart and KPI card always agree. The displayed
+    // profit now follows the canonical backend value (see updateProfitTooltip),
+    // so we propagate that consistently into the chart bar.
     let chartDataToRender = Array.isArray(kpis.chartData) ? kpis.chartData : [];
-    if (cachedLedgerProfitSummary !== null && chartDataToRender.length === 1) {
+    if (displayedProfit != null && chartDataToRender.length === 1) {
         chartDataToRender = [{ ...chartDataToRender[0], profit: displayedProfit }];
     }
 
