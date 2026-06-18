@@ -889,6 +889,35 @@ const areAllPagesCached = () => {
     return true;
 };
 
+const hasOlderOpenCycleHistory = () => {
+    const rangeTo = sanitizeDateValue(state.range?.to);
+    const rangeFrom = sanitizeDateValue(state.range?.from);
+    if (!rangeTo) return false;
+
+    const todayStr = new Intl.DateTimeFormat('en-CA', {
+        timeZone: CARACAS_TZ, year: 'numeric', month: '2-digit', day: '2-digit',
+    }).format(new Date());
+    if (rangeTo < todayStr) return false;
+
+    const effectiveFrom = rangeFrom || todayStr;
+    const judgeOpenVerdicts = Array.isArray(state.kpis?.judge?.openVerdicts)
+        ? state.kpis.judge.openVerdicts
+        : [];
+
+    return judgeOpenVerdicts.some((verdict) => {
+        const status = String(verdict?.status || '').toUpperCase();
+        if (status.startsWith('CLOS') || status.startsWith('CANCEL') || status.startsWith('COMPLET')) {
+            return false;
+        }
+        if (isPromiseVerdict(verdict)) return false;
+        const dateStr = getVerdictCoverageDateStr(verdict);
+        return Boolean(dateStr && dateStr < effectiveFrom);
+    });
+};
+
+const isSpreadFallbackReady = () => areAllPagesCached()
+    && (!hasOlderOpenCycleHistory() || state.auxiliaryTransfersCache.size > 0);
+
 const updatePaginationUI = () => {
     const { results, pageIndicator, todayBtn, lastBtn, prevBtn, nextBtn } = getElements();
     const searchActive = hasActiveSearch();
@@ -1580,7 +1609,7 @@ const getFallbackSpreadPercent = () => {
     return 0;
 };
 
-const computeTxSpread = (tx = {}, override = 0) => {
+const computeTxSpread = (tx = {}, override = 0, options = {}) => {
     const type = normalizeTxType(tx);
     if (isLedgerSellTarget(tx)) return { val: 0 }; // Ventas y promesas no muestran spread individual
     if (type !== 'P2P_BUY') return { val: 0 };
@@ -1621,6 +1650,13 @@ const computeTxSpread = (tx = {}, override = 0) => {
         sellPaymentMethod = String(nearestSell.paymentMethod || '').trim().toUpperCase();
         sellFiatPortionSource = Number(nearestSell.fiatAmount || 0) || 0;
     } else {
+        if (options.allowFallback === false) {
+            return {
+                val: 0,
+                pending: true,
+            };
+        }
+
         sellRate = getFallbackSellReferenceRate();
 
         // Intentar inferir el rol desde la venta más cercana sin restricción de banco.
@@ -2334,9 +2370,10 @@ const renderRow = (tx, rowBalance, cycleData = undefined, balanceNegativeInfo = 
 
     const isCycleSell = isLedgerSellTarget(tx) && cycleData != null;
     const isCycleBuyOverride = normalizeTxType(tx) === 'P2P_BUY' && cycleData?.rateOverride > 0;
+    const allowSpreadFallback = isCycleBuyOverride || isSpreadFallbackReady();
     const spreadRet = isCycleBuyOverride
         ? computeTxSpread(tx, cycleData?.sellContextOverride || cycleData.rateOverride)
-        : computeTxSpread(tx);
+        : computeTxSpread(tx, 0, { allowFallback: allowSpreadFallback });
     const spreadDetails = spreadRet.details;
 
     let spreadMetric;
@@ -2382,10 +2419,11 @@ const renderRow = (tx, rowBalance, cycleData = undefined, balanceNegativeInfo = 
 
         const normalizedTxType = normalizeTxType(tx);
         const showZeroSpreadValue = spreadVal === 0 && normalizedTxType === 'P2P_BUY';
+        const spreadPending = Boolean(spreadRet.pending);
         spreadMetric = renderMetricCard({
             label: 'Spread',
-            value: spreadVal !== 0 ? `${spreadVal > 0 ? '+' : '-'}${formatUsd(Math.abs(spreadVal))}` : (showZeroSpreadValue ? formatUsd(0) : '--'),
-            sub: spreadVal !== 0 ? '' : (showZeroSpreadValue ? 'Spread neutro' : 'Sin spread calculable'),
+            value: spreadPending ? '--' : (spreadVal !== 0 ? `${spreadVal > 0 ? '+' : '-'}${formatUsd(Math.abs(spreadVal))}` : (showZeroSpreadValue ? formatUsd(0) : '--')),
+            sub: spreadPending ? 'Calculando spread' : (spreadVal !== 0 ? '' : (showZeroSpreadValue ? 'Spread neutro' : 'Sin spread calculable')),
             tone: spreadTone,
             extraHtml
         });
