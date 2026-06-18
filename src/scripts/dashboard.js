@@ -255,6 +255,17 @@ function getActiveLedgerCoverageBankKeys(bankData = []) {
 
 function syncCoverageAlertModal(kpis = {}, bankData = [], currentRange = null, ledgerActiveCoverages = []) {
 
+    // Ocultar para administradores: el admin usa auth Basic en /admin, no Bearer.
+    try {
+        const storedToken = sessionStorage.getItem('auth_token') || sessionStorage.getItem('session_token') || '';
+        if (storedToken && !/^eyJ/i.test(storedToken.trim())) {
+            toggleCoverageAlertModal(false);
+            return;
+        }
+    } catch (_error) {
+        // sessionStorage no disponible → no asumimos admin
+    }
+
     const { ledgerCoverageResolved, activeKeys } = getActiveLedgerCoverageBankKeys(bankData);
     // The modal must only react to ledger-confirmed coverage state.
     // judge.openVerdicts can remain stale for a poll or two after coverage is
