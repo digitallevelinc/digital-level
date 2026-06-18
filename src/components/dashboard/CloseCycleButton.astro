@@ -1,0 +1,325 @@
+---
+// CloseCycleButton.astro — Botón para cerrar el ciclo manualmente antes del cierre automático.
+---
+<button
+  type="button"
+  id="close-cycle-btn"
+  class="close-cycle-btn"
+  aria-label="Cerrar ciclo manualmente"
+>
+  <svg viewBox="0 0 24 24" aria-hidden="true" class="close-cycle-btn-icon">
+    <path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" />
+  </svg>
+  <span class="close-cycle-btn-label">Cerrar ciclo ahora</span>
+</button>
+
+<dialog id="close-cycle-dialog" class="close-cycle-dialog" aria-labelledby="close-cycle-title">
+  <div class="close-cycle-surface">
+    <div class="close-cycle-head">
+      <div>
+        <p class="close-cycle-kicker">Cierre manual</p>
+        <h3 id="close-cycle-title" class="close-cycle-title">¿Cerrar ciclo ahora?</h3>
+      </div>
+      <button type="button" id="close-cycle-close" class="close-cycle-close" aria-label="Cerrar modal">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M6 6l12 12M18 6L6 18" />
+        </svg>
+      </button>
+    </div>
+
+    <div class="close-cycle-body">
+      <p class="close-cycle-intro">
+        Esto cerrará todos los ciclos abiertos del día en curso.
+        Las operaciones que se generen después pasarán a归属于 el ciclo del día siguiente.
+        Úsalo solo cuando termines antes del cierre automático del sistema.
+      </p>
+
+      <div class="close-cycle-stats" id="close-cycle-stats">
+        <div class="close-cycle-stat">
+          <span>Veredictos abiertos</span>
+          <strong id="close-cycle-open-count">--</strong>
+        </div>
+        <div class="close-cycle-stat">
+          <span>Bs. pendientes</span>
+          <strong id="close-cycle-pending-fiat">--</strong>
+        </div>
+      </div>
+
+      <label class="close-cycle-label">
+        <span>Motivo (opcional)</span>
+        <input
+          id="close-cycle-reason"
+          type="text"
+          maxlength="240"
+          placeholder="Ej. Cierre por turno vespertino"
+        />
+      </label>
+
+      <div class="close-cycle-actions">
+        <button type="button" id="close-cycle-confirm">Sí, cerrar ciclo</button>
+        <button type="button" id="close-cycle-cancel" class="close-cycle-secondary">Cancelar</button>
+      </div>
+
+      <p id="close-cycle-error" class="close-cycle-error" role="alert"></p>
+    </div>
+  </div>
+</dialog>
+
+<style is:global>
+  .close-cycle-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.55rem;
+    padding: 0.75rem 1rem;
+    border: 1px solid rgba(251, 113, 133, 0.45);
+    border-radius: 0.85rem;
+    background: rgba(251, 113, 133, 0.08);
+    color: #fda4af;
+    font-size: 0.72rem;
+    font-weight: 950;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    transition: transform 160ms ease, background 160ms ease, border-color 160ms ease, opacity 160ms ease;
+    cursor: pointer;
+  }
+
+  .close-cycle-btn:hover {
+    background: rgba(251, 113, 133, 0.18);
+    border-color: rgba(251, 113, 133, 0.7);
+    transform: translateY(-1px);
+  }
+
+  .close-cycle-btn:active {
+    transform: scale(0.98);
+  }
+
+  .close-cycle-btn[disabled] {
+    opacity: 0.55;
+    cursor: not-allowed;
+    transform: none;
+  }
+
+  .close-cycle-btn-icon {
+    width: 0.95rem;
+    height: 0.95rem;
+  }
+
+  .close-cycle-btn-label {
+    white-space: nowrap;
+  }
+
+  .close-cycle-dialog {
+    width: min(520px, calc(100vw - 2rem));
+    max-width: 520px;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: inherit;
+  }
+
+  .close-cycle-dialog::backdrop {
+    background: rgba(2, 6, 12, 0.76);
+    backdrop-filter: blur(10px);
+  }
+
+  .close-cycle-dialog[open] {
+    display: grid;
+    place-items: center;
+  }
+
+  .close-cycle-surface {
+    width: 100%;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 1.6rem;
+    background: linear-gradient(180deg, rgba(12, 16, 22, 0.98), rgba(8, 11, 16, 0.98));
+    box-shadow: 0 34px 80px rgba(0, 0, 0, 0.48);
+    overflow: hidden;
+  }
+
+  .close-cycle-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 1.1rem 1.25rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  }
+
+  .close-cycle-kicker {
+    color: rgba(255, 255, 255, 0.42);
+    font-size: 0.68rem;
+    font-weight: 900;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+  }
+
+  .close-cycle-title {
+    margin-top: 0.25rem;
+    color: white;
+    font-size: 1rem;
+    font-weight: 950;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+
+  .close-cycle-close {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.4rem;
+    height: 2.4rem;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.05);
+    color: rgba(255, 255, 255, 0.72);
+    transition: transform 160ms ease, background 160ms ease;
+  }
+
+  .close-cycle-close:hover {
+    background: rgba(255, 255, 255, 0.1);
+    transform: translateY(-1px);
+  }
+
+  .close-cycle-close svg {
+    width: 1rem;
+    height: 1rem;
+    fill: none;
+    stroke: currentColor;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    stroke-width: 2.2;
+  }
+
+  .close-cycle-body {
+    padding: 1.25rem;
+  }
+
+  .close-cycle-intro {
+    color: rgba(255, 255, 255, 0.64);
+    font-size: 0.88rem;
+    line-height: 1.5;
+    margin-bottom: 1rem;
+  }
+
+  .close-cycle-stats {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.6rem;
+    margin-bottom: 1rem;
+  }
+
+  .close-cycle-stat {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    border-radius: 0.8rem;
+    background: rgba(255, 255, 255, 0.04);
+    padding: 0.75rem 0.9rem;
+  }
+
+  .close-cycle-stat span {
+    color: rgba(255, 255, 255, 0.5);
+    font-size: 0.62rem;
+    font-weight: 950;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+  }
+
+  .close-cycle-stat strong {
+    color: #fdba74;
+    font-size: 1rem;
+    font-weight: 950;
+  }
+
+  .close-cycle-label {
+    display: grid;
+    gap: 0.35rem;
+    margin-bottom: 1rem;
+  }
+
+  .close-cycle-label > span {
+    color: rgba(255, 255, 255, 0.55);
+    font-size: 0.68rem;
+    font-weight: 950;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+  }
+
+  .close-cycle-label input {
+    width: 100%;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 0.8rem;
+    background: #05070a;
+    color: white;
+    outline: none;
+    padding: 0.78rem 0.85rem;
+    font-size: 0.9rem;
+    transition: border-color 160ms ease, background 160ms ease;
+  }
+
+  .close-cycle-label input:focus {
+    border-color: rgba(251, 113, 133, 0.7);
+    background: rgba(255, 255, 255, 0.04);
+  }
+
+  .close-cycle-actions {
+    display: flex;
+    gap: 0.65rem;
+  }
+
+  .close-cycle-actions button,
+  .close-cycle-secondary {
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 0.75rem;
+    padding: 0.72rem 0.9rem;
+    font-size: 0.72rem;
+    font-weight: 950;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    transition: transform 160ms ease, opacity 160ms ease, background 160ms ease, border-color 160ms ease;
+  }
+
+  .close-cycle-secondary {
+    background: rgba(255, 255, 255, 0.05);
+    color: rgba(255, 255, 255, 0.72);
+  }
+
+  #close-cycle-confirm {
+    flex: 1;
+    border-color: rgba(251, 113, 133, 0.9);
+    background: #fb7185;
+    color: black;
+  }
+
+  #close-cycle-confirm:hover {
+    background: #f43f5e;
+  }
+
+  .close-cycle-actions button:active,
+  .close-cycle-secondary:active {
+    transform: scale(0.98);
+  }
+
+  .close-cycle-error {
+    min-height: 1rem;
+    color: #fb7185;
+    font-size: 0.78rem;
+    font-weight: 800;
+    margin-top: 0.75rem;
+  }
+
+  @media (max-width: 640px) {
+    .close-cycle-dialog {
+      width: calc(100vw - 0.5rem);
+      margin: 0.25rem;
+    }
+
+    .close-cycle-actions {
+      flex-direction: column;
+    }
+
+    .close-cycle-stats {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>
