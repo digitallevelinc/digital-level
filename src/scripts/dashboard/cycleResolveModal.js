@@ -77,14 +77,48 @@ function resetForm() {
     updatePreview();
 }
 
+function getMonthRange() {
+    const now = new Date();
+    const start = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
+    const end = new Date(now.getFullYear(), now.getMonth() + 1, 1, 0, 0, 0, 0);
+    return { start, end };
+}
+
+function filterCurrentMonth(transfers) {
+    const { start, end } = getMonthRange();
+    return transfers.filter((t) => {
+        const ts = new Date(t.timestamp);
+        if (Number.isNaN(ts.getTime())) return false;
+        return ts >= start && ts < end;
+    });
+}
+
+function formatTransferOption(t) {
+    const amount = Number(t.amount || 0).toLocaleString('en-US', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+    });
+    const date = new Date(t.timestamp).toLocaleString('es-VE', {
+        day: '2-digit',
+        month: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit'
+    });
+    const type = t.type || 'PAY';
+    const sender = t.counterpartyName || 'Sin remitente';
+    return `${type} · ${amount} USDT · ${sender} · ${date}`;
+}
+
 function populateTransfers() {
     const { transferSelect } = getElements();
     if (!transferSelect) return;
 
     transferSelect.innerHTML = '';
 
-    if (state.transfers.length === 0) {
-        transferSelect.innerHTML = '<option value="">Sin transferencias disponibles</option>';
+    const monthTransfers = filterCurrentMonth(state.transfers);
+
+    if (monthTransfers.length === 0) {
+        transferSelect.innerHTML = '<option value="">Sin ingresos en el mes en curso</option>';
         return;
     }
 
@@ -93,17 +127,10 @@ function populateTransfers() {
     placeholder.textContent = 'Seleccionar ingreso...';
     transferSelect.appendChild(placeholder);
 
-    for (const t of state.transfers) {
+    for (const t of monthTransfers) {
         const option = document.createElement('option');
         option.value = t.id;
-        const amount = Number(t.amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-        const date = new Date(t.timestamp).toLocaleString('es-VE', {
-            day: '2-digit',
-            month: '2-digit',
-            hour: '2-digit',
-            minute: '2-digit'
-        });
-        option.textContent = `${t.type} +${amount} USDT · ${t.paymentMethod || 'Sin banco'} · ${date}`;
+        option.textContent = formatTransferOption(t);
         transferSelect.appendChild(option);
     }
 
