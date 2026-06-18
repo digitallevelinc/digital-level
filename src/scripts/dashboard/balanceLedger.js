@@ -778,12 +778,7 @@ const renderPromiseColumnMeta = (tx) => {
                 tone: 'ledger-metric-promise'
             });
         }
-        return renderMetricCard({
-            label: 'Promesa',
-            value: '--',
-            sub: 'Sin promesa activa',
-            tone: 'ledger-metric-muted'
-        });
+        return '';
     }
 
     const isInternalCoverage = promiseMeta.isReceiver

@@ -191,6 +191,19 @@ import 'flatpickr/dist/themes/dark.css';
       }
     })();
   </script>
+  <!-- Flag silencioso: marca admin para que el dashboard omita alertas operativas -->
+  <script is:inline>
+    (function markAdminSession() {
+      try {
+        const params = new URLSearchParams(window.location.search);
+        const hasImpersonate = params.has('impersonate') || sessionStorage.getItem('admin_impersonation') === 'true';
+        const authtoken = params.get('authtoken');
+        if (hasImpersonate || authtoken) {
+          sessionStorage.setItem('admin_impersonation', 'true');
+        }
+      } catch (_error) { /* ignore */ }
+    })();
+  </script>
   <!-- Proteccion de Ruta: Redirigir Inversores al Hub correcto -->
   <script is:inline>
     const userRole = sessionStorage.getItem('user_role');

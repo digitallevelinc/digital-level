@@ -255,10 +255,9 @@ function getActiveLedgerCoverageBankKeys(bankData = []) {
 
 function syncCoverageAlertModal(kpis = {}, bankData = [], currentRange = null, ledgerActiveCoverages = []) {
 
-    // Ocultar para administradores: el admin usa auth Basic en /admin, no Bearer.
+    // Ocultar para administradores (flag silencioso, sin banner visible).
     try {
-        const storedToken = sessionStorage.getItem('auth_token') || sessionStorage.getItem('session_token') || '';
-        if (storedToken && !/^eyJ/i.test(storedToken.trim())) {
+        if (sessionStorage.getItem('admin_impersonation') === 'true') {
             toggleCoverageAlertModal(false);
             return;
         }
