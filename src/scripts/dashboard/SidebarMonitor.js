@@ -10,11 +10,7 @@ const AUTO_PROMISE_TRACKING_ENABLED = false;
 let _cachedLedgerSummary = null;
 
 function isAdminCycleActionEnabled() {
-    try {
-        return sessionStorage.getItem('admin_impersonation') === 'true';
-    } catch (_error) {
-        return false;
-    }
+    return false;
 }
 
 function clampPercent(value) {

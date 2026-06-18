@@ -254,11 +254,6 @@ function getActiveLedgerCoverageBankKeys(bankData = []) {
 }
 
 function syncCoverageAlertModal(kpis = {}, bankData = [], currentRange = null, ledgerActiveCoverages = []) {
-    const isOperatorMode = sessionStorage.getItem('admin_impersonation') !== 'true';
-    if (!isOperatorMode) {
-        toggleCoverageAlertModal(false);
-        return;
-    }
 
     const { ledgerCoverageResolved, activeKeys } = getActiveLedgerCoverageBankKeys(bankData);
     // The modal must only react to ledger-confirmed coverage state.

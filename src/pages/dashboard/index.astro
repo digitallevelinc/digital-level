@@ -198,22 +198,7 @@ import 'flatpickr/dist/themes/dark.css';
       window.location.href = '/investor';
     }
   </script>
-  <!-- Banner de impersonación admin -->
-  <div id="admin-impersonation-banner" class="hidden mb-4 mx-1 sm:mx-2 flex items-center gap-3 rounded-xl border border-[#F3BA2F]/30 bg-[#F3BA2F]/10 px-4 py-2.5 text-sm">
-    <span class="text-[#F3BA2F] font-black text-xs uppercase tracking-[0.15em]">Admin</span>
-    <span class="text-white/80">Viendo dashboard de <strong id="impersonation-alias" class="text-[#F3BA2F]"></strong> en modo admin</span>
-    <button onclick="sessionStorage.clear(); window.close();" class="ml-auto rounded-lg border border-white/10 bg-white/5 px-3 py-1 text-xs font-bold text-white/70 hover:bg-white/10 hover:text-white transition-colors">Cerrar</button>
-  </div>
-  <script is:inline>
-    if (sessionStorage.getItem('admin_impersonation') === 'true') {
-      const banner = document.getElementById('admin-impersonation-banner');
-      if (banner) {
-        banner.classList.remove('hidden');
-        const aliasEl = document.getElementById('impersonation-alias');
-        if (aliasEl) aliasEl.textContent = sessionStorage.getItem('operator_alias') || 'Operador';
-      }
-    }
-  </script>
+  
 
   <div class="mb-8 flex flex-col gap-2 px-1 sm:mb-10 sm:px-2">
     <div class="max-w-3xl">
