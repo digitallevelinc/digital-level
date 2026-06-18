@@ -174,6 +174,49 @@ function purgeLegacySharedAuth() {
 
 function clearTabAuth() {
     LEGACY_SHARED_AUTH_KEYS.forEach((key) => sessionStore.removeItem(key));
+    sessionStore.removeItem('admin_impersonation');
+}
+
+function normalizeSessionIdentity(value) {
+    return String(value || '')
+        .trim()
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/[\s_]+/g, '-');
+}
+
+function isAdminDashboardSession() {
+    try {
+        if (sessionStore.getItem('admin_impersonation') === 'true') return true;
+
+        const userRole = normalizeSessionIdentity(sessionStore.getItem('user_role'));
+        if (userRole === 'admin' || userRole === 'super-admin') return true;
+
+        let userInfo = {};
+        const rawUserInfo = sessionStore.getItem('user_info');
+        if (rawUserInfo) {
+            try {
+                userInfo = JSON.parse(rawUserInfo) || {};
+            } catch (_error) {
+                userInfo = {};
+            }
+        }
+
+        const identityValues = [
+            userInfo.role,
+            userInfo.type,
+            userInfo.username,
+            userInfo.alias,
+            userInfo.name,
+            userInfo.displayName,
+            sessionStore.getItem('operator_alias'),
+        ].map(normalizeSessionIdentity);
+
+        return identityValues.some((value) => value === 'admin-master');
+    } catch (_error) {
+        return false;
+    }
 }
 
 function normalizeBankKey(value) {
@@ -256,13 +299,9 @@ function getActiveLedgerCoverageBankKeys(bankData = []) {
 function syncCoverageAlertModal(kpis = {}, bankData = [], currentRange = null, ledgerActiveCoverages = []) {
 
     // Ocultar para administradores (flag silencioso, sin banner visible).
-    try {
-        if (sessionStorage.getItem('admin_impersonation') === 'true') {
-            toggleCoverageAlertModal(false);
-            return;
-        }
-    } catch (_error) {
-        // sessionStorage no disponible → no asumimos admin
+    if (isAdminDashboardSession()) {
+        toggleCoverageAlertModal(false);
+        return;
     }
 
     const { ledgerCoverageResolved, activeKeys } = getActiveLedgerCoverageBankKeys(bankData);

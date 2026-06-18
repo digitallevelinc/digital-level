@@ -417,6 +417,7 @@ import Navbar from '../components/Navbar.tsx';
         }
 
         purgeLegacySharedAuth();
+        sessionStore.removeItem('admin_impersonation');
         sessionStore.setItem('session_token', result.token);
         sessionStore.setItem('auth_token', result.token);
 
