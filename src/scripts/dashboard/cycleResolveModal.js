@@ -84,11 +84,27 @@ function getMonthRange() {
     return { start, end };
 }
 
+function parseTransferDate(raw) {
+    if (!raw) return null;
+    if (raw instanceof Date) return raw;
+    const s = String(raw);
+    // Si viene como "2026-06-18 11:48:23" o sin zona, interprétalo como hora local de VE.
+    const hasZone = /[zZ]$|[+-]\d{2}:?\d{2}$/.test(s);
+    const localLike = /^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}/.test(s);
+    if (localLike && !hasZone) {
+        const norm = s.replace(' ', 'T');
+        const d = new Date(norm);
+        if (!Number.isNaN(d.getTime())) return d;
+    }
+    const d = new Date(s);
+    return Number.isNaN(d.getTime()) ? null : d;
+}
+
 function filterCurrentMonth(transfers) {
     const { start, end } = getMonthRange();
     return transfers.filter((t) => {
-        const ts = new Date(t.timestamp);
-        if (Number.isNaN(ts.getTime())) return false;
+        const ts = parseTransferDate(t.timestamp);
+        if (!ts) return false;
         return ts >= start && ts < end;
     });
 }
@@ -98,12 +114,15 @@ function formatTransferOption(t) {
         minimumFractionDigits: 2,
         maximumFractionDigits: 2
     });
-    const date = new Date(t.timestamp).toLocaleString('es-VE', {
-        day: '2-digit',
-        month: '2-digit',
-        hour: '2-digit',
-        minute: '2-digit'
-    });
+    const ts = parseTransferDate(t.timestamp);
+    const date = ts
+        ? ts.toLocaleString('es-VE', {
+            day: '2-digit',
+            month: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit'
+        })
+        : 'Sin fecha';
     const type = t.type || 'PAY';
     const sender = t.counterpartyName || 'Sin remitente';
     return `${type} · ${amount} USDT · ${sender} · ${date}`;
