@@ -111,10 +111,10 @@ function updateProfitTooltip(kpis = {}, bankInsights = [], ledgerSummary = null)
         setText(
             'audit-profit-tooltip-summary',
             hasLedgerProfit
-                ? 'El backend reporto un valor canonico; se mantiene estable pese al recálculo del ledger.'
-                : 'Mostrando el valor canonico del backend mientras el ledger local termina de calcular.'
+                ? 'El backend reporto el profit por caja; el spread del ledger queda solo como referencia.'
+                : 'Mostrando el valor canonico del backend por caja.'
         );
-        setHtml('audit-profit-tooltip-formula', '<strong>Regla visible:</strong> Profit Operativo = profit canonico del backend');
+        setHtml('audit-profit-tooltip-formula', '<strong>Regla visible:</strong> Profit Operativo = cierre del ciclo - saldo inicial - giros internos');
 
         setText('audit-profit-tooltip-result', fUSDT(displayedProfit));
         setText('audit-profit-tooltip-source-label', 'Spread ledger');
@@ -134,8 +134,8 @@ function updateProfitTooltip(kpis = {}, bankInsights = [], ledgerSummary = null)
         setText(
             'audit-profit-tooltip-note',
             hasLedgerProfit
-                ? 'El KPI visible sigue al backend canonico; el ledger se muestra solo como referencia.'
-                : 'Cuando el ledger local termine, el desglose se actualiza sin dejar el KPI en skeleton.'
+                ? 'Los PAY/giros internos no cuentan como ganancia; solo cambia el profit lo que queda por operaciones.'
+                : 'Los PAY/giros internos no cuentan como ganancia; solo cambia el profit lo que queda por operaciones.'
         );
 
         return displayedProfit;
