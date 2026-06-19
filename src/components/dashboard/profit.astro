@@ -1,7 +1,7 @@
 ---
 import CardHelp from './CardHelp.astro';
 ---
-<div class="flex flex-col gap-5 rounded-[1.5rem] border border-emerald-500/20 bg-[#161a1e] p-5 shadow-2xl sm:p-6 lg:p-7">
+<div id="profit-card" class="flex flex-col gap-5 rounded-[1.5rem] border border-emerald-500/20 bg-[#161a1e] p-5 shadow-2xl sm:p-6 lg:p-7">
   <div class="flex flex-wrap items-center justify-between gap-3">
     <p class="text-[12px] font-black uppercase tracking-[0.22em] text-white/70 sm:text-[13px]">Resumen de Profit</p>
     <CardHelp
@@ -17,7 +17,7 @@ import CardHelp from './CardHelp.astro';
     />
   </div>
 
-  <div class="grid grid-cols-1 gap-3 border-t border-white/5 pt-5 md:grid-cols-3">
+  <div class="grid grid-cols-1 gap-3 border-t border-white/5 pt-5 sm:grid-cols-2 md:grid-cols-4">
     <div class="flex min-h-[132px] items-start gap-4 rounded-xl border border-emerald-500/20 bg-emerald-500/[0.07] p-4 shadow-inner shadow-black/20">
       <div class="rounded-lg bg-emerald-500/10 p-3 text-emerald-400">
         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 7.5V6a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-1.5"></path><path d="M16 12h6"></path><path d="M19 9l3 3-3 3"></path></svg>
@@ -120,6 +120,26 @@ import CardHelp from './CardHelp.astro';
         <p class="mt-2 text-[10px] italic uppercase tracking-[0.14em] text-white/45 sm:text-[11px]">USDT operados</p>
       </div>
     </div>
+
+    <div id="capital-control-card" class="capital-control-card flex min-h-[132px] flex-col gap-2 p-4">
+      <div class="flex items-center justify-between gap-2">
+        <span class="text-[11px] font-black uppercase tracking-[0.16em] text-white/55 sm:text-[12px]">Cobertura</span>
+        <span id="capital-control-status" class="capital-control-status">NORMAL</span>
+      </div>
+      <div class="flex items-baseline gap-1.5">
+        <span id="capital-control-fiat" class="font-mono text-[1.75rem] font-bold leading-tight text-white sm:text-[1.95rem]">0,00</span>
+        <span class="text-[12px] font-bold uppercase text-white/55">Bs.</span>
+      </div>
+      <div id="capital-control-usdt" class="text-[12px] font-bold text-[#fdba74]">≈ 0,00 USDT</div>
+      <div class="capital-control-bar mt-1">
+        <div id="capital-control-bar-consumed" class="capital-control-bar-consumed" style="width: 0%"></div>
+        <div id="capital-control-bar-pending" class="capital-control-bar-pending" style="width: 100%"></div>
+      </div>
+      <div class="capital-control-meta mt-1">
+        <span>Salido: <strong id="capital-control-expected">0,00 Bs.</strong></span>
+        <span>Retornado: <strong id="capital-control-consumed">0,00 Bs.</strong></span>
+      </div>
+    </div>
   </div>
 
   <div class="rounded-xl border border-white/5 bg-white/[0.02] p-4 shadow-inner sm:p-5">
@@ -134,3 +154,78 @@ import CardHelp from './CardHelp.astro';
     </div>
   </div>
 </div>
+
+<style is:global>
+  #profit-card .capital-control-card {
+    overflow: hidden;
+    border-radius: 0.85rem;
+    border: 1px solid rgba(251, 146, 60, 0.35);
+    background: linear-gradient(180deg, rgba(251, 146, 60, 0.10) 0%, rgba(67, 24, 8, 0.35) 100%);
+    transition: border-color 0.3s ease, background 0.3s ease;
+  }
+  #profit-card .capital-control-card.is-zero {
+    border-color: rgba(34, 197, 94, 0.35);
+    background: linear-gradient(180deg, rgba(34, 197, 94, 0.08) 0%, rgba(6, 30, 22, 0.30) 100%);
+  }
+  #profit-card .capital-control-card.is-critical {
+    border-color: rgba(244, 63, 94, 0.40);
+    background: linear-gradient(180deg, rgba(244, 63, 94, 0.12) 0%, rgba(61, 22, 31, 0.35) 100%);
+  }
+  #profit-card .capital-control-status {
+    border-radius: 999px;
+    padding: 0.25rem 0.55rem;
+    font-size: 0.6rem;
+    font-weight: 950;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    background: rgba(251, 146, 60, 0.14);
+    color: #fdba74;
+  }
+  #profit-card .capital-control-card.is-zero .capital-control-status {
+    background: rgba(34, 197, 94, 0.14);
+    color: #86efac;
+  }
+  #profit-card .capital-control-card.is-critical .capital-control-status {
+    background: rgba(244, 63, 94, 0.14);
+    color: #fda4af;
+  }
+  #profit-card .capital-control-card.is-zero #capital-control-usdt {
+    color: #86efac;
+  }
+  #profit-card .capital-control-bar {
+    height: 5px;
+    width: 100%;
+    background: rgba(255, 255, 255, 0.08);
+    border-radius: 3px;
+    overflow: hidden;
+    display: flex;
+  }
+  #profit-card .capital-control-bar-consumed {
+    height: 100%;
+    background: linear-gradient(90deg, #34d399, #22c55e);
+    border-radius: 3px 0 0 3px;
+    transition: width 0.4s ease;
+  }
+  #profit-card .capital-control-bar-pending {
+    height: 100%;
+    background: linear-gradient(90deg, #f97316, #fbbf24);
+    border-radius: 0 3px 3px 0;
+    transition: width 0.4s ease;
+  }
+  #profit-card .capital-control-meta {
+    display: flex;
+    justify-content: space-between;
+    gap: 0.5rem;
+    font-size: 0.7rem;
+    font-weight: 700;
+    color: rgba(255, 255, 255, 0.55);
+  }
+  #profit-card .capital-control-meta strong {
+    color: rgba(255, 255, 255, 0.85);
+  }
+  @media (max-width: 639px) {
+    #profit-card .capital-control-card {
+      padding: 0.85rem 1rem;
+    }
+  }
+</style>

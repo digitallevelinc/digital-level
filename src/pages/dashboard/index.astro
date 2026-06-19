@@ -8,8 +8,7 @@ import BalanceLedger from '../../components/dashboard/BalanceLedger.astro';
 // import ManualPromises from '../../components/dashboard/ManualPromises.astro';
 import Profit from '../../components/dashboard/profit.astro';
 import ComisionOperador from '../../components/dashboard/ComisionOperador.astro'; 
-import ProyeccionGanancias from '../../components/dashboard/ProyeccionGanancias.astro';
-import CapitalControl from '../../components/dashboard/CapitalControl.astro';
+// // import ProyeccionGanancias from '../../components/dashboard/ProyeccionGanancias.astro';
 import CycleResolveModal from '../../components/dashboard/CycleResolveModal.astro';
 import CloseCycleButton from '../../components/dashboard/CloseCycleButton.astro';
 import 'flatpickr/dist/flatpickr.min.css';
@@ -136,12 +135,6 @@ import 'flatpickr/dist/themes/dark.css';
     </div>
   </section>
 
-  <section class="mb-6 lg:mb-8">
-    <div class="max-w-2xl">
-      <CapitalControl />
-    </div>
-  </section>
-
   <section class="dashboard-collapsible mb-2 lg:mb-3" data-collapsible="critical-performance">
     <button class="dashboard-collapsible-trigger dashboard-collapsible-trigger-section px-1 sm:px-2" type="button" data-collapsible-trigger aria-expanded="true">
       <span class="dashboard-collapsible-title-wrap">
@@ -178,7 +171,7 @@ import 'flatpickr/dist/themes/dark.css';
 
         <section class="self-start">
           <div class="grid grid-cols-1 gap-5 sm:grid-cols-2">
-            <ProyeccionGanancias />
+            {/* <ProyeccionGanancias /> */}
             <ComisionOperador />
           </div>
         </section>

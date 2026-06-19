@@ -6,7 +6,7 @@ import { fUSDT, fVES, inject } from './dashboard/utils.js';
 import { resetProfitLedgerSummary, updateProfitUI } from './dashboard/profit.js';
 import { updateComisionOperadorUI } from './dashboard/comisionOp.js';
 import { initPayrollWithdrawalsUI, refreshPayrollSummary, refreshPayrollWithdrawalHistory, setPayrollRange } from './dashboard/payrollWithdrawals.js';
-import { updateProyeccionesUI } from './dashboard/proyecciones.js';
+// import { updateProyeccionesUI } from './dashboard/proyecciones.js';
 import { updateComisionesUI } from './dashboard/comisiones.js';
 import { updateOperacionesUI } from './dashboard/operaciones.js';
 import { updateBancosUI } from './dashboard/bancos.js';
@@ -1026,7 +1026,7 @@ export async function updateDashboard(API_BASE, token, alias, range = {}, opts =
         // Sincronizamos el Profit UI (usando datos críticos del backend)
         updateProfitUI(kpis, bankData);
 
-        updateProyeccionesUI(kpis, range);
+        // updateProyeccionesUI(kpis, range);
         // void refreshManualPromisesUI();
 
         // --- SECCIONES DE CARTERAS (LOGÍSTICA) ---
