@@ -271,6 +271,18 @@ const getSignedAmount = (tx = {}) => {
 
 const getLedgerAnchorBalance = (kpis = {}) => {
     const payloadClosingBalance = Number(state.closingBalance);
+    // Simple balance (= "saldo operativo" del operador) tiene prioridad
+    // sobre el wallet live: la columna BALANCE del ledger debe reflejar lo
+    // que el operador usa para sus retiros, no el balance crudo de Binance.
+    const simpleBalanceCandidates = [
+        kpis?.metrics?.simpleBalance,
+        kpis?.audit?.simpleBalance,
+    ];
+    const simpleBalance = simpleBalanceCandidates.reduce((found, candidate) => {
+        if (Number.isFinite(found)) return found;
+        const numeric = Number(candidate);
+        return Number.isFinite(numeric) && numeric >= 0 ? numeric : found;
+    }, Number.NaN);
     const candidates = [
         kpis?.metrics?.totalBalance,
         kpis?.currentBalance,
@@ -303,6 +315,16 @@ const getLedgerAnchorBalance = (kpis = {}) => {
     // the mismatch. This prevents negative reconstructed balances caused by
     // backend groupBy inconsistencies (missing transfers, race conditions, etc.).
     const CLOSING_BALANCE_DIVERGENCE_THRESHOLD = 10;
+
+    // Prefer the live simple balance over the Binance wallet balance so the
+    // ledger shows the "saldo operativo" the operator tracks. This is the
+    // number they see in the Simple Balance card and what they use to plan
+    // withdrawals — anchoring to lastKnownBalance showed confusing negatives
+    // after manual PAY_SENT that the operator had not yet registered.
+    if (Number.isFinite(simpleBalance)) {
+        return simpleBalance;
+    }
+
     if (Number.isFinite(payloadClosingBalance) && Number.isFinite(verifiedWalletBalance)) {
         const divergence = Math.abs(payloadClosingBalance - verifiedWalletBalance);
         if (divergence > CLOSING_BALANCE_DIVERGENCE_THRESHOLD) {
