@@ -3213,8 +3213,10 @@ const prefetchSellContextPages = async () => {
         }
     }
 
-    // totalSpread stays useful for ledger/sidebar analytics, but the visible
-    // Profit Operativo KPI must remain the canonical net value from /api/kpis.
+    // totalSpread drives the visible Profit Operativo KPI directly: the
+    // dashboard sums the SPREADS of every row in the current range. Keep
+    // computing it per range so the operator sees the figure change as new
+    // trades are added to the ledger.
 };
 
 const bindEventsOnce = () => {

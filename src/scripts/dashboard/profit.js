@@ -91,64 +91,32 @@ function updateProfitTooltip(kpis = {}, bankInsights = [], ledgerSummary = null)
     }
 
     const critical = kpis.critical || {};
-    const hasBackendProfit = hasFiniteNumber(critical.profitTotalUSDT);
     const backendProfit = parseNumeric(critical.profitTotalUSDT);
     const sellFees = getSellFeesTotal(kpis, bankInsights);
     const ledgerSpreadTotal = parseNumeric(cachedLedgerProfitSummary?.totalSpread);
+    const ledgerSpreadCount = parseNumeric(cachedLedgerProfitSummary?.spreadCount);
     const hasLedgerProfit = Number.isFinite(ledgerSpreadTotal) && (
-        ledgerSpreadTotal !== 0 || parseNumeric(cachedLedgerProfitSummary?.spreadCount) > 0
+        ledgerSpreadTotal !== 0 || ledgerSpreadCount > 0
     );
 
-    // The backend canonical value is the authoritative Profit Operativo.
-    // The locally-recomputed ledger spread is only used as a fallback while
-    // the backend hasn't reported a value yet — once it has, we keep showing
-    // it instead of overwriting with the ledger (which can drift as new
-    // transfers arrive and produce visible flicker on auto-refresh).
-    if (hasBackendProfit) {
-        const displayedProfit = backendProfit;
+    // Profit Operativo = suma directa de los SPREADS del ledger del rango
+    // seleccionado. Sin fallback al valor canonico del backend: si el ledger
+    // todavia no reporto spreads, el KPI queda en "Pendiente" hasta que se
+    // puedan contabilizar. Tampoco se restan fees de venta: el spread ya
+    // representa el margen operativo por trade y el operador quiere ver
+    // exactamente la suma de los SPREADS de la tabla.
+    if (hasLedgerProfit) {
+        const displayedProfit = ledgerSpreadTotal;
         applyVisibleProfit(kpis, displayedProfit);
 
         setText(
             'audit-profit-tooltip-summary',
-            hasLedgerProfit
-                ? 'El backend reporto el profit por caja; el spread del ledger queda solo como referencia.'
-                : 'Mostrando el valor canonico del backend por caja.'
+            'Suma directa de los spreads del ledger para el rango seleccionado.'
         );
-        setHtml('audit-profit-tooltip-formula', '<strong>Regla visible:</strong> Profit Operativo = cierre del ciclo - saldo inicial - giros internos');
-
-        setText('audit-profit-tooltip-result', fUSDT(displayedProfit));
-        setText('audit-profit-tooltip-source-label', 'Spread ledger');
-        setText('audit-profit-tooltip-source-value', hasLedgerProfit ? fUSDT(ledgerSpreadTotal) : 'Pendiente');
-        setText('audit-profit-tooltip-backend', fUSDT(backendProfit));
-        setText('audit-profit-tooltip-sell-fees', fUSDT(sellFees));
-        setText('audit-profit-tooltip-operation', fUSDT(displayedProfit));
-        setText(
-            'audit-profit-tooltip-spread-breakdown',
-            hasLedgerProfit ? buildSpreadBreakdown(cachedLedgerProfitSummary) : 'Esperando desglose del ledger'
+        setHtml(
+            'audit-profit-tooltip-formula',
+            '<strong>Regla visible:</strong> Profit Operativo = Σ SPREADS del rango'
         );
-        setText('audit-profit-tooltip-fallback', fUSDT(backendProfit));
-
-        const fallbackLabel = document.getElementById('audit-profit-tooltip-fallback')?.previousElementSibling;
-        if (fallbackLabel) fallbackLabel.textContent = 'Valor visible actual';
-
-        setText(
-            'audit-profit-tooltip-note',
-            hasLedgerProfit
-                ? 'Los PAY/giros internos no cuentan como ganancia; solo cambia el profit lo que queda por operaciones.'
-                : 'Los PAY/giros internos no cuentan como ganancia; solo cambia el profit lo que queda por operaciones.'
-        );
-
-        return displayedProfit;
-    } else if (hasLedgerProfit) {
-        const ledgerNetProfit = ledgerSpreadTotal - sellFees;
-        const displayedProfit = ledgerNetProfit;
-        applyVisibleProfit(kpis, displayedProfit);
-
-        setText(
-            'audit-profit-tooltip-summary',
-            'Aqui ves la cuenta exacta que usa el KPI visible.'
-        );
-        setHtml('audit-profit-tooltip-formula', '<strong>Regla visible:</strong> Profit Operativo = Spread ledger - Fees de venta');
 
         setText('audit-profit-tooltip-result', fUSDT(displayedProfit));
         setText('audit-profit-tooltip-source-label', 'Spread ledger');
@@ -157,20 +125,20 @@ function updateProfitTooltip(kpis = {}, bankInsights = [], ledgerSummary = null)
         setText('audit-profit-tooltip-sell-fees', fUSDT(sellFees));
         setText(
             'audit-profit-tooltip-operation',
-            `${fUSDT(ledgerSpreadTotal)} - ${fUSDT(sellFees)} = ${fUSDT(displayedProfit)}`
+            `${fUSDT(ledgerSpreadTotal)} = ${fUSDT(displayedProfit)}`
         );
         setText(
             'audit-profit-tooltip-spread-breakdown',
             buildSpreadBreakdown(cachedLedgerProfitSummary)
         );
+        setText('audit-profit-tooltip-fallback', 'Sin fallback');
 
-        setText('audit-profit-tooltip-fallback', hasBackendProfit ? fUSDT(backendProfit) : '---');
         const fallbackLabel = document.getElementById('audit-profit-tooltip-fallback')?.previousElementSibling;
-        if (fallbackLabel) fallbackLabel.textContent = 'Canonico backend';
+        if (fallbackLabel) fallbackLabel.textContent = 'Fallback';
 
         setText(
             'audit-profit-tooltip-note',
-            'Primero toma el spread total del ledger, luego le resta las fees de venta.'
+            `Totalizado sobre ${ledgerSpreadCount} spreads del rango. Si llega un nuevo trade su spread se suma automaticamente.`
         );
 
         return displayedProfit;
@@ -178,25 +146,28 @@ function updateProfitTooltip(kpis = {}, bankInsights = [], ledgerSummary = null)
         const displayedProfit = null;
         setText(
             'audit-profit-tooltip-summary',
-            'Esperando un valor valido de profit para mostrar el KPI.'
+            'Sin spreads contabilizados todavia para este rango.'
         );
-        setHtml('audit-profit-tooltip-formula', '<strong>Regla visible:</strong> Profit Operativo = Spread ledger - Fees de venta');
+        setHtml(
+            'audit-profit-tooltip-formula',
+            '<strong>Regla visible:</strong> Profit Operativo = Σ SPREADS del rango'
+        );
 
-        setText('audit-profit-tooltip-result', 'Calculando...');
+        setText('audit-profit-tooltip-result', 'Pendiente');
         setText('audit-profit-tooltip-source-label', 'Spread ledger');
         setText('audit-profit-tooltip-source-value', '---');
         setText('audit-profit-tooltip-backend', fUSDT(backendProfit));
         setText('audit-profit-tooltip-sell-fees', fUSDT(sellFees));
-        setText('audit-profit-tooltip-operation', 'Calculando ledger...');
+        setText('audit-profit-tooltip-operation', 'Esperando ledger...');
         setText('audit-profit-tooltip-spread-breakdown', 'Esperando desglose del ledger');
-        setText('audit-profit-tooltip-fallback', hasBackendProfit ? fUSDT(backendProfit) : '---');
+        setText('audit-profit-tooltip-fallback', 'Sin fallback');
 
         const fallbackLabel = document.getElementById('audit-profit-tooltip-fallback')?.previousElementSibling;
-        if (fallbackLabel) fallbackLabel.textContent = 'Canonico backend';
+        if (fallbackLabel) fallbackLabel.textContent = 'Fallback';
 
         setText(
             'audit-profit-tooltip-note',
-            'El skeleton solo se mantiene cuando todavia no hay profit canonico ni ledger calculado.'
+            'El KPI permanece en Pendiente hasta que el ledger reporte spreads del rango.'
         );
 
         return displayedProfit;
