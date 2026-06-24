@@ -3119,15 +3119,31 @@ const prefetchSellContextPages = async () => {
         const txDateStr = new Date(getTxTimestampMs(tx)).toLocaleDateString('en-CA', { timeZone: CARACAS_TZ });
         if (txDateStr < _effectiveFrom || txDateStr > _effectiveTo) continue;
         const cycleEntry = allCycleSpreads.get(getTransferKey(tx));
-        const spreadContext = cycleEntry?.sellContextOverride || (cycleEntry?.rateOverride ?? 0);
-        const txSpreadRet = computeTxSpread(tx, spreadContext);
-        const txSpread = truncateTowardZero(txSpreadRet.val, 2);
+        // Prefer the persisted spreadUsdt (computed server-side by the same
+        // algorithm the admin uses). Falls back to client-side computation only
+        // for rows where the backend hasn't persisted yet.
+        let txSpread = Number(tx?.spreadUsdt);
+        let txSpreadRet = null;
+        if (!Number.isFinite(txSpread)) {
+            const spreadContext = cycleEntry?.sellContextOverride || (cycleEntry?.rateOverride ?? 0);
+            txSpreadRet = computeTxSpread(tx, spreadContext);
+            txSpread = truncateTowardZero(txSpreadRet.val, 2);
+        }
         if (txSpread !== 0) {
             spreadCount++;
             const bankKey = normalizeBankKey(tx?.paymentMethod || tx?.bankName || tx?.bank || '');
             if (bankKey) {
                 ledgerSpreadByBank.set(bankKey, (ledgerSpreadByBank.get(bankKey) || 0) + txSpread);
-                const sellRate = Number(txSpreadRet.details?.sellRate || 0);
+                let sellRate = Number(txSpreadRet?.details?.sellRate || 0);
+                if (sellRate <= 0) {
+                    const override = cycleEntry?.sellContextOverride;
+                    if (override && typeof override === "object" && override.rate) {
+                        sellRate = Number(override.rate);
+                    } else {
+                        const overrideRate = Number(cycleEntry?.rateOverride || 0);
+                        if (overrideRate > 0) sellRate = overrideRate;
+                    }
+                }
                 const fiatSpread = sellRate > 0 ? truncateTowardZero(txSpread * sellRate, 2) : 0;
                 ledgerSpreadFiatByBank.set(bankKey, (ledgerSpreadFiatByBank.get(bankKey) || 0) + fiatSpread);
             }
