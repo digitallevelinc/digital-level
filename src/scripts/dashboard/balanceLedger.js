@@ -49,6 +49,12 @@ const state = {
 
 let searchDebounceTimer = null;
 
+// Sell indices: rebuilt on cache/range changes to turn O(n²) buy→sell lookup
+// into O(log n) per lookup. Generic cross-bank role lookup uses globalSellIndex.
+let sellIndexByBank = new Map();
+let globalSellIndex = [];
+let sellIndexCacheKey = '';
+
 const escapeHtml = (value) => String(value ?? '')
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
@@ -1213,6 +1219,105 @@ const bankLabelFromKey = (bankKey) => {
     }
 };
 
+const getSellIndexCacheKey = () => `${state.transfersCache.size}:${state.auxiliaryTransfersCache.size}:${sanitizeDateValue(state.range?.from)}:${sanitizeDateValue(state.range?.to)}:${state.typeFilter}`;
+
+const buildSellIndices = (transfers) => {
+    sellIndexByBank.clear();
+    globalSellIndex = [];
+
+    for (const tx of transfers) {
+        if (!isLedgerSellTarget(tx)) continue;
+
+        const bankKey = normalizeBankKey(tx?.bankName || tx?.bank || tx?.paymentMethod);
+        const ts = getTxTimestampMs(tx);
+        if (!ts) continue;
+
+        const fee = toFiniteNumber(tx?.fee);
+        const feeCurrency = String(tx?.feeCurrency || '').toUpperCase();
+        const effectiveFee = fee > 0 && (!feeCurrency || feeCurrency === 'USDT') ? fee : 0;
+        const amount = getTxUsdtVolume(tx);
+        const rate = getTxRate(tx);
+        if (rate <= 0 && amount <= 0) continue;
+
+        const paymentMethod = String(tx?.paymentMethod || tx?.bankName || tx?.bank || '').trim().toUpperCase();
+        const role = getTxDisplayRole(tx);
+        const isPromise = Boolean(getPromiseMeta(tx)?.promiseUsdt > 0);
+        const key = getTransferKey(tx);
+
+        const entry = {
+            tx,
+            ts,
+            rate,
+            fee: effectiveFee,
+            amount,
+            fiatAmount: resolveFiatAmount(tx),
+            role,
+            isPromise,
+            paymentMethod,
+            key,
+        };
+
+        globalSellIndex.push(entry);
+        if (bankKey) {
+            if (!sellIndexByBank.has(bankKey)) sellIndexByBank.set(bankKey, []);
+            sellIndexByBank.get(bankKey).push(entry);
+        }
+    }
+
+    globalSellIndex.sort((a, b) => a.ts - b.ts);
+    for (const arr of sellIndexByBank.values()) {
+        arr.sort((a, b) => a.ts - b.ts);
+    }
+
+    sellIndexCacheKey = getSellIndexCacheKey();
+};
+
+const ensureSellIndicesBuilt = (transfers) => {
+    const key = getSellIndexCacheKey();
+    if (sellIndexCacheKey !== key) {
+        buildSellIndices(transfers || getCycleComputationTransfers());
+    }
+};
+
+const findNearestSellInSortedArray = (arr, buyTs, buyTx, maxWindowMs) => {
+    if (!arr?.length) return null;
+
+    let left = 0;
+    let right = arr.length - 1;
+    let insertIdx = arr.length;
+    while (left <= right) {
+        const mid = Math.floor((left + right) / 2);
+        if (arr[mid].ts < buyTs) {
+            left = mid + 1;
+        } else {
+            insertIdx = mid;
+            right = mid - 1;
+        }
+    }
+
+    let best = null;
+    let bestScore = Number.POSITIVE_INFINITY;
+    const start = Math.max(0, insertIdx - 1);
+    const end = Math.min(arr.length - 1, insertIdx + 1);
+
+    for (let i = start; i <= end; i += 1) {
+        const entry = arr[i];
+        if (entry.tx === buyTx) continue;
+        if (maxWindowMs > 0 && Math.abs(buyTs - entry.ts) > maxWindowMs) continue;
+
+        const isPrevious = entry.ts <= buyTs;
+        const delta = Math.abs(buyTs - entry.ts);
+        const score = (isPrevious ? 0 : 1_000_000_000_000) + delta;
+
+        if (score < bestScore) {
+            bestScore = score;
+            best = entry;
+        }
+    }
+
+    return best;
+};
+
 const INTERBANK_FIAT_DISCOUNT_RATE = 0.003;
 
 const isInterbankPair = (buyBank, sellBank) => {
@@ -1380,67 +1485,35 @@ const getAvgTakerSellFeeForBank = (txToMatch) => {
 const BANK_GENERIC_PAIRING_WINDOW_MS = 30 * 60 * 1000; // 30 min strict window for generic BANK
 
 const getNearestSellForBuy = (buyTx) => {
-    // Search the full cache (all visited pages) so sells on page 2 are found when browsing page 1.
-    const searchPool = state.transfersCache.size > 0
-        ? Array.from(state.transfersCache.values())
-        : state.currentTransfers;
-    if (!searchPool?.length) return null;
     const buyBankKey = normalizeBankKey(buyTx?.bankName || buyTx?.bank || buyTx?.paymentMethod);
     if (!buyBankKey) return null;
+
+    const buyTs = getTxTimestampMs(buyTx);
+    if (!buyTs) return null;
+
+    ensureSellIndicesBuilt();
     const isGenericBank = buyBankKey === 'bank';
+    const maxWindowMs = isGenericBank ? BANK_GENERIC_PAIRING_WINDOW_MS : 0;
+    const entry = findNearestSellInSortedArray(
+        sellIndexByBank.get(buyBankKey),
+        buyTs,
+        buyTx,
+        maxWindowMs
+    );
 
-    const buyTs = new Date(buyTx?.timestamp || 0).getTime();
-    if (!Number.isFinite(buyTs) || buyTs <= 0) return null;
-
-    let best = null;
-    let bestScore = Number.POSITIVE_INFINITY;
-
-    for (const tx of searchPool) {
-        if (tx === buyTx) continue;
-        if (!isLedgerSellTarget(tx)) continue;
-
-        const role = getTxDisplayRole(tx);
-
-        const sellBankKey = normalizeBankKey(tx?.bankName || tx?.bank || tx?.paymentMethod);
-        if (!sellBankKey) continue;
-        if (!(sellBankKey === buyBankKey || sellBankKey.includes(buyBankKey) || buyBankKey.includes(sellBankKey))) continue;
-
-        const rate = getTxRate(tx);
-        if (rate <= 0) continue;
-
-        const fee = toFiniteNumber(tx?.fee);
-        const feeCurrency = String(tx?.feeCurrency || '').toUpperCase();
-        const effectiveFee = fee > 0 && (!feeCurrency || feeCurrency === 'USDT') ? fee : 0;
-
-        const sellTs = new Date(tx?.timestamp || 0).getTime();
-        if (!Number.isFinite(sellTs) || sellTs <= 0) continue;
-
-        // For generic BANK label enforce a strict time window to avoid false pairings.
-        if (isGenericBank && Math.abs(buyTs - sellTs) > BANK_GENERIC_PAIRING_WINDOW_MS) continue;
-
-        // Prefer nearest previous sell; if none, nearest absolute.
-        const isPrevious = sellTs <= buyTs;
-        const delta = Math.abs(buyTs - sellTs);
-        const score = (isPrevious ? 0 : 1_000_000_000_000) + delta;
-
-        if (score < bestScore) {
-            bestScore = score;
-            const amount = getTxUsdtVolume(tx);
-            best = {
-                rate,
-                fee: effectiveFee,
-                role: role || '',
-                amount,
-                isPromise: Boolean(getPromiseMeta(tx)?.promiseUsdt > 0),
-                tx,
-                key: getTransferKey(tx),
-                timestampMs: sellTs,
-                fiatAmount: resolveFiatAmount(tx),
-            };
+    return entry
+        ? {
+            rate: entry.rate,
+            fee: entry.fee,
+            role: entry.role || '',
+            amount: entry.amount,
+            isPromise: entry.isPromise,
+            tx: entry.tx,
+            key: entry.key,
+            timestampMs: entry.ts,
+            fiatAmount: entry.fiatAmount,
         }
-    }
-
-    return best;
+        : null;
 };
 
 // Like getNearestSellForBuy but skips the bank-key restriction.
@@ -1448,46 +1521,40 @@ const getNearestSellForBuy = (buyTx) => {
 // Never used for rate — rate comes from getPageAvgRateForBank / getPageAvgRate.
 const MAX_SELL_ROLE_LOOKUP_MS = 4 * 60 * 60 * 1000; // 4h window
 const getNearestSellRoleForBuy = (buyTx) => {
-    // Search the full cache (all visited pages) so sells on page 2 are found when browsing page 1.
-    const searchPool = state.transfersCache.size > 0
-        ? Array.from(state.transfersCache.values())
-        : state.currentTransfers;
-    if (!searchPool?.length) return null;
-    const buyTs = new Date(buyTx?.timestamp || 0).getTime();
-    if (!Number.isFinite(buyTs) || buyTs <= 0) return null;
+    const buyTs = getTxTimestampMs(buyTx);
+    if (!buyTs) return null;
 
+    ensureSellIndicesBuilt();
     let best = null;
     let bestScore = Number.POSITIVE_INFINITY;
 
-    for (const tx of searchPool) {
-        if (tx === buyTx) continue;
-        if (!isLedgerSellTarget(tx)) continue;
+    // globalSellIndex is sorted by timestamp, so we can stop once the future
+    // window is exceeded.
+    for (const entry of globalSellIndex) {
+        if (entry.tx === buyTx) continue;
+        const delta = Math.abs(buyTs - entry.ts);
+        if (delta > MAX_SELL_ROLE_LOOKUP_MS) {
+            if (entry.ts > buyTs) break;
+            continue;
+        }
 
-        const sellTs = new Date(tx?.timestamp || 0).getTime();
-        if (!Number.isFinite(sellTs) || sellTs <= 0) continue;
-
-        const delta = Math.abs(buyTs - sellTs);
-        if (delta > MAX_SELL_ROLE_LOOKUP_MS) continue;
-
-        const isPrevious = sellTs <= buyTs;
+        const isPrevious = entry.ts <= buyTs;
         const score = (isPrevious ? 0 : 1_000_000_000_000) + delta;
-
         if (score < bestScore) {
             bestScore = score;
-            const role = getTxDisplayRole(tx);
-            const fee = toFiniteNumber(tx?.fee);
-            const feeCurrency = String(tx?.feeCurrency || '').toUpperCase();
-            best = {
-                role: role || '',
-                fee: fee > 0 && (!feeCurrency || feeCurrency === 'USDT') ? fee : 0,
-                amount: getTxUsdtVolume(tx),
-                isPromise: Boolean(getPromiseMeta(tx)?.promiseUsdt > 0),
-                paymentMethod: String(tx?.paymentMethod || tx?.bankName || tx?.bank || '').trim().toUpperCase(),
-            };
+            best = entry;
         }
     }
 
-    return best;
+    return best
+        ? {
+            role: best.role || '',
+            fee: best.fee,
+            amount: best.amount,
+            isPromise: best.isPromise,
+            paymentMethod: best.paymentMethod,
+        }
+        : null;
 };
 
 const inferMakerTakerRole = ({ explicitRole = '', fee = 0, amount = 0 } = {}) => {
@@ -2676,6 +2743,7 @@ const renderTransfers = (transfers = [], options = {}) => {
     // filtra un rango histórico. Esto evita que la cobertura P2P se quede "activa" por stale.
     const cachedScopedTransfers = getCachedScopedTransfers();
     const cycleComputationTransfers = getCycleComputationTransfers();
+    ensureSellIndicesBuilt(cycleComputationTransfers);
     const cycleSpreads = computeCycleSpreads(cycleComputationTransfers);
 
     // Cross-day cycle fix: inject rateOverride for P2P_BUY entries that the judge has
@@ -2989,16 +3057,24 @@ const fetchRecoveryAugmentation = async () => {
         const pagination = firstPayload?.pagination || {};
         const totalPages = Math.max(1, Number(pagination.totalPages || 1));
 
-        for (let p = 2; p <= totalPages; p++) {
+        const AUX_CONCURRENCY = 4;
+        const auxPagesToFetch = [];
+        for (let p = 2; p <= totalPages; p += 1) {
+            auxPagesToFetch.push(p);
+        }
+
+        for (let i = 0; i < auxPagesToFetch.length; i += AUX_CONCURRENCY) {
             if (seq !== state.auxiliarySeq) return;
-            try {
-                const res = await fetch(
-                    buildTransfersUrl(state.apiBase, auxRange, p, state.limit, true),
-                    { headers: { 'Authorization': `Bearer ${state.token}` }, cache: 'no-store' }
-                );
-                if (seq !== state.auxiliarySeq) return;
-                if (!res.ok) continue;
-                const payload = await res.json();
+            const batch = auxPagesToFetch.slice(i, i + AUX_CONCURRENCY);
+            const results = await Promise.all(batch.map((page) => fetch(
+                buildTransfersUrl(state.apiBase, auxRange, page, state.limit, true),
+                { headers: { 'Authorization': `Bearer ${state.token}` }, cache: 'no-store' }
+            ).catch(() => null)));
+
+            if (seq !== state.auxiliarySeq) return;
+            for (const res of results) {
+                if (!res || !res.ok) continue;
+                const payload = await res.json().catch(() => ({}));
                 if (seq !== state.auxiliarySeq) return;
                 const transfers = Array.isArray(payload?.transfers) ? payload.transfers : [];
                 transfers.forEach((tx) => {
@@ -3006,8 +3082,6 @@ const fetchRecoveryAugmentation = async () => {
                     if (!key) return;
                     freshCache.set(key, tx);
                 });
-            } catch {
-                // Silent failure — augmentation is best-effort.
             }
         }
     } catch {
@@ -3034,21 +3108,42 @@ const prefetchSellContextPages = async () => {
     if (!state.apiBase || !state.token) return;
 
     let needsRerender = false;
+    const pagesToFetch = [];
+    for (let p = 1; p <= state.totalPages; p += 1) {
+        if (!state.prefetchedPages.has(p)) pagesToFetch.push(p);
+    }
 
-    for (let p = 1; p <= state.totalPages; p++) {
-        if (state.prefetchedPages.has(p)) continue;
+    if (pagesToFetch.length === 0) {
+        // Still run the spread calculation in case auxiliary/recovery data changed.
+        computeAndNotifyLedgerSpreads();
+        return;
+    }
 
+    const CONCURRENCY = 4;
+    const fetchPage = async (page) => {
         try {
             const res = await fetch(
-                buildTransfersUrl(state.apiBase, state.range, p, state.limit, true),
+                buildTransfersUrl(state.apiBase, state.range, page, state.limit, true),
                 { headers: { 'Authorization': `Bearer ${state.token}` }, cache: 'no-store' }
             );
-            if (!res.ok) continue;
-
+            if (!res.ok) return null;
             const payload = await res.json();
-            const transfers = Array.isArray(payload?.transfers) ? payload.transfers : [];
-            state.prefetchedPages.add(p);
+            return Array.isArray(payload?.transfers) ? payload.transfers : [];
+        } catch {
+            return null;
+        }
+    };
 
+    for (let i = 0; i < pagesToFetch.length; i += CONCURRENCY) {
+        const batch = pagesToFetch.slice(i, i + CONCURRENCY);
+        const results = await Promise.all(batch.map(fetchPage));
+
+        for (let idx = 0; idx < batch.length; idx += 1) {
+            const page = batch[idx];
+            const transfers = results[idx];
+            if (!transfers) continue;
+
+            state.prefetchedPages.add(page);
             transfers.forEach((tx) => {
                 const key = getTransferKey(tx);
                 if (!key) return;
@@ -3056,8 +3151,6 @@ const prefetchSellContextPages = async () => {
                 state.transfersCache.set(key, tx);
                 if (!hasExisting) needsRerender = true;
             });
-        } catch {
-            // Silent failure — prefetch is best-effort and never blocks the UI.
         }
     }
 
@@ -3065,12 +3158,19 @@ const prefetchSellContextPages = async () => {
         renderTransfers(state.currentTransfers, { resetScroll: false });
     }
 
+    computeAndNotifyLedgerSpreads();
+};
+
+const computeAndNotifyLedgerSpreads = () => {
     // Compute total spread sum scoped to the current date range.
     // allScoped (full history) is needed so computeCycleSpreads can detect cross-day cycle rates,
     // but we only SUM spreads for transactions within the selected range.
+    const cycleComputationTransfers = getCycleComputationTransfers();
+    ensureSellIndicesBuilt(cycleComputationTransfers);
+
     const allVisibleCached = Array.from(state.transfersCache.values()).sort((a, b) => getTxTimestampMs(b) - getTxTimestampMs(a));
     const allScoped = allVisibleCached.filter(isLedgerChannelAllowed);
-    const allCycleSpreads = computeCycleSpreads(getCycleComputationTransfers());
+    const allCycleSpreads = computeCycleSpreads(cycleComputationTransfers);
 
     // Inject judge rateOverrides for cross-day buys (same logic as in renderTransfers)
     {
@@ -3192,7 +3292,7 @@ const prefetchSellContextPages = async () => {
             };
         });
         // Re-render sidebar with updated per-bank ledger spreads and summary
-            if (typeof state.onBankDataUpdate === 'function') {
+        if (typeof state.onBankDataUpdate === 'function') {
             const spreadByBank = Array.from(ledgerSpreadByBank.entries())
                 .map(([bankKey, spreadUsdt]) => ({
                     bankKey,

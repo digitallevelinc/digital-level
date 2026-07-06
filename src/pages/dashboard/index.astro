@@ -21,12 +21,40 @@ import 'flatpickr/dist/themes/dark.css';
   <!-- BOTON DE CIERRE MANUAL DE CICLO -->
   <CloseCycleButton />
 
-  <!-- Impersonacion Admin: aceptar ?impersonate=<token>&alias=<alias> -->
+  <!-- Impersonacion Admin: aceptar ?impersonate=<token>&alias=<alias> o ?operatorId=<uuid> -->
   <script is:inline>
-    (function handleImpersonation() {
+    (async function handleImpersonation() {
       const params = new URLSearchParams(window.location.search);
       const impToken = params.get('impersonate');
       const impAlias = params.get('alias');
+      const operatorId = params.get('operatorId');
+
+      // Admin shortcut: ?operatorId=<uuid> resolves to a temporary operator JWT.
+      if (operatorId && !impToken) {
+        try {
+          const res = await fetch(`/api/admin/operators/${encodeURIComponent(operatorId)}/impersonate`, {
+            method: 'POST',
+            credentials: 'same-origin',
+          });
+          if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            console.error('[Impersonate] Failed to resolve operator token:', err?.error || res.status);
+            return;
+          }
+          const data = await res.json();
+          if (data?.token) {
+            const redirectParams = new URLSearchParams();
+            redirectParams.set('impersonate', data.token);
+            redirectParams.set('alias', data.alias || 'Operador');
+            window.location.replace(`${window.location.pathname}?${redirectParams.toString()}`);
+            return;
+          }
+        } catch (error) {
+          console.error('[Impersonate] Network error resolving operator token:', error);
+        }
+        return;
+      }
+
       if (impToken) {
         sessionStorage.setItem('auth_token', impToken);
         sessionStorage.setItem('user_role', 'operator');
