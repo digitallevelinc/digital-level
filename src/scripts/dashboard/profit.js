@@ -85,6 +85,12 @@ function applyVisibleProfit(kpis = {}, profit = 0) {
     }
 }
 
+function hasNoOperationsInRange(kpis = {}) {
+    const totalVolume = parseNumeric(kpis.operations?.totalVolumeUSDT);
+    const totalOperations = parseNumeric(kpis.operations?.totalOperations ?? kpis.operations?.totalCount);
+    return totalVolume === 0 && totalOperations === 0;
+}
+
 function updateProfitTooltip(kpis = {}, bankInsights = [], ledgerSummary = null) {
     if (ledgerSummary && typeof ledgerSummary === 'object') {
         cachedLedgerProfitSummary = ledgerSummary;
@@ -98,6 +104,53 @@ function updateProfitTooltip(kpis = {}, bankInsights = [], ledgerSummary = null)
     const hasLedgerProfit = Number.isFinite(ledgerSpreadTotal) && (
         ledgerSpreadTotal !== 0 || ledgerSpreadCount > 0
     );
+    const ledgerReported = ledgerSummary !== null || (
+        Number.isFinite(ledgerSpreadTotal) && Number.isFinite(ledgerSpreadCount)
+    );
+    const emptyLedger = ledgerReported && ledgerSpreadCount === 0 && ledgerSpreadTotal === 0;
+    const noOperations = hasNoOperationsInRange(kpis);
+
+    // Si el rango no tiene operaciones, o el ledger ya termino y reporto 0
+    // spreads, mostramos $0.00 directamente en lugar de dejar el skeleton.
+    if (emptyLedger || noOperations) {
+        const displayedProfit = 0;
+        applyVisibleProfit(kpis, displayedProfit);
+
+        setText(
+            'audit-profit-tooltip-summary',
+            emptyLedger
+                ? 'El ledger del rango no reporto spreads.'
+                : 'No hay operaciones en el rango seleccionado.'
+        );
+        setHtml(
+            'audit-profit-tooltip-formula',
+            '<strong>Regla visible:</strong> Profit Operativo = Σ SPREADS del rango'
+        );
+
+        setText('audit-profit-tooltip-result', fUSDT(displayedProfit));
+        setText('audit-profit-tooltip-source-label', 'Spread ledger');
+        setText('audit-profit-tooltip-source-value', fUSDT(0));
+        setText('audit-profit-tooltip-backend', fUSDT(backendProfit));
+        setText('audit-profit-tooltip-sell-fees', fUSDT(sellFees));
+        setText(
+            'audit-profit-tooltip-operation',
+            emptyLedger ? '0 spreads = $0.00' : 'Sin operaciones = $0.00'
+        );
+        setText('audit-profit-tooltip-spread-breakdown', 'Sin desglose');
+        setText('audit-profit-tooltip-fallback', 'Sin fallback');
+
+        const fallbackLabel = document.getElementById('audit-profit-tooltip-fallback')?.previousElementSibling;
+        if (fallbackLabel) fallbackLabel.textContent = 'Fallback';
+
+        setText(
+            'audit-profit-tooltip-note',
+            emptyLedger
+                ? 'El ledger reporto 0 spreads para este rango.'
+                : 'No hay movimientos que computar en el rango seleccionado.'
+        );
+
+        return displayedProfit;
+    }
 
     // Profit Operativo = suma directa de los SPREADS del ledger del rango
     // seleccionado. Sin fallback al valor canonico del backend: si el ledger
