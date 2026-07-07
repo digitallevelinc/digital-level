@@ -48,6 +48,8 @@ const state = {
 };
 
 let searchDebounceTimer = null;
+const SEARCH_RENDER_DEBOUNCE_MS = 320;
+const searchHaystackCache = new WeakMap();
 
 // Sell indices: rebuilt on cache/range changes to turn O(n²) buy→sell lookup
 // into O(log n) per lookup. Generic cross-bank role lookup uses globalSellIndex.
@@ -901,9 +903,6 @@ const buildTransfersUrl = (apiBase, range = {}, page = 1, limit = 12, includeCha
 };
 
 const getEffectiveSearchTerm = () => {
-    const { searchInput } = getElements();
-    const liveValue = String(searchInput?.value || '').trim();
-    if (liveValue) return liveValue;
     return String(state.searchTerm || '').trim();
 };
 
@@ -1024,20 +1023,24 @@ const matchesSearch = (tx, searchTerm) => {
     const needle = String(searchTerm || '').trim().toLowerCase();
     if (!needle) return true;
 
-    const haystack = [
-        tx?.counterpartyName,
-        tx?.paymentMethod,
-        tx?.notes,
-        tx?.orderNumber,
-        tx?.txHash,
-        tx?.binanceRawId,
-        tx?.type,
-        tx?.fiatCurrency,
-        formatRate(tx?.exchangeRate),
-    ]
-        .filter(Boolean)
-        .join(' ')
-        .toLowerCase();
+    let haystack = searchHaystackCache.get(tx);
+    if (!haystack) {
+        haystack = [
+            tx?.counterpartyName,
+            tx?.paymentMethod,
+            tx?.notes,
+            tx?.orderNumber,
+            tx?.txHash,
+            tx?.binanceRawId,
+            tx?.type,
+            tx?.fiatCurrency,
+            formatRate(tx?.exchangeRate),
+        ]
+            .filter(Boolean)
+            .join(' ')
+            .toLowerCase();
+        searchHaystackCache.set(tx, haystack);
+    }
 
     return haystack.includes(needle);
 };
@@ -3325,30 +3328,53 @@ const bindEventsOnce = () => {
     }
 
     const applySearchTerm = (rawValue, resetScroll = true) => {
-        state.searchTerm = String(rawValue || '').trim();
+        const nextTerm = String(rawValue || '').trim();
         state.searchSeq += 1;
         if (searchDebounceTimer) {
             clearTimeout(searchDebounceTimer);
             searchDebounceTimer = null;
         }
 
-        const searchActive = hasActiveSearch();
-        state.searchPending = searchActive && !areAllPagesCached();
-        renderTransfers(state.currentTransfers, { resetScroll });
-
-        if (!searchActive || !state.searchPending) {
+        if (!nextTerm) {
+            state.searchTerm = '';
             state.searchPending = false;
+            state.searchResultCount = 0;
+            renderTransfers(state.currentTransfers, { resetScroll });
             updatePaginationUI();
             return;
         }
 
+        if (nextTerm === state.searchTerm && !state.searchPending) {
+            renderTransfers(state.currentTransfers, { resetScroll });
+            return;
+        }
+
         const currentSearchSeq = state.searchSeq;
+        state.searchPending = true;
+        updatePaginationUI();
+
+        const { count } = getElements();
+        if (count) {
+            const filterLabel = state.typeFilter === 'ALL' ? '' : ` | ${state.typeFilter}`;
+            count.textContent = `Preparando busqueda en ${state.total} movimiento${state.total === 1 ? '' : 's'}${filterLabel}`;
+        }
+
         searchDebounceTimer = setTimeout(async () => {
+            if (currentSearchSeq !== state.searchSeq) return;
+            state.searchTerm = nextTerm;
+            state.searchPending = !areAllPagesCached();
+            renderTransfers(state.currentTransfers, { resetScroll: false });
+
+            if (!state.searchPending) {
+                updatePaginationUI();
+                return;
+            }
+
             await prefetchSellContextPages();
             if (currentSearchSeq !== state.searchSeq) return;
             state.searchPending = !areAllPagesCached();
             renderTransfers(state.currentTransfers, { resetScroll: false });
-        }, 180);
+        }, SEARCH_RENDER_DEBOUNCE_MS);
     };
 
     document.addEventListener('input', (event) => {
