@@ -3316,10 +3316,8 @@ const computeAndNotifyLedgerSpreads = () => {
         }
     }
 
-    // totalSpread drives the visible Profit Operativo KPI directly: the
-    // dashboard sums the SPREADS of every row in the current range. Keep
-    // computing it per range so the operator sees the figure change as new
-    // trades are added to the ledger.
+    // totalSpread is only a ledger reference for tooltips/sidebar context.
+    // The visible Profit Operativo KPI is the canonical backend net P2P profit.
 };
 
 const bindEventsOnce = () => {
