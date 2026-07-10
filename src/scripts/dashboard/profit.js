@@ -397,7 +397,11 @@ function renderProfitChart(chartData = [], totalProfit = 0) {
     const profitData = sortedData.map(d => d.profit);
     const feesData = sortedData.map(d => d.fees);
     const capitalData = sortedData.map(d => d.capital);
-    const cyclesData = sortedData.map(d => d.cycles ?? 0);
+    // A null cycle count means the Caracas day has not closed yet. Keep the
+    // gap rather than making the yellow line plunge to a misleading zero.
+    const cyclesData = sortedData.map(d => (
+        d.cycles == null ? null : Number(d.cycles)
+    ));
     profitChartInstance = new Chart(ctx, {
         type: 'bar',
         data: {
