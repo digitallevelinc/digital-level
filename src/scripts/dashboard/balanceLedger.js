@@ -2,6 +2,7 @@ const CARACAS_TZ = 'America/Caracas';
 const LEDGER_CHANNELS = Object.freeze(['RED', 'P2P', 'PAY']);
 const LEDGER_FILTER_OPTIONS = Object.freeze(['ALL', ...LEDGER_CHANNELS]);
 const LEDGER_CHANNEL_SET = new Set(LEDGER_CHANNELS);
+const LEDGER_EXCHANGE_FILTER_OPTIONS = Object.freeze(['ALL', 'BINANCE', 'BYBIT']);
 // Promise tracking is now handled manually inside the system.
 // Keep the old parser/rendering code in place, but do not auto-detect promises.
 const AUTO_PROMISE_TRACKING_ENABLED = false;
@@ -27,6 +28,7 @@ const state = {
     searchResultCount: 0,
     searchSeq: 0,
     typeFilter: 'ALL',
+    exchangeFilter: 'ALL',
     currentTransfers: [],
     transfersCache: new Map(),
     // Auxiliary cache for transfers outside the current filter range but still
@@ -188,15 +190,23 @@ const getCategory = (type) => {
 
 const isLedgerChannelAllowed = (tx = {}) => {
     const category = getCategory(String(tx?.type || '').toUpperCase());
-    if (state.typeFilter !== 'ALL') {
-        return category === state.typeFilter;
-    }
-    return LEDGER_CHANNEL_SET.has(category);
+    const typeAllowed = state.typeFilter !== 'ALL'
+        ? category === state.typeFilter
+        : LEDGER_CHANNEL_SET.has(category);
+    if (!typeAllowed) return false;
+
+    const exchangeSource = String(tx?.exchangeSource || 'BINANCE').toUpperCase();
+    return state.exchangeFilter === 'ALL' || exchangeSource === state.exchangeFilter;
 };
 
 const getRequestedChannels = () => state.typeFilter === 'ALL'
     ? [...LEDGER_CHANNELS]
     : [state.typeFilter];
+
+const getActiveFilterLabel = () => [
+    state.typeFilter === 'ALL' ? '' : state.typeFilter,
+    state.exchangeFilter === 'ALL' ? '' : state.exchangeFilter,
+].filter(Boolean).join(' | ');
 
 const getDirection = (type) => {
     switch (String(type || '').toUpperCase()) {
@@ -877,6 +887,7 @@ const getElements = () => ({
     scroll: document.getElementById('balance-ledger-scroll'),
     searchInput: document.getElementById('balance-ledger-search'),
     typeFilters: Array.from(document.querySelectorAll('[data-ledger-type]')),
+    exchangeFilters: Array.from(document.querySelectorAll('[data-ledger-exchange]')),
 });
 
 const sanitizeDateValue = (value) => {
@@ -897,6 +908,9 @@ const buildTransfersUrl = (apiBase, range = {}, page = 1, limit = 12, includeCha
     params.set('limit', String(limit));
     if (includeChannels) {
         params.set('channels', getRequestedChannels().join(','));
+    }
+    if (state.exchangeFilter !== 'ALL') {
+        params.set('exchange', state.exchangeFilter);
     }
     params.set('_ts', String(Date.now()));
     return `${String(apiBase || '').replace(/\/+$/, '')}/api/transfers?${params.toString()}`;
@@ -975,11 +989,16 @@ const updatePaginationUI = () => {
 };
 
 const updateTypeFilterUI = () => {
-    const { typeFilters } = getElements();
+    const { typeFilters, exchangeFilters } = getElements();
     typeFilters.forEach((button) => {
         const buttonType = String(button?.dataset?.ledgerType || '').toUpperCase();
         button.classList.toggle('is-active', buttonType === state.typeFilter);
         button.setAttribute('aria-pressed', buttonType === state.typeFilter ? 'true' : 'false');
+    });
+    exchangeFilters.forEach((button) => {
+        const buttonExchange = String(button?.dataset?.ledgerExchange || '').toUpperCase();
+        button.classList.toggle('is-active', buttonExchange === state.exchangeFilter);
+        button.setAttribute('aria-pressed', buttonExchange === state.exchangeFilter ? 'true' : 'false');
     });
 };
 
@@ -1066,6 +1085,26 @@ const getCycleComputationTransfers = () => {
 
 const rerenderCurrentLedgerView = () => {
     renderTransfers(state.currentTransfers, { resetScroll: false });
+};
+
+const resetLedgerAfterFilterChange = () => {
+    if (searchDebounceTimer) {
+        clearTimeout(searchDebounceTimer);
+        searchDebounceTimer = null;
+    }
+    state.pageNetByPage.clear();
+    state.transfersCache.clear();
+    clearAuxiliaryTransfersCache();
+    state.prefetchedPages.clear();
+    state.closingBalance = null;
+    state.total = 0;
+    state.totalPages = 0;
+    state.searchPending = false;
+    state.searchResultCount = 0;
+    updateTypeFilterUI();
+    updatePaginationUI();
+    renderPlaceholder('Filtrando movimientos...');
+    void fetchTransfersPage(1);
 };
 
 const clearAuxiliaryTransfersCache = () => {
@@ -1223,7 +1262,7 @@ const bankLabelFromKey = (bankKey) => {
     }
 };
 
-const getSellIndexCacheKey = () => `${state.transfersCache.size}:${state.auxiliaryTransfersCache.size}:${sanitizeDateValue(state.range?.from)}:${sanitizeDateValue(state.range?.to)}:${state.typeFilter}`;
+const getSellIndexCacheKey = () => `${state.transfersCache.size}:${state.auxiliaryTransfersCache.size}:${sanitizeDateValue(state.range?.from)}:${sanitizeDateValue(state.range?.to)}:${state.typeFilter}:${state.exchangeFilter}`;
 
 const buildSellIndices = (transfers) => {
     sellIndexByBank.clear();
@@ -2798,7 +2837,8 @@ const renderTransfers = (transfers = [], options = {}) => {
     state.searchResultCount = filteredRows.length;
 
     if (count) {
-        const filterLabel = state.typeFilter === 'ALL' ? '' : ` | ${state.typeFilter}`;
+        const activeFilterLabel = getActiveFilterLabel();
+        const filterLabel = activeFilterLabel ? ` | ${activeFilterLabel}` : '';
         if (searchActive) {
             const statusLabel = state.searchPending ? 'Buscando' : 'Mostrando';
             count.textContent = `${statusLabel} ${filteredRows.length} coincidencia${filteredRows.length === 1 ? '' : 's'} en ${state.total} movimiento${state.total === 1 ? '' : 's'}${filterLabel}`;
@@ -3364,7 +3404,8 @@ const bindEventsOnce = () => {
 
         const { count } = getElements();
         if (count) {
-            const filterLabel = state.typeFilter === 'ALL' ? '' : ` | ${state.typeFilter}`;
+            const activeFilterLabel = getActiveFilterLabel();
+            const filterLabel = activeFilterLabel ? ` | ${activeFilterLabel}` : '';
             count.textContent = `Preparando busqueda en ${state.total} movimiento${state.total === 1 ? '' : 's'}${filterLabel}`;
         }
 
@@ -3446,6 +3487,17 @@ const bindEventsOnce = () => {
             return;
         }
 
+        const exchangeButton = target.closest('[data-ledger-exchange]');
+        if (exchangeButton) {
+            const nextExchange = String(exchangeButton?.dataset?.ledgerExchange || 'ALL').toUpperCase();
+            if (!LEDGER_EXCHANGE_FILTER_OPTIONS.includes(nextExchange) || nextExchange === state.exchangeFilter) {
+                return;
+            }
+            state.exchangeFilter = nextExchange;
+            resetLedgerAfterFilterChange();
+            return;
+        }
+
         const typeButton = target.closest('[data-ledger-type]');
         if (!typeButton) return;
 
@@ -3454,23 +3506,7 @@ const bindEventsOnce = () => {
             return;
         }
         state.typeFilter = nextType;
-        if (searchDebounceTimer) {
-            clearTimeout(searchDebounceTimer);
-            searchDebounceTimer = null;
-        }
-        state.pageNetByPage.clear();
-        state.transfersCache.clear();
-        clearAuxiliaryTransfersCache();
-        state.prefetchedPages.clear();
-        state.closingBalance = null;
-        state.total = 0;
-        state.totalPages = 0;
-        state.searchPending = false;
-        state.searchResultCount = 0;
-        updateTypeFilterUI();
-        updatePaginationUI();
-        renderPlaceholder('Filtrando movimientos...');
-        void fetchTransfersPage(1);
+        resetLedgerAfterFilterChange();
     });
 
     state.initialized = true;
