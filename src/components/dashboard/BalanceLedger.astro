@@ -578,6 +578,17 @@
         background: rgba(255, 255, 255, 0.28);
     }
 
+    /* El origen del exchange tiene prioridad visual sobre el tipo de movimiento. */
+    .ledger-row-bybit {
+        border-color: rgba(56, 189, 248, 0.30);
+    }
+
+    .ledger-row-bybit::before {
+        width: 5px;
+        background: linear-gradient(180deg, #38bdf8 0%, #2563eb 100%);
+        box-shadow: 0 0 18px rgba(56, 189, 248, 0.72);
+    }
+
     .ledger-metric-has-tooltip {
         position: relative;
         cursor: default;

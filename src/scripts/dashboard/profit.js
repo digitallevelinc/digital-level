@@ -221,6 +221,15 @@ export function updateProfitUI(kpis = {}, bankInsights = [], ledgerSummary = nul
         inject('audit-total-profit-display', fUSDT(displayedProfit), true);
     }
 
+    const bybitOperationalProfit = parseNumeric(critical.bybitOperationalProfitUSDT);
+    const bybitProfitEl = document.getElementById('audit-bybit-operational-profit');
+    inject('audit-bybit-operational-profit', fUSDT(bybitOperationalProfit));
+    if (bybitProfitEl) {
+        bybitProfitEl.classList.toggle('text-emerald-300', bybitOperationalProfit > 0);
+        bybitProfitEl.classList.toggle('text-rose-300', bybitOperationalProfit < 0);
+        bybitProfitEl.classList.toggle('text-sky-200', bybitOperationalProfit === 0);
+    }
+
     inject('audit-total-volume', fUSDT(parseFloat(operations.totalVolumeUSDT || 0)));
     inject('audit-total-fees', fUSDT(parseFloat(operations.totalFeesPaid || 0)));
 

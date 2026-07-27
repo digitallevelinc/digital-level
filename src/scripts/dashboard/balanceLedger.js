@@ -2454,6 +2454,7 @@ const renderRow = (tx, rowBalance, cycleData = undefined, balanceNegativeInfo = 
     const exchangeSource = String(tx?.exchangeSource || 'BINANCE').toUpperCase() === 'BYBIT'
         ? 'BYBIT'
         : 'BINANCE';
+    const exchangeRowTone = exchangeSource === 'BYBIT' ? ' ledger-row-bybit' : '';
     const exchangeBadgeHtml = `
         <span class="ledger-meta-chip ledger-exchange-badge ledger-exchange-${exchangeSource.toLowerCase()}">
             ${exchangeSource === 'BYBIT' ? 'Bybit' : 'Binance'}
@@ -2636,7 +2637,7 @@ const renderRow = (tx, rowBalance, cycleData = undefined, balanceNegativeInfo = 
     const resolveActionHtml = renderResolveAction(tx);
 
     return `
-        <article class="ledger-row ${rowTone}${isDispersorPending ? ' ledger-row-dispersor-pending' : ''}">
+        <article class="ledger-row ${rowTone}${exchangeRowTone}${isDispersorPending ? ' ledger-row-dispersor-pending' : ''}">
             <div class="ledger-mobile-card">
                 <div class="ledger-mobile-header">
                     <div class="ledger-mobile-badge-stack">
