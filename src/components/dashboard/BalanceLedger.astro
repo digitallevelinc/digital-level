@@ -1056,6 +1056,34 @@
         overflow-wrap: anywhere;
     }
 
+    .ledger-exchange-badge {
+        gap: 0.38rem;
+        border-width: 1px;
+        font-weight: 900;
+        letter-spacing: 0.08em;
+    }
+
+    .ledger-exchange-badge::before {
+        width: 0.42rem;
+        height: 0.42rem;
+        border-radius: 999px;
+        background: currentColor;
+        box-shadow: 0 0 10px currentColor;
+        content: "";
+    }
+
+    .ledger-exchange-binance {
+        border-color: rgba(243, 186, 47, 0.42);
+        background: rgba(243, 186, 47, 0.12);
+        color: #f3ba2f;
+    }
+
+    .ledger-exchange-bybit {
+        border-color: rgba(255, 184, 77, 0.46);
+        background: rgba(255, 145, 44, 0.12);
+        color: #ffb84d;
+    }
+
     .ledger-meta-chip-muted {
         color: rgba(255, 255, 255, 0.96);
     }

@@ -1032,6 +1032,7 @@ const matchesSearch = (tx, searchTerm) => {
             tx?.orderNumber,
             tx?.txHash,
             tx?.binanceRawId,
+            tx?.exchangeSource,
             tx?.type,
             tx?.fiatCurrency,
             formatRate(tx?.exchangeRate),
@@ -2450,6 +2451,13 @@ const renderRow = (tx, rowBalance, cycleData = undefined, balanceNegativeInfo = 
     const typePillTone = getCategoryChipClass(category);
     const topRaw = buildDescriptionTop(tx);
     const top = escapeHtml(topRaw);
+    const exchangeSource = String(tx?.exchangeSource || 'BINANCE').toUpperCase() === 'BYBIT'
+        ? 'BYBIT'
+        : 'BINANCE';
+    const exchangeBadgeHtml = `
+        <span class="ledger-meta-chip ledger-exchange-badge ledger-exchange-${exchangeSource.toLowerCase()}">
+            ${exchangeSource === 'BYBIT' ? 'Bybit' : 'Binance'}
+        </span>`;
     const meta = buildDescriptionMeta(tx, topRaw);
     const metaHtml = meta.map((line) => {
         if (line.startsWith('__ROLE__')) {
@@ -2652,6 +2660,7 @@ const renderRow = (tx, rowBalance, cycleData = undefined, balanceNegativeInfo = 
                 </div>
 
                 <div class="ledger-mobile-meta">
+                    ${exchangeBadgeHtml}
                     ${metaHtml || '<span class="ledger-meta-chip ledger-meta-chip-muted">Sin metadata extra</span>'}
                 </div>
 
@@ -2678,6 +2687,7 @@ const renderRow = (tx, rowBalance, cycleData = undefined, balanceNegativeInfo = 
                     </div>
                     <div class="ledger-subtitle">${methodText || 'Operacion del ledger'}</div>
                     <div class="ledger-meta-strip">
+                        ${exchangeBadgeHtml}
                         ${metaHtml || '<span class="ledger-meta-chip ledger-meta-chip-muted">Sin metadata extra</span>'}
                     </div>
                 </div>
