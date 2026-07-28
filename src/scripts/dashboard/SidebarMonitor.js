@@ -1175,6 +1175,70 @@ export function updateSidebarMonitor(kpis = {}, bankInsights = [], ledgerSummary
     );
     inject('side-ceiling-level-badge', `${formatPlain(activeBankCards.length, 0)} Bancos`);
 
+    const compactBankRows = bankCards.map(({ bank, ops, bankProfit }) => {
+        const channelSales = toNumber(bank?.pm?.sellCount) + toNumber(bank?.trf?.sellCount);
+        const channelPurchases = toNumber(bank?.pm?.buyCount) + toNumber(bank?.trf?.buyCount);
+        const sales = toNumber(bank.countSell) || channelSales;
+        const purchases = toNumber(bank.countBuy) || channelPurchases;
+        const transactions = Math.max(toNumber(ops), sales + purchases);
+
+        return {
+            name: bank.bankName || bank.bank || 'Banco sin nombre',
+            sales,
+            purchases,
+            transactions,
+            profit: bankProfit,
+        };
+    }).sort((a, b) => b.transactions - a.transactions || b.profit - a.profit);
+    const compactTotals = compactBankRows.reduce((accumulator, bank) => ({
+        transactions: accumulator.transactions + bank.transactions,
+        sales: accumulator.sales + bank.sales,
+        purchases: accumulator.purchases + bank.purchases,
+    }), { transactions: 0, sales: 0, purchases: 0 });
+    const mostUsedBank = compactBankRows[0];
+    const mostProfitableBank = compactBankRows.reduce(
+        (leader, bank) => (!leader || bank.profit > leader.profit ? bank : leader),
+        null,
+    );
+
+    inject('side-bank-count', formatPlain(compactBankRows.length, 0));
+    inject('side-transactions-count', formatPlain(compactTotals.transactions, 0));
+    inject('side-sales-count', formatPlain(compactTotals.sales, 0));
+    inject('side-purchases-count', formatPlain(compactTotals.purchases, 0));
+    inject(
+        'side-most-used-bank',
+        mostUsedBank
+            ? `${mostUsedBank.name} · ${formatPlain(mostUsedBank.transactions, 0)} ops`
+            : 'Sin movimientos',
+    );
+    inject(
+        'side-most-profitable-bank',
+        mostProfitableBank
+            ? `${mostProfitableBank.name} · ${formatSignedUsdt(mostProfitableBank.profit)}`
+            : 'Sin ganancia registrada',
+    );
+
+    listContainer.innerHTML = '';
+    compactBankRows.forEach((bank) => {
+        const profitClass = bank.profit >= 0 ? 'text-emerald-300' : 'text-rose-300';
+        const row = document.createElement('article');
+        row.className = 'bg-[#1a2027] rounded-xl border border-white/10 px-3.5 py-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.02)]';
+        row.innerHTML = `
+            <div class="flex items-center justify-between gap-3">
+                <p class="min-w-0 truncate text-[12px] font-black uppercase italic tracking-wide text-white" title="${bank.name}">${bank.name}</p>
+                <strong class="shrink-0 font-mono text-[12px] font-black text-[#F3BA2F]">${formatPlain(bank.transactions, 0)} ops</strong>
+            </div>
+            <div class="mt-2.5 grid grid-cols-3 gap-2 border-t border-white/7 pt-2.5 text-[9px] font-black uppercase tracking-[0.1em] text-slate-500">
+                <span>Ventas <b class="mt-1 block font-mono text-[11px] text-emerald-300">${formatPlain(bank.sales, 0)}</b></span>
+                <span>Compras <b class="mt-1 block font-mono text-[11px] text-sky-300">${formatPlain(bank.purchases, 0)}</b></span>
+                <span class="text-right">Ganancia <b class="mt-1 block whitespace-nowrap font-mono text-[11px] ${profitClass}">${formatSignedUsdt(bank.profit)}</b></span>
+            </div>
+        `;
+        listContainer.appendChild(row);
+    });
+
+    return;
+
     bankCards.forEach(({ bank, ops, vesControl, pagoMovil, cyclesCompleted, bankProfit, bankProfitFiat, rateLabel }) => {
         const performancePercent = Number(bank.profitPercent ?? bank.margin ?? 0);
         const hasReliablePerformanceBase = (

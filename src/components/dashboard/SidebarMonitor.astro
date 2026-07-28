@@ -37,58 +37,41 @@
                 </button>
             </div>
 
-            
-            <div class="space-y-4 mb-6">
-                <div class="bg-[#1b2128] p-5 rounded-2xl border border-white/10 shadow-[inset_0_1px_0_rgba(255,255,255,0.02)]">
-                    <div class="flex items-start justify-between gap-3">
-                        <div class="min-w-0">
-                            <p id="side-ceiling-level-label" class="text-[11px] font-black text-rose-400 uppercase tracking-[0.18em]">Venta actual</p>
-                            <p id="side-ceiling-level-value" class="text-[1.45rem] leading-tight mt-2 font-black text-white tracking-tight">0,00</p>
-                            <p id="side-ceiling-level-meta" class="text-[10px] text-cyan-300 uppercase font-black tracking-[0.15em] mt-2">Nivel sin data</p>
-                            <p id="side-ceiling-sell-rate" class="text-[10px] text-slate-400 uppercase font-black tracking-[0.15em] mt-1.5">Techo general: 0,00 VES/USDT</p>
-                        </div>
-                        <span id="side-ceiling-level-badge" class="text-[10px] font-black text-white/80 bg-[#2a3139] px-2.5 py-1 rounded-full uppercase tracking-[0.18em] border border-white/8">0 Bancos</span>
-                    </div>
+            <div class="grid grid-cols-2 gap-2.5 mb-4">
+                <div class="sidebar-summary-stat">
+                    <p>Bancos detectados</p>
+                    <strong id="side-bank-count">0</strong>
                 </div>
-                <div class="bg-[#171d24] p-4 rounded-xl border border-white/10 shadow-[inset_0_1px_0_rgba(255,255,255,0.02)]">
-                    <div class="flex items-start justify-between gap-4">
-                        <div>
-                            <p class="text-[9px] font-black text-slate-500 uppercase tracking-[0.18em]">Spread</p>
-                            <p id="side-spread-value" class="text-[1.2rem] mt-2 font-mono font-black text-emerald-400 tracking-tight">0.00 USDT</p>
-                            <p id="side-spread-meta" class="text-[9px] text-slate-500 uppercase font-black tracking-[0.14em] mt-1">0.00%</p>
-                        </div>
-                        <div class="grid min-w-[156px] grid-cols-2 gap-4 text-right">
-                            <div>
-                                <p class="text-[8px] font-black text-slate-500 uppercase tracking-[0.16em]">Prom/ciclo</p>
-                                <p id="side-cycle-avg" class="mt-1.5 text-[15px] leading-none font-mono font-black text-white tracking-tight">0.00</p>
-                                <p class="text-[9px] text-slate-400 font-black uppercase tracking-[0.14em] mt-1.5">USDT</p>
-                            </div>
-                            <div>
-                                <p class="text-[8px] font-black text-slate-500 uppercase tracking-[0.16em]">Ciclos</p>
-                                <p id="side-cycle-count" class="mt-1.5 text-[15px] leading-none font-mono font-black text-white tracking-tight">0</p>
-                                <p class="text-[9px] text-slate-400 font-black uppercase tracking-[0.14em] mt-1.5">Totales</p>
-                            </div>
-                        </div>
-                    </div>
+                <div class="sidebar-summary-stat">
+                    <p>Transacciones</p>
+                    <strong id="side-transactions-count">0</strong>
+                </div>
+                <div class="sidebar-summary-stat">
+                    <p>Ventas</p>
+                    <strong id="side-sales-count" class="text-emerald-300">0</strong>
+                </div>
+                <div class="sidebar-summary-stat">
+                    <p>Compras</p>
+                    <strong id="side-purchases-count" class="text-sky-300">0</strong>
+                </div>
+            </div>
+
+            <div class="space-y-2.5 mb-6">
+                <div class="sidebar-leader-card">
+                    <span>Más usado</span>
+                    <strong id="side-most-used-bank">Sin movimientos</strong>
+                </div>
+                <div class="sidebar-leader-card">
+                    <span>Mejor ganancia</span>
+                    <strong id="side-most-profitable-bank">Sin ganancia registrada</strong>
                 </div>
             </div>
 
             <div class="flex-1">
                 <div class="flex items-center justify-between mb-4 border-b border-white/10 pb-2">
-                    <p class="text-[12px] font-black text-gray-400 uppercase tracking-widest">Monitor Bancos</p>
-                    <div class="flex items-center gap-2">
-                        <button id="btn-clean-stale-ves" class="hidden text-[9px] font-black text-slate-300 hover:text-rose-300 bg-[#232a32] hover:bg-rose-500/10 border border-white/10 hover:border-rose-500/30 px-2 py-0.5 rounded cursor-pointer transition-all" title="Cerrar ciclos FIAT viejos sin parseo">Limpiar FIAT</button>
-                    </div>
+                    <p class="text-[12px] font-black text-gray-400 uppercase tracking-widest">Detalle por banco</p>
                 </div>
-                <div id="side-banks-list" class="space-y-4">
-                    </div>
-            </div>
-
-            <div class="hidden">
-                <div id="side-teorico"></div>
-                <div id="side-binance"></div>
-                <div id="side-discrepancia"></div>
-                <div id="side-profit-total"></div>
+                <div id="side-banks-list" class="space-y-2.5"></div>
             </div>
         </div>
     </aside>
@@ -134,6 +117,48 @@
     .sidebar-close-btn:focus-visible {
         outline: 2px solid rgba(243, 186, 47, 0.85);
         outline-offset: 3px;
+    }
+    .sidebar-summary-stat {
+        min-height: 76px;
+        padding: 0.85rem;
+        border: 1px solid rgba(255, 255, 255, 0.09);
+        border-radius: 0.9rem;
+        background: #1a2027;
+    }
+    .sidebar-summary-stat p,
+    .sidebar-leader-card span {
+        color: #8492a4;
+        font-size: 9px;
+        font-weight: 900;
+        letter-spacing: 0.13em;
+        line-height: 1.25;
+        text-transform: uppercase;
+    }
+    .sidebar-summary-stat strong {
+        display: block;
+        margin-top: 0.45rem;
+        color: #fff;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+        font-size: 1.2rem;
+        font-weight: 900;
+        line-height: 1;
+    }
+    .sidebar-leader-card {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.75rem;
+        padding: 0.85rem 0.95rem;
+        border: 1px solid rgba(243, 186, 47, 0.2);
+        border-radius: 0.85rem;
+        background: rgba(243, 186, 47, 0.05);
+    }
+    .sidebar-leader-card strong {
+        color: #fff3c2;
+        font-size: 11px;
+        font-weight: 900;
+        line-height: 1.2;
+        text-align: right;
     }
 
     @media (max-width: 767px) {
