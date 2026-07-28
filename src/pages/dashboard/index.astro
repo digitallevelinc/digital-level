@@ -9,15 +9,11 @@ import BalanceLedger from '../../components/dashboard/BalanceLedger.astro';
 import Profit from '../../components/dashboard/profit.astro';
 import ComisionOperador from '../../components/dashboard/ComisionOperador.astro'; 
 // // import ProyeccionGanancias from '../../components/dashboard/ProyeccionGanancias.astro';
-import CloseCycleButton from '../../components/dashboard/CloseCycleButton.astro';
 import 'flatpickr/dist/flatpickr.min.css';
 import 'flatpickr/dist/themes/dark.css';
 ---
 
 <DashboardLayout>
-  <!-- BOTON DE CIERRE MANUAL DE CICLO -->
-  <CloseCycleButton />
-
   <!-- Impersonacion Admin: aceptar ?impersonate=<token>&alias=<alias> o ?operatorId=<uuid> -->
   <script is:inline>
     (async function handleImpersonation() {
@@ -100,7 +96,6 @@ import 'flatpickr/dist/themes/dark.css';
         </p>
       </div>
     </div>
-    <div id="close-cycle-btn-mount" class="flex shrink-0 items-center"></div>
   </div>
 
   <section class="dashboard-collapsible mb-8 rounded-[1.75rem] border border-gray-800 bg-gradient-to-br from-[#0f1216] to-[#0b0d11] shadow-xl shadow-black/40 sm:mb-10"
