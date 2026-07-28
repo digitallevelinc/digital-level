@@ -42,6 +42,12 @@ function getReferenceLabel(kind, type) {
   return 'Orden';
 }
 
+function compactReference(value) {
+  const reference = String(value || '').trim();
+  if (reference.length <= 18) return reference || '-';
+  return `${reference.slice(0, 8)}…${reference.slice(-7)}`;
+}
+
 function getTypeLabel(type) {
   const normalized = String(type || '').toUpperCase();
   if (normalized === 'P2P_SELL') return 'P2P Sell';
@@ -92,7 +98,8 @@ function renderHistory(items = []) {
   }
 
   list.innerHTML = items.map((row) => {
-    const reference = escapeHtml(row.orderNumber || '-');
+    const fullReference = String(row.orderNumber || '-');
+    const reference = escapeHtml(compactReference(fullReference));
     const referenceLabel = escapeHtml(getReferenceLabel(row.referenceKind, row.type));
     const amount = Number(row.amount || 0);
     const asset = escapeHtml(row.asset || 'USDT');
@@ -104,16 +111,19 @@ function renderHistory(items = []) {
     const amt = fUSDT(Math.abs(amount));
 
     return `
-      <div class="grid grid-cols-1 sm:grid-cols-[1fr_auto] items-start sm:items-center gap-3 rounded-lg border border-white/10 bg-black/20 px-3.5 py-3">
+      <div class="grid gap-2.5 rounded-lg border border-white/10 bg-black/20 px-3.5 py-3">
         <div class="min-w-0">
           <div class="text-[10px] sm:text-[11px] font-black uppercase tracking-[0.14em] text-white-500">${referenceLabel}</div>
-          <div class="text-[13px] sm:text-[14px] font-mono font-black text-white break-all leading-tight">${reference}</div>
+          <div class="mt-1 flex min-w-0 items-center gap-2" title="${escapeHtml(fullReference)}">
+            <span class="shrink-0 text-[10px] font-black text-[#F3BA2F]/70">#</span>
+            <span class="truncate font-mono text-[13px] font-black leading-tight text-white sm:text-[14px]">${reference}</span>
+          </div>
           <div class="text-[11px] sm:text-[12px] font-semibold text-white/75 mt-1 leading-tight">Movimiento: ${escapeHtml(soldDate)}</div>
           <div class="text-[11px] sm:text-[12px] font-semibold text-white/75 mt-1 leading-tight">Agregada a Payroll: ${escapeHtml(payrollAddedDate)}</div>
         </div>
-        <div class="text-left sm:text-right">
+        <div class="flex flex-wrap items-center justify-between gap-2 border-t border-white/5 pt-2.5">
           <div class="text-[13px] sm:text-[14px] font-mono font-black text-rose-300">-${amt}</div>
-          <div class="mt-1.5 flex flex-wrap items-center justify-start sm:justify-end gap-1.5">
+          <div class="flex flex-wrap items-center justify-end gap-1.5">
             <span class="inline-flex px-2 py-0.5 rounded-md border border-white/10 bg-white/5 text-[10px] sm:text-[11px] font-black uppercase tracking-[0.1em] text-white/75">${asset}</span>
             <span class="inline-flex px-2 py-0.5 rounded-md border border-sky-400/20 bg-sky-500/10 text-[10px] sm:text-[11px] font-black uppercase tracking-[0.1em] text-sky-300">${typeLabel}</span>
             ${network ? `<span class="inline-flex px-2 py-0.5 rounded-md border border-[#F3BA2F]/20 bg-[#F3BA2F]/10 text-[10px] sm:text-[11px] font-black uppercase tracking-[0.1em] text-[#F3BA2F]">${network}</span>` : ''}
