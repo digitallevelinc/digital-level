@@ -9,15 +9,12 @@ import BalanceLedger from '../../components/dashboard/BalanceLedger.astro';
 import Profit from '../../components/dashboard/profit.astro';
 import ComisionOperador from '../../components/dashboard/ComisionOperador.astro'; 
 // // import ProyeccionGanancias from '../../components/dashboard/ProyeccionGanancias.astro';
-import CycleResolveModal from '../../components/dashboard/CycleResolveModal.astro';
 import CloseCycleButton from '../../components/dashboard/CloseCycleButton.astro';
 import 'flatpickr/dist/flatpickr.min.css';
 import 'flatpickr/dist/themes/dark.css';
 ---
 
 <DashboardLayout>
-  <!-- MODAL DE RESOLUCION DE BS. PENDIENTES -->
-  <CycleResolveModal />
   <!-- BOTON DE CIERRE MANUAL DE CICLO -->
   <CloseCycleButton />
 

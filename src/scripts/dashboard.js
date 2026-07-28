@@ -16,7 +16,6 @@ import { initCardHelpTooltips } from './dashboard/cardHelp.js';
 import { initDashboardNotifications } from './dashboard/notifications.js';
 // import { initManualPromisesUI, refreshManualPromisesUI } from './dashboard/manualPromises.js';
 import { updateCapitalControlUI } from './dashboard/capitalControl.js';
-import { initCycleResolveModal } from './dashboard/cycleResolveModal.js';
 import { initCloseCycleButton } from './dashboard/closeCycleButton.js';
 const KPI_REQUEST_TIMEOUT_MS = 12000;
 const LIVE_KPI_FAST_REFRESH_DELAY_MS = 4500;
@@ -435,7 +434,6 @@ export async function initDashboard() {
 
     initDashboardNotifications({ apiBase: API_BASE, token });
     // initManualPromisesUI(API_BASE, token);
-    initCycleResolveModal({ apiBase: API_BASE, token });
     initCloseCycleButton();
 
     const logoutBtn = document.getElementById('logout-btn');

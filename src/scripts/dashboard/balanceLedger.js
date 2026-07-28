@@ -2440,47 +2440,6 @@ const renderCoverageDebugTrigger = (cycleData = {}, fiatLabel = 'FIAT') => {
         </div>`;
 };
 
-const shouldShowResolveAction = (tx = {}) => {
-    const category = getCategory(String(tx?.type || '').toUpperCase());
-    if (category !== 'PAY' && category !== 'RED') return false;
-
-    const normalizedTxType = normalizeTxType(tx);
-    return normalizedTxType !== 'DIVIDEND';
-};
-
-const getResolveActionTransferId = (tx = {}) => {
-    const normalizedTxType = normalizeTxType(tx);
-    const asset = String(tx?.asset || '').toUpperCase();
-    const status = String(tx?.status || '').toUpperCase();
-    const amount = Number(tx?.amount || 0);
-
-    if ((normalizedTxType !== 'PAY_RECEIVED' && normalizedTxType !== 'DEPOSIT') || amount <= 0) {
-        return '';
-    }
-
-    if (status && status !== 'SUCCESS') return '';
-    if (asset && asset !== 'USDT') return '';
-
-    return String(tx?.id || '').trim();
-};
-
-const renderResolveAction = (tx = {}) => {
-    if (!shouldShowResolveAction(tx)) return '';
-
-    const transferId = getResolveActionTransferId(tx);
-    const transferAttr = transferId ? ` data-transfer-id="${escapeHtml(transferId)}"` : '';
-
-    return `
-        <button type="button" class="ledger-resolve-btn" data-ledger-resolve${transferAttr}>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <path d="M21 12a9 9 0 1 1-2.64-6.36" />
-                <path d="M21 3v6h-6" />
-            </svg>
-            <span>Resolver Fiat</span>
-        </button>
-    `;
-};
-
 const renderRow = (tx, rowBalance, cycleData = undefined, balanceNegativeInfo = null) => {
     const isSettlement = isSettlementTransfer(tx);
     const category = isSettlement ? 'LIQUID' : getCategory(tx.type);
@@ -2673,8 +2632,6 @@ const renderRow = (tx, rowBalance, cycleData = undefined, balanceNegativeInfo = 
         : '';
     const receiversHtml = hasReceivers ? renderReceiversDetail(receivers) : '';
 
-    const resolveActionHtml = renderResolveAction(tx);
-
     return `
         <article class="ledger-row ${rowTone}${exchangeRowTone}${isDispersorPending ? ' ledger-row-dispersor-pending' : ''}">
             <div class="ledger-mobile-card">
@@ -2694,7 +2651,6 @@ const renderRow = (tx, rowBalance, cycleData = undefined, balanceNegativeInfo = 
                     <div class="ledger-mobile-kicker-block">
                         <div class="ledger-mobile-kicker-text">${directionLabel}${methodText ? ` | ${methodText}` : ''}</div>
                         ${spreadReferenceTrigger ? `<div class="ledger-mobile-kicker-action">${spreadReferenceTrigger}</div>` : ''}
-                        ${resolveActionHtml ? `<div class="ledger-mobile-kicker-action">${resolveActionHtml}</div>` : ''}
                     </div>
                     ${toggleBtnHtml}
                 </div>
@@ -2717,7 +2673,6 @@ const renderRow = (tx, rowBalance, cycleData = undefined, balanceNegativeInfo = 
                     <div class="ledger-direction-stack">
                         <div class="ledger-date-sub">${directionLabel}</div>
                         ${spreadReferenceTrigger ? `<div class="ledger-date-action">${spreadReferenceTrigger}</div>` : ''}
-                        ${resolveActionHtml ? `<div class="ledger-date-action">${resolveActionHtml}</div>` : ''}
                     </div>
                 </div>
                 <div class="ledger-description-col">
@@ -3474,16 +3429,6 @@ const bindEventsOnce = () => {
             if (hasActiveSearch()) return;
             if (state.page >= state.totalPages) return;
             void fetchTransfersPage(state.page + 1);
-            return;
-        }
-
-        const resolveBtn = target.closest('[data-ledger-resolve]');
-        if (resolveBtn) {
-            event.preventDefault();
-            const transferId = String(resolveBtn?.dataset?.transferId || '').trim();
-            if (typeof window.openCycleResolveModal === 'function') {
-                window.openCycleResolveModal(transferId || null);
-            }
             return;
         }
 
