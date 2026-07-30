@@ -707,6 +707,71 @@
         height: 0.95rem;
     }
 
+    .ledger-pagomovil-fee-toggle {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        min-height: 1.9rem;
+        color: rgba(255, 255, 255, 0.58);
+        font-size: 0.62rem;
+        font-weight: 800;
+        letter-spacing: 0.035em;
+        line-height: 1;
+        cursor: pointer;
+        user-select: none;
+        white-space: nowrap;
+    }
+
+    .ledger-pagomovil-fee-toggle input {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+        clip: rect(0 0 0 0);
+        clip-path: inset(50%);
+        white-space: nowrap;
+    }
+
+    .ledger-pagomovil-fee-toggle-box {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 1.1rem;
+        height: 1.1rem;
+        border: 1px solid rgba(243, 186, 47, 0.42);
+        border-radius: 0.3rem;
+        background: rgba(243, 186, 47, 0.06);
+        color: transparent;
+        transition: background 160ms ease, border-color 160ms ease, color 160ms ease, transform 160ms ease;
+    }
+
+    .ledger-pagomovil-fee-toggle-box svg {
+        width: 0.78rem;
+        height: 0.78rem;
+    }
+
+    .ledger-pagomovil-fee-toggle:hover .ledger-pagomovil-fee-toggle-box,
+    .ledger-pagomovil-fee-toggle input:focus-visible + .ledger-pagomovil-fee-toggle-box {
+        border-color: rgba(253, 230, 138, 0.9);
+        transform: translateY(-1px);
+        outline: none;
+    }
+
+    .ledger-pagomovil-fee-toggle input:checked + .ledger-pagomovil-fee-toggle-box {
+        border-color: rgba(52, 211, 153, 0.72);
+        background: rgba(16, 185, 129, 0.18);
+        color: #6ee7b7;
+    }
+
+    .ledger-pagomovil-fee-toggle.is-excluded {
+        color: #86efac;
+    }
+
+    .ledger-pagomovil-fee-toggle input:disabled + .ledger-pagomovil-fee-toggle-box {
+        opacity: 0.55;
+        cursor: wait;
+    }
+
     .ledger-spread-tooltip {
         display: none;
         position: absolute;
@@ -995,7 +1060,9 @@
     .ledger-mobile-kicker-action,
     .ledger-date-action {
         display: flex;
+        flex-direction: column;
         align-items: flex-start;
+        gap: 0.32rem;
     }
 
     .ledger-resolve-btn {

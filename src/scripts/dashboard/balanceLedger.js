@@ -2175,6 +2175,40 @@ const renderSpreadReferenceTrigger = (tx = {}, cycleData = undefined) => {
     `;
 };
 
+const isPagoMovilBankFeeEligible = (tx = {}) => {
+    const paymentMethod = String(tx?.paymentMethod || '').replace(/\s+/g, ' ').trim();
+    return normalizeTxType(tx) === 'P2P_BUY'
+        && String(tx?.fiatCurrency || '').trim().toUpperCase() === 'VES'
+        && /PAGO\s*MOVIL/i.test(paymentMethod);
+};
+
+const renderPagoMovilBankFeeToggle = (tx = {}) => {
+    if (!isPagoMovilBankFeeEligible(tx) || !tx?.id) return '';
+
+    const excluded = Boolean(tx?.pagoMovilBankFeeExcluded);
+    const label = excluded ? '0,3% excluido' : 'Quitar 0,3%';
+    const hint = excluded
+        ? 'La comisión bancaria de 0,3% está excluida para esta operación.'
+        : 'Marca para quitar la comisión bancaria de 0,3% solo en esta operación.';
+
+    return `
+        <label class="ledger-pagomovil-fee-toggle${excluded ? ' is-excluded' : ''}" title="${escapeHtml(hint)}">
+            <input
+                type="checkbox"
+                data-pagomovil-bank-fee-toggle
+                data-transfer-id="${escapeHtml(tx.id)}"
+                ${excluded ? 'checked' : ''}
+            />
+            <span class="ledger-pagomovil-fee-toggle-box" aria-hidden="true">
+                <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="m3.2 8.1 2.9 2.8 6.7-6.2"/>
+                </svg>
+            </span>
+            <span>${escapeHtml(label)}</span>
+        </label>
+    `;
+};
+
 const closeSpreadTooltips = (root = document) => {
     root.querySelectorAll('[data-spread-anchor].is-open').forEach((anchor) => {
         anchor.classList.remove('is-open');
@@ -2596,6 +2630,8 @@ const renderRow = (tx, rowBalance, cycleData = undefined, balanceNegativeInfo = 
     const methodText = tx?.paymentMethod ? escapeHtml(String(tx.paymentMethod).toUpperCase()) : '';
     const directionLabel = signedAmount < 0 ? 'Salida' : 'Entrada';
     const spreadReferenceTrigger = renderSpreadReferenceTrigger(tx, cycleData);
+    const pagoMovilBankFeeToggle = renderPagoMovilBankFeeToggle(tx);
+    const ledgerActionHtml = [spreadReferenceTrigger, pagoMovilBankFeeToggle].filter(Boolean).join('');
     const fiatText = spreadDetails?.isInterbank
         ? `${formatNumber(spreadDetails.adjustedBuyFiat, 2)} ${getFiatLabel(tx)}`
         : formatFiat(tx);
@@ -2650,7 +2686,7 @@ const renderRow = (tx, rowBalance, cycleData = undefined, balanceNegativeInfo = 
                 <div class="ledger-mobile-kicker-row">
                     <div class="ledger-mobile-kicker-block">
                         <div class="ledger-mobile-kicker-text">${directionLabel}${methodText ? ` | ${methodText}` : ''}</div>
-                        ${spreadReferenceTrigger ? `<div class="ledger-mobile-kicker-action">${spreadReferenceTrigger}</div>` : ''}
+                        ${ledgerActionHtml ? `<div class="ledger-mobile-kicker-action">${ledgerActionHtml}</div>` : ''}
                     </div>
                     ${toggleBtnHtml}
                 </div>
@@ -2672,7 +2708,7 @@ const renderRow = (tx, rowBalance, cycleData = undefined, balanceNegativeInfo = 
                     <div class="ledger-date-main">${escapeHtml(formatPostingDate(tx.timestamp))}</div>
                     <div class="ledger-direction-stack">
                         <div class="ledger-date-sub">${directionLabel}</div>
-                        ${spreadReferenceTrigger ? `<div class="ledger-date-action">${spreadReferenceTrigger}</div>` : ''}
+                        ${ledgerActionHtml ? `<div class="ledger-date-action">${ledgerActionHtml}</div>` : ''}
                     </div>
                 </div>
                 <div class="ledger-description-col">
@@ -3394,6 +3430,50 @@ const bindEventsOnce = () => {
         if (!(target instanceof HTMLInputElement)) return;
         if (target.id !== 'balance-ledger-search') return;
         applySearchTerm(target.value, true);
+    });
+
+    document.addEventListener('change', async (event) => {
+        const target = event.target;
+        if (!(target instanceof HTMLInputElement) || !target.matches('[data-pagomovil-bank-fee-toggle]')) return;
+
+        const transferId = String(target.dataset.transferId || '').trim();
+        const excludeBankFee = target.checked;
+        if (!transferId || !state.apiBase || !state.token) {
+            target.checked = !excludeBankFee;
+            return;
+        }
+
+        target.disabled = true;
+        try {
+            const res = await fetch(
+                `${String(state.apiBase).replace(/\/+$/, '')}/api/transfers/${encodeURIComponent(transferId)}/pago-movil-bank-fee`,
+                {
+                    method: 'PATCH',
+                    headers: {
+                        Authorization: `Bearer ${state.token}`,
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ excludeBankFee }),
+                },
+            );
+
+            if (!res.ok) {
+                if (res.status === 401 || res.status === 403) state.onAuthError?.();
+                throw new Error(`HTTP ${res.status}`);
+            }
+
+            // The backend invalidates KPIs and returns the recalculated fee. Reload
+            // this page so the ledger, checkbox and associated cycle recalculate
+            // from exactly the same persisted operation.
+            await fetchTransfersPage(state.page, {
+                showLoading: false,
+                preserveOnError: true,
+            });
+        } catch (error) {
+            console.warn('No fue posible actualizar la comisión de Pago Móvil:', error);
+            target.checked = !excludeBankFee;
+            target.disabled = false;
+        }
     });
 
     document.addEventListener('click', (event) => {
