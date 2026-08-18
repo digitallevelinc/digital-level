@@ -1863,17 +1863,16 @@ export const computeTxSpread = (tx = {}, override = 0, options = {}) => {
         ? inferredSellRole
         : (buyRole === 'MAKER' || buyRole === 'TAKER' ? buyRole : inferredSellRole);
 
-    // Cada recompra solo consume una porción de la venta emparejada. Por eso
-    // su fee explícito se prorratea por el USDT efectivamente usado; cobrarlo
-    // completo en cada recompra duplicaría el costo de una venta grande.
+    // The visible MAKER spread charges the fee recorded on the buy itself.
+    // A paired sell fee only applies to the legacy TAKER fee path.
     const sellFeePortion = sellAmountSource > 0
         ? Math.min(1, Math.max(0, (sellGross > 0 ? sellGross : sellGrossBase) / sellAmountSource))
         : 1;
-    const sellFee = sellFeeSource > 0
-        ? sellFeeSource * sellFeePortion
-        : effectiveSellRole === 'TAKER'
-            ? (getAvgTakerSellFeeForBank(tx) || 0.06)
-            : 0;
+    const sellFee = effectiveSellRole === 'TAKER'
+        ? (sellFeeSource > 0
+            ? sellFeeSource * sellFeePortion
+            : (getAvgTakerSellFeeForBank(tx) || 0.06))
+        : 0;
 
     const totalFee = sellFee + buyFee;
     const sellUsdtOut = sellGross + totalFee;

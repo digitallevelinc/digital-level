@@ -34,7 +34,7 @@ test('includes an explicit BUY fee in the spread cost', () => {
     assert.ok(Math.abs(result.details.totalFee - 0.34) < 1e-9);
 });
 
-test('allocates the fee of a large matched sell to the consumed portion', () => {
+test('does not add a matched MAKER sell fee to a MAKER buy spread', () => {
     const result = computeTxSpread(
         {
             type: 'P2P_BUY',
@@ -57,7 +57,7 @@ test('allocates the fee of a large matched sell to the consumed portion', () => 
         },
     );
 
-    assert.equal(Math.trunc(result.val * 100) / 100, 0.03);
-    assert.ok(Math.abs(result.details.sellFee - 0.3042) < 0.001);
-    assert.ok(Math.abs(result.details.totalFee - 0.6042) < 0.001);
+    assert.equal(Math.trunc(result.val * 100) / 100, 0.34);
+    assert.equal(result.details.sellFee, 0);
+    assert.ok(Math.abs(result.details.totalFee - 0.30) < 0.001);
 });

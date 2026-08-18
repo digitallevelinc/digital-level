@@ -106,7 +106,7 @@ try:
 
         partial_row = page.locator("#balance-ledger-body").get_by_text("Recompra parcial prueba").locator("xpath=ancestor::article")
         partial_row.wait_for(state="visible", timeout=20_000)
-        assert "+$0.03" in partial_row.inner_text(), partial_row.inner_text()
+        assert "+$0.34" in partial_row.inner_text(), partial_row.inner_text()
         browser.close()
 finally:
     server.terminate()
