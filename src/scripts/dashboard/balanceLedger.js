@@ -1863,11 +1863,14 @@ export const computeTxSpread = (tx = {}, override = 0, options = {}) => {
         ? inferredSellRole
         : (buyRole === 'MAKER' || buyRole === 'TAKER' ? buyRole : inferredSellRole);
 
-    // Todo fee USDT registrado en la compra o la venta forma parte de su
-    // costo, sin importar si la orden fue MAKER o TAKER. El rol solo permite
-    // estimar un fee cuando Binance no devolvió uno explícito en la venta.
+    // Cada recompra solo consume una porción de la venta emparejada. Por eso
+    // su fee explícito se prorratea por el USDT efectivamente usado; cobrarlo
+    // completo en cada recompra duplicaría el costo de una venta grande.
+    const sellFeePortion = sellAmountSource > 0
+        ? Math.min(1, Math.max(0, (sellGross > 0 ? sellGross : sellGrossBase) / sellAmountSource))
+        : 1;
     const sellFee = sellFeeSource > 0
-        ? sellFeeSource
+        ? sellFeeSource * sellFeePortion
         : effectiveSellRole === 'TAKER'
             ? (getAvgTakerSellFeeForBank(tx) || 0.06)
             : 0;

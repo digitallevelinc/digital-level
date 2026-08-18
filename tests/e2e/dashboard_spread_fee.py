@@ -38,6 +38,22 @@ def api_handler(route):
         return route.fulfill(json={
             "transfers": [
                 {
+                    "id": "large-sell", "timestamp": "2026-08-18T18:29:11.556Z",
+                    "type": "P2P_SELL", "amount": 852.97, "asset": "USDT",
+                    "status": "SUCCESS", "paymentMethod": "BancodeVenezuela",
+                    "fiatAmount": 760000, "fiatCurrency": "VES",
+                    "exchangeRate": 891, "fee": 1.49, "feeCurrency": "USDT",
+                    "advertisementRole": "MAKER", "counterpartyName": "Venta grande prueba",
+                },
+                {
+                    "id": "partial-buy", "timestamp": "2026-08-18T18:30:48.999Z",
+                    "type": "P2P_BUY", "amount": 175.04, "asset": "USDT",
+                    "status": "SUCCESS", "paymentMethod": "BancodeVenezuela",
+                    "fiatAmount": 155120.448, "fiatCurrency": "VES",
+                    "exchangeRate": 886.20, "fee": 0.30, "feeCurrency": "USDT",
+                    "advertisementRole": "MAKER", "counterpartyName": "Recompra parcial prueba",
+                },
+                {
                     "id": "buy-fee", "timestamp": "2026-08-18T18:41:00.000Z",
                     "type": "P2P_BUY", "amount": 199.94, "asset": "USDT",
                     "status": "SUCCESS", "paymentMethod": "Bank",
@@ -54,7 +70,7 @@ def api_handler(route):
                     "advertisementRole": "MAKER", "counterpartyName": "Venta prueba",
                 },
             ],
-            "pagination": {"total": 2, "totalPages": 1, "page": 1},
+            "pagination": {"total": 4, "totalPages": 1, "page": 1},
             "closingBalance": 1000,
         })
     return route.fulfill(json={})
@@ -87,6 +103,10 @@ try:
         expected_spread = "199,60 - 198,57 = 1,0315"
         assert any(expected_formula in text for text in tooltip_texts), tooltip_texts
         assert any(expected_spread in text for text in tooltip_texts), tooltip_texts
+
+        partial_row = page.locator("#balance-ledger-body").get_by_text("Recompra parcial prueba").locator("xpath=ancestor::article")
+        partial_row.wait_for(state="visible", timeout=20_000)
+        assert "+$0.03" in partial_row.inner_text(), partial_row.inner_text()
         browser.close()
 finally:
     server.terminate()
