@@ -6,6 +6,7 @@
     "dev": "astro dev",
     "build": "astro build",
     "test": "node --test",
+    "test:e2e": "python tests/e2e/dashboard_spread_fee.py",
     "preview": "astro preview",
     "astro": "astro"
   },

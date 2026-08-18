@@ -1749,6 +1749,11 @@ export const computeTxSpread = (tx = {}, override = 0, options = {}) => {
     // Monto neto recibido en la compra (getSignedAmount ya descuenta el fee)
     const buyUsdtIn = getSignedAmount(tx);
     if (buyUsdtIn <= 0) return { val: 0 };
+    const rawBuyFee = toFiniteNumber(tx?.fee);
+    const buyFeeCurrency = String(tx?.feeCurrency || '').toUpperCase();
+    const buyFee = rawBuyFee > 0 && (!buyFeeCurrency || buyFeeCurrency === 'USDT')
+        ? rawBuyFee
+        : 0;
 
     const nearestSell = getNearestSellForBuy(tx);
     const hasStructuredOverride = override && typeof override === 'object';
@@ -1858,16 +1863,17 @@ export const computeTxSpread = (tx = {}, override = 0, options = {}) => {
         ? inferredSellRole
         : (buyRole === 'MAKER' || buyRole === 'TAKER' ? buyRole : inferredSellRole);
 
-    // Todo fee USDT registrado en la venta forma parte de su costo, sin
-    // importar si la orden fue MAKER o TAKER. El rol solo permite estimar un
-    // fee cuando Binance no devolvió uno explícito.
+    // Todo fee USDT registrado en la compra o la venta forma parte de su
+    // costo, sin importar si la orden fue MAKER o TAKER. El rol solo permite
+    // estimar un fee cuando Binance no devolvió uno explícito en la venta.
     const sellFee = sellFeeSource > 0
         ? sellFeeSource
         : effectiveSellRole === 'TAKER'
             ? (getAvgTakerSellFeeForBank(tx) || 0.06)
             : 0;
 
-    const sellUsdtOut = sellGross + sellFee;
+    const totalFee = sellFee + buyFee;
+    const sellUsdtOut = sellGross + totalFee;
 
     // Spread = monto neto compra − costo total venta
     const val = buyUsdtIn - sellUsdtOut;
@@ -1885,7 +1891,9 @@ export const computeTxSpread = (tx = {}, override = 0, options = {}) => {
             effectiveSellRole,
             buyUsdtIn,
             sellUsdtOut,
-            sellFee: sellUsdtOut - sellGross,
+            buyFee,
+            sellFee,
+            totalFee,
             buyPaymentMethod,
             sellPaymentMethod,
         }
@@ -2524,7 +2532,7 @@ const renderRow = (tx, rowBalance, cycleData = undefined, balanceNegativeInfo = 
                 ? `${formatNumber(details.buyFiat, 2)} - ${formatNumber(details.interbankFiatDiscount, 2)} (0.3%) = ${formatNumber(details.adjustedBuyFiat, 2)}`
                 : '';
             const step1Base = `${formatNumber(details.sellFiatPortionBase ?? details.buyFiat, 2)} / ${formatNumber(details.sellRate, 2)} = ${formatNumber(details.sellGrossBase ?? details.sellGross, 4)}`;
-            const stepOut = details.sellFee > 0 ? `${formatNumber(details.sellGross, 4)} + ${formatNumber(details.sellFee, 2)} = ${formatNumber(details.sellUsdtOut, 4)}` : '';
+            const stepOut = details.totalFee > 0 ? `${formatNumber(details.sellGross, 4)} + ${formatNumber(details.totalFee, 2)} (fees) = ${formatNumber(details.sellUsdtOut, 4)}` : '';
             const step2 = `${formatNumber(details.buyUsdtIn, 2)} - ${formatNumber(details.sellUsdtOut, 2)} = ${formatNumber(spreadValRaw, 4)}`;
 
             extraHtml = `
