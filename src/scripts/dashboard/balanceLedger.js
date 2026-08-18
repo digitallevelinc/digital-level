@@ -1741,7 +1741,7 @@ const getFallbackSpreadPercent = () => {
     return 0;
 };
 
-const computeTxSpread = (tx = {}, override = 0, options = {}) => {
+export const computeTxSpread = (tx = {}, override = 0, options = {}) => {
     const type = normalizeTxType(tx);
     if (isLedgerSellTarget(tx)) return { val: 0 }; // Ventas y promesas no muestran spread individual
     if (type !== 'P2P_BUY') return { val: 0 };
@@ -1858,19 +1858,16 @@ const computeTxSpread = (tx = {}, override = 0, options = {}) => {
         ? inferredSellRole
         : (buyRole === 'MAKER' || buyRole === 'TAKER' ? buyRole : inferredSellRole);
 
-    const sellFee = effectiveSellRole === 'TAKER'
-        ? (
-            (sellIsPromise || forceSellRole)
-                ? sellFeeSource
-                : (getAvgTakerSellFeeForBank(tx) || 0.06)
-        )
-        : 0;
+    // Todo fee USDT registrado en la venta forma parte de su costo, sin
+    // importar si la orden fue MAKER o TAKER. El rol solo permite estimar un
+    // fee cuando Binance no devolvió uno explícito.
+    const sellFee = sellFeeSource > 0
+        ? sellFeeSource
+        : effectiveSellRole === 'TAKER'
+            ? (getAvgTakerSellFeeForBank(tx) || 0.06)
+            : 0;
 
-    // Fórmula a (TAKER):  VES/rate + fee
-    // Fórmula b (MAKER):  VES/rate  (sin ajuste de comisión)
-    const sellUsdtOut = effectiveSellRole === 'TAKER'
-        ? sellGross + sellFee
-        : sellGross;
+    const sellUsdtOut = sellGross + sellFee;
 
     // Spread = monto neto compra − costo total venta
     const val = buyUsdtIn - sellUsdtOut;
@@ -2527,7 +2524,7 @@ const renderRow = (tx, rowBalance, cycleData = undefined, balanceNegativeInfo = 
                 ? `${formatNumber(details.buyFiat, 2)} - ${formatNumber(details.interbankFiatDiscount, 2)} (0.3%) = ${formatNumber(details.adjustedBuyFiat, 2)}`
                 : '';
             const step1Base = `${formatNumber(details.sellFiatPortionBase ?? details.buyFiat, 2)} / ${formatNumber(details.sellRate, 2)} = ${formatNumber(details.sellGrossBase ?? details.sellGross, 4)}`;
-            const stepOut = details.effectiveSellRole === 'TAKER' ? `${formatNumber(details.sellGross, 4)} + ${formatNumber(details.sellFee, 2)} = ${formatNumber(details.sellUsdtOut, 4)}` : '';
+            const stepOut = details.sellFee > 0 ? `${formatNumber(details.sellGross, 4)} + ${formatNumber(details.sellFee, 2)} = ${formatNumber(details.sellUsdtOut, 4)}` : '';
             const step2 = `${formatNumber(details.buyUsdtIn, 2)} - ${formatNumber(details.sellUsdtOut, 2)} = ${formatNumber(spreadValRaw, 4)}`;
 
             extraHtml = `
