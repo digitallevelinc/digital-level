@@ -39,7 +39,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
           cache: 'npm'
 
       - name: Install dependencies
@@ -58,17 +58,16 @@ jobs:
         run: ls -lh landing-dist.tar.gz
 
       - name: Prepare SSH client
+        timeout-minutes: 2
         shell: bash
         env:
           VPS_HOST: ${{ secrets.VPS_HOST }}
           VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
         run: |
           set -euo pipefail
-          sudo apt-get update
-          sudo apt-get install -y openssh-client sshpass netcat-openbsd
           mkdir -p ~/.ssh
           chmod 700 ~/.ssh
-          ssh-keyscan -t rsa,ecdsa,ed25519 -H "${VPS_HOST}" >> ~/.ssh/known_hosts 2>/dev/null || true
+          ssh-keyscan -T 5 -t rsa,ecdsa,ed25519 -H "${VPS_HOST}" >> ~/.ssh/known_hosts 2>/dev/null || true
           chmod 644 ~/.ssh/known_hosts
           if [ -n "${VPS_SSH_KEY}" ]; then
             printf '%s\n' "${VPS_SSH_KEY}" > ~/.ssh/deploy_key
@@ -76,6 +75,7 @@ jobs:
           fi
 
       - name: Test VPS connectivity
+        timeout-minutes: 2
         shell: bash
         env:
           VPS_HOST: ${{ secrets.VPS_HOST }}
@@ -87,6 +87,7 @@ jobs:
           fi
 
       - name: Upload and deploy to VPS
+        timeout-minutes: 5
         shell: bash
         env:
           VPS_HOST: ${{ secrets.VPS_HOST }}
